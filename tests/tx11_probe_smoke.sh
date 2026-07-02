@@ -35,6 +35,8 @@ for pattern in \
   "ewmh initialized" \
   "wm claimed" \
   "windows count=" \
+  "backend_event OutputDiscovered" \
+  "dry_run_msg WlOutput" \
   "probe complete once=true"; do
   if ! grep -q "$pattern" "$log"; then
     printf '%s\n' "tx11_probe_smoke: missing log pattern: $pattern" >&2

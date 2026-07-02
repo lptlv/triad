@@ -3,6 +3,34 @@ import std/strutils
 import ../core/msg
 
 type
+  X11ProbeEventKind* {.size: sizeof(cuint).} = enum
+    XpeWindowDiscovered = 0
+    XpeWindowDestroyed = 1
+    XpeWindowUnmapped = 2
+    XpeOutputDiscovered = 3
+    XpeConfigureRequested = 4
+    XpePropertyChanged = 5
+    XpeFocusChanged = 6
+    XpePointerEntered = 7
+    XpeRandrChanged = 8
+
+  X11ProbeEvent* {.bycopy.} = object
+    kind*: X11ProbeEventKind
+    id*: uint32
+    parentId*: uint32
+    pid*: int32
+    x*, y*, w*, h*: int32
+    valueMask*: uint32
+    sibling*: uint32
+    stackMode*: uint32
+    root*: uint32
+    overrideRedirect*: uint8
+    mapped*: uint8
+    connected*: uint8
+    focused*: uint8
+    name*: array[256, char]
+    title*: array[512, char]
+
   X11BackendEventKind* {.pure.} = enum
     WindowDiscovered
     WindowDestroyed
@@ -70,6 +98,84 @@ proc appIdFromWmClass*(wmClass: string): string =
   if slash >= 0 and slash + 1 < cleaned.len:
     return cleaned[slash + 1 .. ^1]
   cleaned
+
+proc cArrayString[N: static[int]](value: array[N, char]): string =
+  for ch in value:
+    if ch == '\0':
+      break
+    result.add(ch)
+
+proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
+  case event.kind
+  of XpeWindowDiscovered:
+    X11BackendEvent(
+      kind: X11BackendEventKind.WindowDiscovered,
+      window: X11WindowSnapshot(
+        id: event.id,
+        parentId: event.parentId,
+        pid: event.pid,
+        wmClass: event.name.cArrayString(),
+        title: event.title.cArrayString(),
+        x: event.x,
+        y: event.y,
+        w: event.w,
+        h: event.h,
+        overrideRedirect: event.overrideRedirect != 0,
+        mapped: event.mapped != 0,
+      ),
+    )
+  of XpeWindowDestroyed:
+    X11BackendEvent(kind: X11BackendEventKind.WindowDestroyed, windowId: event.id)
+  of XpeWindowUnmapped:
+    X11BackendEvent(kind: X11BackendEventKind.WindowUnmapped, windowId: event.id)
+  of XpeOutputDiscovered:
+    X11BackendEvent(
+      kind: X11BackendEventKind.OutputDiscovered,
+      output: X11OutputSnapshot(
+        id: event.id,
+        name: event.name.cArrayString(),
+        connected: event.connected != 0,
+        x: event.x,
+        y: event.y,
+        w: event.w,
+        h: event.h,
+      ),
+    )
+  of XpeConfigureRequested:
+    X11BackendEvent(
+      kind: X11BackendEventKind.ConfigureRequested,
+      configure: X11ConfigureRequest(
+        windowId: event.id,
+        valueMask: event.valueMask,
+        x: event.x,
+        y: event.y,
+        w: event.w,
+        h: event.h,
+        sibling: event.sibling,
+        stackMode: event.stackMode,
+      ),
+    )
+  of XpePropertyChanged:
+    X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: event.id,
+      propertyAtom: event.name.cArrayString(),
+    )
+  of XpeFocusChanged:
+    X11BackendEvent(
+      kind: X11BackendEventKind.FocusChanged,
+      focusWindowId: event.id,
+      focused: event.focused != 0,
+    )
+  of XpePointerEntered:
+    X11BackendEvent(kind: X11BackendEventKind.PointerEntered, enterWindowId: event.id)
+  of XpeRandrChanged:
+    X11BackendEvent(
+      kind: X11BackendEventKind.RandrChanged,
+      randrRoot: event.root,
+      randrW: event.w,
+      randrH: event.h,
+    )
 
 proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   case event.kind

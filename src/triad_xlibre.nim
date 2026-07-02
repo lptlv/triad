@@ -5,7 +5,8 @@ import x11/probe
 const Usage = """
 usage: triad_xlibre [--display DISPLAY] [--once] [--help]
 
-Experimental XLibre/X11 event probe.
+Experimental XLibre/X11 event probe. Typed events are mapped to dry-run Triad
+messages and logged without applying them to the model.
 
 Options:
   --display DISPLAY  Connect to DISPLAY instead of $DISPLAY.

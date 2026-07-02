@@ -383,6 +383,7 @@
               pkgs.libxkbcommon
               pkgs.pixman
               pkgs.xorg.libxcb
+              pkgs.xorg.xorgserver
               pkgs.xorg.xcbutilwm
             ];
 

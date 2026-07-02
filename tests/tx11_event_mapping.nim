@@ -4,6 +4,93 @@ import ../src/core/msg
 import ../src/x11/events
 
 suite "X11 event mapping":
+  test "raw probe window event maps to typed backend event":
+    var raw = X11ProbeEvent(
+      kind: XpeWindowDiscovered,
+      id: 0x2a,
+      parentId: 7,
+      pid: 1234,
+      x: 10,
+      y: 20,
+      w: 800,
+      h: 600,
+      mapped: 1,
+    )
+    for idx, ch in "kitty/kitty":
+      raw.name[idx] = ch
+    for idx, ch in "Terminal":
+      raw.title[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.WindowDiscovered
+    check event.window.id == 0x2a
+    check event.window.parentId == 7
+    check event.window.pid == 1234
+    check event.window.wmClass == "kitty/kitty"
+    check event.window.title == "Terminal"
+    check event.window.x == 10
+    check event.window.y == 20
+    check event.window.w == 800
+    check event.window.h == 600
+    check event.window.mapped
+
+  test "raw probe output event maps to typed backend event":
+    var raw = X11ProbeEvent(
+      kind: XpeOutputDiscovered,
+      id: 5,
+      connected: 1,
+      x: 1920,
+      y: 0,
+      w: 2560,
+      h: 1440,
+    )
+    for idx, ch in "DP-1":
+      raw.name[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.OutputDiscovered
+    check event.output.id == 5
+    check event.output.name == "DP-1"
+    check event.output.connected
+    check event.output.x == 1920
+    check event.output.y == 0
+    check event.output.w == 2560
+    check event.output.h == 1440
+
+  test "raw probe configure and property events preserve observed data":
+    var propertyRaw = X11ProbeEvent(
+      kind: XpePropertyChanged,
+      id: 9,
+    )
+    for idx, ch in "_NET_WM_STATE":
+      propertyRaw.name[idx] = ch
+    let property = propertyRaw.backendEventFromProbe()
+    check property.kind == X11BackendEventKind.PropertyChanged
+    check property.propertyWindowId == 9
+    check property.propertyAtom == "_NET_WM_STATE"
+
+    let configure =
+      X11ProbeEvent(
+        kind: XpeConfigureRequested,
+        id: 10,
+        valueMask: 0x0f,
+        x: 1,
+        y: 2,
+        w: 300,
+        h: 200,
+        sibling: 11,
+        stackMode: 1,
+      ).backendEventFromProbe()
+    check configure.kind == X11BackendEventKind.ConfigureRequested
+    check configure.configure.windowId == 10
+    check configure.configure.valueMask == 0x0f
+    check configure.configure.x == 1
+    check configure.configure.y == 2
+    check configure.configure.w == 300
+    check configure.configure.h == 200
+    check configure.configure.sibling == 11
+    check configure.configure.stackMode == 1
+
   test "window discovery maps to creation, dimensions, and pid messages":
     let messages =
       X11BackendEvent(

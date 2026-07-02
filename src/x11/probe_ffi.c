@@ -11,6 +11,41 @@
 
 typedef void (*triad_x11_log_fn)(void *user_data, const char *message);
 
+typedef enum TriadX11EventKind {
+    TRIAD_X11_EVENT_WINDOW_DISCOVERED = 0,
+    TRIAD_X11_EVENT_WINDOW_DESTROYED = 1,
+    TRIAD_X11_EVENT_WINDOW_UNMAPPED = 2,
+    TRIAD_X11_EVENT_OUTPUT_DISCOVERED = 3,
+    TRIAD_X11_EVENT_CONFIGURE_REQUESTED = 4,
+    TRIAD_X11_EVENT_PROPERTY_CHANGED = 5,
+    TRIAD_X11_EVENT_FOCUS_CHANGED = 6,
+    TRIAD_X11_EVENT_POINTER_ENTERED = 7,
+    TRIAD_X11_EVENT_RANDR_CHANGED = 8,
+} TriadX11EventKind;
+
+typedef struct TriadX11Event {
+    TriadX11EventKind kind;
+    uint32_t id;
+    uint32_t parent_id;
+    int32_t pid;
+    int32_t x;
+    int32_t y;
+    int32_t w;
+    int32_t h;
+    uint32_t value_mask;
+    uint32_t sibling;
+    uint32_t stack_mode;
+    uint32_t root;
+    uint8_t override_redirect;
+    uint8_t mapped;
+    uint8_t connected;
+    uint8_t focused;
+    char name[256];
+    char title[512];
+} TriadX11Event;
+
+typedef void (*triad_x11_event_fn)(void *user_data, const TriadX11Event *event);
+
 typedef struct TriadX11Atoms {
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_window;
@@ -39,6 +74,7 @@ typedef struct TriadX11Probe {
     const xcb_query_extension_reply_t *randr_ext;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
+    triad_x11_event_fn event;
     void *log_user_data;
 } TriadX11Probe;
 
@@ -53,6 +89,22 @@ static void probe_log(TriadX11Probe *probe, const char *fmt, ...)
 
     if (probe->log != NULL)
         probe->log(probe->log_user_data, buffer);
+}
+
+static void copy_text(char *dst, size_t dst_len, const char *src)
+{
+    if (dst_len == 0)
+        return;
+    dst[0] = '\0';
+    if (src == NULL)
+        return;
+    snprintf(dst, dst_len, "%s", src);
+}
+
+static void probe_event(TriadX11Probe *probe, const TriadX11Event *event)
+{
+    if (probe->event != NULL)
+        probe->event(probe->log_user_data, event);
 }
 
 static xcb_screen_t *screen_for_number(const xcb_setup_t *setup, int screen_number)
@@ -242,6 +294,22 @@ static void log_window(TriadX11Probe *probe, xcb_window_t win, const char *sourc
         class_name != NULL ? class_name : "",
         title != NULL ? title : "",
         pid);
+
+    TriadX11Event event;
+    memset(&event, 0, sizeof(event));
+    event.kind = TRIAD_X11_EVENT_WINDOW_DISCOVERED;
+    event.id = win;
+    event.parent_id = 0;
+    event.pid = (int32_t)pid;
+    event.x = geom->x;
+    event.y = geom->y;
+    event.w = geom->width;
+    event.h = geom->height;
+    event.override_redirect = attr->override_redirect ? 1 : 0;
+    event.mapped = attr->map_state == XCB_MAP_STATE_VIEWABLE ? 1 : 0;
+    copy_text(event.name, sizeof(event.name), class_name);
+    copy_text(event.title, sizeof(event.title), title);
+    probe_event(probe, &event);
 
     if (!attr->override_redirect)
         select_window_events(probe, win);
@@ -503,6 +571,19 @@ static void query_randr(TriadX11Probe *probe)
             height,
             x,
             y);
+
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_OUTPUT_DISCOVERED;
+        event.id = outputs[i];
+        event.connected =
+            info->connection == XCB_RANDR_CONNECTION_CONNECTED ? 1 : 0;
+        event.x = x;
+        event.y = y;
+        event.w = width;
+        event.h = height;
+        copy_text(event.name, sizeof(event.name), name);
+        probe_event(probe, &event);
         free(info);
     }
 
@@ -522,6 +603,13 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->root,
             ev->width,
             ev->height);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_RANDR_CHANGED;
+        event.root = ev->root;
+        event.w = ev->width;
+        event.h = ev->height;
+        probe_event(probe, &event);
         return;
     }
     if (probe->randr_ext != NULL && probe->randr_ext->present &&
@@ -552,6 +640,11 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->event,
             ev->window,
             ev->from_configure);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_WINDOW_UNMAPPED;
+        event.id = ev->window;
+        probe_event(probe, &event);
         break;
     }
     case XCB_DESTROY_NOTIFY: {
@@ -562,6 +655,11 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             event_name(type),
             ev->event,
             ev->window);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_WINDOW_DESTROYED;
+        event.id = ev->window;
+        probe_event(probe, &event);
         break;
     }
     case XCB_CONFIGURE_REQUEST: {
@@ -579,6 +677,19 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->y,
             ev->sibling,
             ev->stack_mode);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_CONFIGURE_REQUESTED;
+        event.id = ev->window;
+        event.parent_id = ev->parent;
+        event.value_mask = ev->value_mask;
+        event.x = ev->x;
+        event.y = ev->y;
+        event.w = ev->width;
+        event.h = ev->height;
+        event.sibling = ev->sibling;
+        event.stack_mode = ev->stack_mode;
+        probe_event(probe, &event);
         break;
     }
     case XCB_CONFIGURE_NOTIFY: {
@@ -608,6 +719,12 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             name,
             ev->atom,
             ev->state);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_PROPERTY_CHANGED;
+        event.id = ev->window;
+        copy_text(event.name, sizeof(event.name), name);
+        probe_event(probe, &event);
         free(name);
         break;
     }
@@ -621,6 +738,12 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->event,
             ev->mode,
             ev->detail);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_FOCUS_CHANGED;
+        event.id = ev->event;
+        event.focused = type == XCB_FOCUS_IN ? 1 : 0;
+        probe_event(probe, &event);
         break;
     }
     case XCB_ENTER_NOTIFY: {
@@ -637,6 +760,11 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->event_y,
             ev->mode,
             ev->detail);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_POINTER_ENTERED;
+        event.id = ev->event;
+        probe_event(probe, &event);
         break;
     }
     default:
@@ -649,11 +777,13 @@ int triad_x11_probe_run(
     const char *display_name,
     int once,
     triad_x11_log_fn log_fn,
+    triad_x11_event_fn event_fn,
     void *user_data)
 {
     TriadX11Probe probe;
     memset(&probe, 0, sizeof(probe));
     probe.log = log_fn;
+    probe.event = event_fn;
     probe.log_user_data = user_data;
 
     probe.conn = xcb_connect(display_name, &probe.screen_number);

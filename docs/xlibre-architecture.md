@@ -99,7 +99,9 @@ windows, focus windows, map windows, or apply layout projection.
 
 Status: implemented. `nimble testXlibre` runs the pure X11 event mapping tests,
 builds the probe, and runs the `triad_xlibre --once` smoke harness when `Xvfb`
-is available.
+is available. The C/XCB probe emits typed `X11BackendEvent` values into Nim;
+the CLI logs those events and the Triad messages they would produce without
+calling `Model.update`.
 
 ### Phase 1: Inventory and Vocabulary
 
@@ -115,8 +117,8 @@ Concrete targets:
 
 ### Phase 2: Event Mapping
 
-After the probe is stable on an isolated X server, keep expanding the typed
-adapter functions that produce backend-neutral window, output, focus, and
+After the typed probe path is stable on an isolated X server, keep expanding
+the adapter functions that produce backend-neutral window, output, focus, and
 property updates. Keep these functions testable without a live X server.
 
 Expected event inputs:
