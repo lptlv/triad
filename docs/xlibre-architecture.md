@@ -98,10 +98,11 @@ This probe deliberately does not call `Model.update`, publish Triad IPC, move
 windows, focus windows, map windows, or apply layout projection.
 
 Status: implemented. `nimble testXlibre` runs the pure X11 event mapping tests,
-builds the probe, and runs the `triad_xlibre --once` smoke harness when `Xvfb`
-is available. The C/XCB probe emits typed `X11BackendEvent` values into Nim;
-the CLI logs those events and the Triad messages they would produce without
-calling `Model.update`.
+builds the probe, runs the `triad_xlibre --once` startup smoke harness, and
+uses a synthetic XCB client to cover live map, configure, property, and destroy
+events when `Xvfb` is available. The C/XCB probe emits typed `X11BackendEvent`
+values into Nim; the CLI logs those events and the Triad messages they would
+produce without calling `Model.update`.
 
 ### Phase 1: Inventory and Vocabulary
 
@@ -163,10 +164,10 @@ For implementation work:
 - add unit tests for X event to `Msg` mapping before managing real windows
 - add unit tests for `Effect` to XCB request mapping where practical
 - keep existing model, layout, config, IPC, and Janet tests green when reused
-- add an Xvfb or XLibre smoke test once the event probe exists
+- keep the Xvfb/XLibre smoke test covering one-shot startup and live synthetic
+  client events
 - log startup ownership failures clearly so another window manager is obvious
-- cover the current `triad_xlibre --once` behavior with a smoke harness once an
-  isolated X server is available
+- keep live smoke dependencies in the Nix dev shell
 
 ## References
 
