@@ -153,11 +153,13 @@ destroyed windows, and explicit observed-only no-ops. Pure request-intent
 mapping plus request-record construction is implemented for configure, focus,
 and close effects, with non-mutating dry-run execution and a guarded C/XCB
 execution boundary. Live execution is validated against the synthetic Xvfb
-client for configure, focus, and polite close requests. The next step is to feed
-admission-produced effects into the executor in a controlled loop:
+client for configure, focus, and polite close requests. The controlled
+admission-to-executor loop is available through `src/x11/pipeline.nim`; it is
+still opt-in and the probe CLI remains observational. The next step is to expand
+the model updates that produce executable effects:
 
 - update window records from property and configure notifications
-- route selected admission effects through the executor boundary
+- add explicit tests for admission-produced configure effects
 - update EWMH state for fullscreen, maximized, and minimized windows
 
 Only after this subset works should the branch attempt tiling, shell snapshots,
