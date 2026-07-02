@@ -113,6 +113,12 @@ maps `EffSetPosition`, `EffFocusWindow`, and `EffCloseWindow` into pure X11
 request intents. Those intents are testable without a live server and are not
 executed yet.
 
+`src/x11/request_builder.nim` lowers those intents into stable XCB request
+records for configure-window, input-focus, and polite close operations.
+`src/x11/request_executor.nim` can dry-run those records and report what would
+be sent without mutating a live server. A later C/XCB executor can consume the
+same request records for live execution.
+
 ### Phase 1: Inventory and Vocabulary
 
 Keep the current River daemon intact where possible, but document and isolate
@@ -143,8 +149,9 @@ Expected event inputs:
 
 Dry-run model admission is implemented for discovered windows, outputs, focus,
 destroyed windows, and explicit observed-only no-ops. Pure request-intent
-mapping is implemented for configure, focus, and close effects. The next step is
-to execute those intents through XCB:
+mapping plus request-record construction is implemented for configure, focus,
+and close effects, with non-mutating dry-run execution. The next step is to
+execute those records through XCB:
 
 - update window records from property and configure notifications
 - execute configure-window intents from `EffSetPosition`
