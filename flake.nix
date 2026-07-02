@@ -45,6 +45,8 @@
               pkgs.wayland
               pkgs.libxkbcommon
               pkgs.pixman
+              pkgs.xorg.libxcb
+              pkgs.xorg.xcbutilwm
             ];
 
             doCheck = false;
@@ -380,6 +382,8 @@
               pkgs.wayland-protocols
               pkgs.libxkbcommon
               pkgs.pixman
+              pkgs.xorg.libxcb
+              pkgs.xorg.xcbutilwm
             ];
 
             shellHook = ''

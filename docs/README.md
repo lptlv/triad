@@ -12,6 +12,7 @@ Triad is a window manager client for River. This directory contains everything y
 
 - **[System Architecture](architecture.md)**: The runtime event loop and the hybrid layout engine.
 - **[Data-Oriented Design (DOD)](dod-architecture.md)**: Technical specs for state management and entity storage.
+- **[XLibre Transition Architecture](xlibre-architecture.md)**: Transition charter for the experimental XLibre branch.
 - **[The Triad](the_triad.md)**: The philosophy behind Tags, Rules, and IPC.
 - **[Janet Scripting](janet.md)**: Using the embedded Janet runtime.
 - **[Janet Layouts](janet-layouts.md)**: How to write custom layouts in Janet.

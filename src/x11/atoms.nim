@@ -1,0 +1,21 @@
+type
+  X11AtomName* = enum
+    XaWmProtocols
+    XaWmDeleteWindow
+    XaWmClass
+    XaWmName
+    XaNetWmName
+    XaNetWmPid
+    XaNetWmState
+    XaNetWmWindowType
+    XaNetSupported
+    XaNetSupportingWmCheck
+    XaUtf8String
+    XaCardinal
+    XaWindow
+
+const RequiredX11Atoms* = [
+  "WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_CLASS", "WM_NAME", "_NET_WM_NAME",
+  "_NET_WM_PID", "_NET_WM_STATE", "_NET_WM_WINDOW_TYPE", "_NET_SUPPORTED",
+  "_NET_SUPPORTING_WM_CHECK", "UTF8_STRING", "CARDINAL", "WINDOW",
+]
