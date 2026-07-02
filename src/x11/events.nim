@@ -1,0 +1,146 @@
+import std/strutils
+
+import ../core/msg
+
+type
+  X11BackendEventKind* {.pure.} = enum
+    WindowDiscovered
+    WindowDestroyed
+    WindowUnmapped
+    OutputDiscovered
+    ConfigureRequested
+    PropertyChanged
+    FocusChanged
+    PointerEntered
+    RandrChanged
+
+  X11WindowSnapshot* = object
+    id*: uint32
+    parentId*: uint32
+    pid*: int32
+    wmClass*: string
+    title*: string
+    x*, y*, w*, h*: int32
+    overrideRedirect*: bool
+    mapped*: bool
+
+  X11OutputSnapshot* = object
+    id*: uint32
+    name*: string
+    connected*: bool
+    x*, y*, w*, h*: int32
+
+  X11ConfigureRequest* = object
+    windowId*: uint32
+    valueMask*: uint32
+    x*, y*, w*, h*: int32
+    sibling*: uint32
+    stackMode*: uint32
+
+  X11BackendEvent* = object
+    case kind*: X11BackendEventKind
+    of X11BackendEventKind.WindowDiscovered:
+      window*: X11WindowSnapshot
+    of X11BackendEventKind.WindowDestroyed, X11BackendEventKind.WindowUnmapped:
+      windowId*: uint32
+    of X11BackendEventKind.OutputDiscovered:
+      output*: X11OutputSnapshot
+    of X11BackendEventKind.ConfigureRequested:
+      configure*: X11ConfigureRequest
+    of X11BackendEventKind.PropertyChanged:
+      propertyWindowId*: uint32
+      propertyAtom*: string
+    of X11BackendEventKind.FocusChanged:
+      focusWindowId*: uint32
+      focused*: bool
+    of X11BackendEventKind.PointerEntered:
+      enterWindowId*: uint32
+    of X11BackendEventKind.RandrChanged:
+      randrRoot*: uint32
+      randrW*, randrH*: int32
+
+proc x11WindowIdentifier*(id: uint32): string =
+  "x11:0x" & toHex(id, 8).toLowerAscii()
+
+proc appIdFromWmClass*(wmClass: string): string =
+  let cleaned = wmClass.strip()
+  if cleaned.len == 0:
+    return ""
+  let slash = cleaned.rfind("/")
+  if slash >= 0 and slash + 1 < cleaned.len:
+    return cleaned[slash + 1 .. ^1]
+  cleaned
+
+proc messagesFor*(event: X11BackendEvent): seq[Msg] =
+  case event.kind
+  of X11BackendEventKind.WindowDiscovered:
+    if event.window.overrideRedirect:
+      return
+    result.add(
+      Msg(
+        kind: MsgKind.WlWindowCreated,
+        windowId: event.window.id,
+        createdParentWindowId: event.window.parentId,
+        createdPid: event.window.pid,
+        appId: event.window.wmClass.appIdFromWmClass(),
+        title: event.window.title,
+        createdIdentifier: event.window.id.x11WindowIdentifier(),
+        deferAdmission: false,
+      )
+    )
+    if event.window.w > 0 or event.window.h > 0:
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowDimensions,
+          dimensionsWindowId: event.window.id,
+          actualWidth: event.window.w,
+          actualHeight: event.window.h,
+        )
+      )
+    if event.window.pid > 0:
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowPid,
+          pidWindowId: event.window.id,
+          windowPid: event.window.pid,
+        )
+      )
+  of X11BackendEventKind.WindowDestroyed, X11BackendEventKind.WindowUnmapped:
+    result.add(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: event.windowId))
+  of X11BackendEventKind.OutputDiscovered:
+    if not event.output.connected:
+      result.add(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: event.output.id))
+      return
+    if event.output.w > 0 or event.output.h > 0:
+      result.add(
+        Msg(
+          kind: MsgKind.WlOutputDimensions,
+          outputId: event.output.id,
+          width: event.output.w,
+          height: event.output.h,
+        )
+      )
+    if event.output.name.len > 0:
+      result.add(
+        Msg(
+          kind: MsgKind.WlOutputName,
+          nameOutputId: event.output.id,
+          outputName: event.output.name,
+        )
+      )
+    result.add(
+      Msg(
+        kind: MsgKind.WlOutputPosition,
+        positionOutputId: event.output.id,
+        outputX: event.output.x,
+        outputY: event.output.y,
+      )
+    )
+  of X11BackendEventKind.FocusChanged:
+    if event.focused:
+      result.add(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: event.focusWindowId))
+  of X11BackendEventKind.ConfigureRequested,
+      X11BackendEventKind.PropertyChanged,
+      X11BackendEventKind.PointerEntered,
+      X11BackendEventKind.RandrChanged:
+    discard

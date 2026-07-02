@@ -97,6 +97,10 @@ triad_xlibre --display :1
 This probe deliberately does not call `Model.update`, publish Triad IPC, move
 windows, focus windows, map windows, or apply layout projection.
 
+Status: implemented. `nimble testXlibre` runs the pure X11 event mapping tests,
+builds the probe, and runs the `triad_xlibre --once` smoke harness when `Xvfb`
+is available.
+
 ### Phase 1: Inventory and Vocabulary
 
 Keep the current River daemon intact where possible, but document and isolate
@@ -111,8 +115,8 @@ Concrete targets:
 
 ### Phase 2: Event Mapping
 
-After the probe is stable on an isolated X server, split the logged events into
-small adapter functions that produce backend-neutral window, output, focus, and
+After the probe is stable on an isolated X server, keep expanding the typed
+adapter functions that produce backend-neutral window, output, focus, and
 property updates. Keep these functions testable without a live X server.
 
 Expected event inputs:

@@ -61,6 +61,11 @@ proc runDaemonSuites() =
   for path in ["tests/tstate.nim", "tests/thardening.nim"]:
     runTestSuite(path)
 
+proc runXlibreSuites() =
+  exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_event_mapping.nim"
+  exec "nim c --hints:off --nimcache:tests/nimcache src/triad_xlibre.nim"
+  exec "sh tests/tx11_probe_smoke.sh"
+
 task tidy, "Remove local Nim build outputs and project cache artifacts":
   for path in [
     "triad", "triad_niri", "triad_xlibre", "src/config/parser", "src/triad",
@@ -77,9 +82,10 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tcore_overview_interactions", "tests/tcore_recent_windows",
     "tests/tcore_shell_snapshot_ipc", "tests/tcore_unmanaged_global", "tests/tstate",
     "tests/thardening", "tests/tjanet", "tests/tlayouts", "tests/tlogging",
-    "tests/tprotocol", "tests/tstress", "triad-live-smoke.events",
-    "triad-live-smoke.log", "triad-live-smoke.out", "tests/tconfig", "tests/tcore",
-    "tests/tdod",
+    "tests/tprotocol", "tests/tstress", "tests/tx11_event_mapping",
+    "triad-live-smoke.events", "triad-live-smoke.log", "triad-live-smoke.out",
+    "tests/tx11-probe-smoke.log", "tests/tx11-probe-smoke.log.xvfb",
+    "tests/tconfig", "tests/tcore", "tests/tdod",
   ]:
     if fileExists(path):
       rmFile(path)
@@ -149,6 +155,9 @@ task testProtocol, "Run River protocol coverage tests":
 
 task testStress, "Run deterministic stress tests":
   runTestSuite("tests/tstress.nim")
+
+task testXlibre, "Run XLibre backend adapter and probe smoke tests":
+  runXlibreSuites()
 
 task testUnit, "Run all non-stress test suites":
   runUnitSuites()
