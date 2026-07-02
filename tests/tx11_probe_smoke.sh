@@ -3,6 +3,7 @@ set -eu
 
 root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 probe="$root/src/triad_xlibre"
+executor="$root/tests/tx11_live_executor"
 client_src="$root/tests/tx11_synthetic_client.c"
 client="$root/tests/tx11_synthetic_client"
 
@@ -13,6 +14,11 @@ fi
 
 if [ ! -x "$probe" ]; then
   printf '%s\n' "tx11_probe_smoke: probe binary missing: $probe" >&2
+  exit 1
+fi
+
+if [ ! -x "$executor" ]; then
+  printf '%s\n' "tx11_probe_smoke: live executor binary missing: $executor" >&2
   exit 1
 fi
 
@@ -31,20 +37,27 @@ cc -Wall -Wextra -Werror -o "$client" "$client_src" $(pkg-config --cflags --libs
 display=":73"
 log="$root/tests/tx11-probe-smoke.log"
 event_log="$root/tests/tx11-probe-smoke-events.log"
-rm -f "$log" "$event_log"
+client_log="$root/tests/tx11-probe-smoke-client.log"
+executor_log="$root/tests/tx11-probe-smoke-executor.log"
+rm -f "$log" "$event_log" "$client_log" "$executor_log"
 
 Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
 xvfb_pid="$!"
 probe_pid=""
+client_pid=""
 
 cleanup() {
+  if [ -n "$client_pid" ]; then
+    kill "$client_pid" 2>/dev/null || true
+    wait "$client_pid" 2>/dev/null || true
+  fi
   if [ -n "$probe_pid" ]; then
     kill "$probe_pid" 2>/dev/null || true
     wait "$probe_pid" 2>/dev/null || true
   fi
   kill "$xvfb_pid" 2>/dev/null || true
   wait "$xvfb_pid" 2>/dev/null || true
-  rm -f "$log" "$event_log" "$log.xvfb" "$client"
+  rm -f "$log" "$event_log" "$client_log" "$executor_log" "$log.xvfb" "$client"
 }
 
 trap cleanup EXIT INT TERM
@@ -123,6 +136,59 @@ for pattern in \
   if ! grep -q "$pattern" "$event_log"; then
     printf '%s\n' "tx11_probe_smoke: missing event log pattern: $pattern" >&2
     cat "$event_log" >&2
+    exit 1
+  fi
+done
+
+"$client" "$display" --hold >"$client_log" 2>&1 &
+client_pid="$!"
+
+window_id=""
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q '^window=0x' "$client_log" 2>/dev/null; then
+    window_id="$(sed -n 's/^window=//p' "$client_log" | head -n 1)"
+    break
+  fi
+  sleep 0.2
+done
+
+if [ -z "$window_id" ]; then
+  printf '%s\n' "tx11_probe_smoke: held synthetic client did not publish a window id" >&2
+  cat "$client_log" >&2
+  exit 1
+fi
+
+if ! "$executor" "$display" "$window_id" >"$executor_log" 2>&1; then
+  cat "$executor_log" >&2
+  exit 1
+fi
+
+closed=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if ! kill -0 "$client_pid" 2>/dev/null; then
+    closed=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$closed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: held synthetic client did not close" >&2
+  cat "$executor_log" >&2
+  cat "$client_log" >&2
+  exit 1
+fi
+wait "$client_pid" 2>/dev/null || true
+client_pid=""
+
+for pattern in \
+  "applied configure window=$window_id" \
+  "applied focus window=$window_id" \
+  "applied close window=$window_id" \
+  "request execution complete dry_run=0 count=3"; do
+  if ! grep -q "$pattern" "$executor_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing executor log pattern: $pattern" >&2
+    cat "$executor_log" >&2
     exit 1
   fi
 done

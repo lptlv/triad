@@ -152,13 +152,12 @@ Dry-run model admission is implemented for discovered windows, outputs, focus,
 destroyed windows, and explicit observed-only no-ops. Pure request-intent
 mapping plus request-record construction is implemented for configure, focus,
 and close effects, with non-mutating dry-run execution and a guarded C/XCB
-execution boundary. The next step is to validate live execution against the
-synthetic Xvfb client:
+execution boundary. Live execution is validated against the synthetic Xvfb
+client for configure, focus, and polite close requests. The next step is to feed
+admission-produced effects into the executor in a controlled loop:
 
 - update window records from property and configure notifications
-- smoke-test configure-window intents from `EffSetPosition`
-- smoke-test input-focus intents from `EffFocusWindow`
-- smoke-test WM_DELETE_WINDOW client-message intents from `EffCloseWindow`
+- route selected admission effects through the executor boundary
 - update EWMH state for fullscreen, maximized, and minimized windows
 
 Only after this subset works should the branch attempt tiling, shell snapshots,

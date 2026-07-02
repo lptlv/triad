@@ -67,6 +67,7 @@ proc runXlibreSuites() =
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_effect_adapter.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_request_builder.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_request_executor.nim"
+  exec "nim c --hints:off --nimcache:tests/nimcache tests/tx11_live_executor.nim"
   exec "nim c --hints:off --nimcache:tests/nimcache src/triad_xlibre.nim"
   exec "sh tests/tx11_probe_smoke.sh"
 
@@ -89,9 +90,10 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tprotocol", "tests/tstress", "tests/tx11_event_mapping",
     "tests/tx11_model_admission", "tests/tx11_effect_adapter",
     "tests/tx11_request_builder", "tests/tx11_request_executor",
-    "tests/tx11_synthetic_client", "triad-live-smoke.events",
-    "triad-live-smoke.log", "triad-live-smoke.out",
+    "tests/tx11_live_executor", "tests/tx11_synthetic_client",
+    "triad-live-smoke.events", "triad-live-smoke.log", "triad-live-smoke.out",
     "tests/tx11-probe-smoke.log", "tests/tx11-probe-smoke-events.log",
+    "tests/tx11-probe-smoke-client.log", "tests/tx11-probe-smoke-executor.log",
     "tests/tx11-probe-smoke.log.xvfb",
     "tests/tconfig", "tests/tcore", "tests/tdod",
   ]:

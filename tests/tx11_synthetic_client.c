@@ -43,9 +43,51 @@ static int set_text_property(
     return 0;
 }
 
+static xcb_screen_t *screen_for_connection(xcb_connection_t *conn, int screen_number)
+{
+    const xcb_setup_t *setup = xcb_get_setup(conn);
+    xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
+    for (int i = 0; iter.rem > 0 && i < screen_number; i++)
+        xcb_screen_next(&iter);
+    if (iter.rem == 0)
+        return NULL;
+    return iter.data;
+}
+
+static int wait_for_close(
+    xcb_connection_t *conn,
+    xcb_window_t win,
+    xcb_atom_t wm_protocols,
+    xcb_atom_t wm_delete_window)
+{
+    while (1) {
+        xcb_generic_event_t *event = xcb_wait_for_event(conn);
+        if (event == NULL)
+            return 1;
+        uint8_t type = event->response_type & ~0x80;
+        if (type == XCB_CLIENT_MESSAGE) {
+            xcb_client_message_event_t *client = (xcb_client_message_event_t *)event;
+            if (
+                client->window == win && client->type == wm_protocols &&
+                client->data.data32[0] == wm_delete_window) {
+                free(event);
+                return 0;
+            }
+        } else if (type == XCB_DESTROY_NOTIFY) {
+            xcb_destroy_notify_event_t *destroy = (xcb_destroy_notify_event_t *)event;
+            if (destroy->window == win) {
+                free(event);
+                return 0;
+            }
+        }
+        free(event);
+    }
+}
+
 int main(int argc, char **argv)
 {
     const char *display = argc > 1 ? argv[1] : NULL;
+    int hold = argc > 2 && strcmp(argv[2], "--hold") == 0;
     int screen_number = 0;
     xcb_connection_t *conn = xcb_connect(display, &screen_number);
     if (xcb_connection_has_error(conn)) {
@@ -55,25 +97,23 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const xcb_setup_t *setup = xcb_get_setup(conn);
-    xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
-    for (int i = 0; iter.rem > 0 && i < screen_number; i++)
-        xcb_screen_next(&iter);
-    if (iter.rem == 0) {
+    xcb_screen_t *screen = screen_for_connection(conn, screen_number);
+    if (screen == NULL) {
         fprintf(stderr, "tx11_synthetic_client: failed to resolve screen\n");
         xcb_disconnect(conn);
         return 1;
     }
-
-    xcb_screen_t *screen = iter.data;
     xcb_atom_t wm_class = intern_atom(conn, "WM_CLASS");
     xcb_atom_t wm_name = intern_atom(conn, "WM_NAME");
+    xcb_atom_t wm_protocols = intern_atom(conn, "WM_PROTOCOLS");
+    xcb_atom_t wm_delete_window = intern_atom(conn, "WM_DELETE_WINDOW");
     xcb_atom_t net_wm_name = intern_atom(conn, "_NET_WM_NAME");
     xcb_atom_t net_wm_pid = intern_atom(conn, "_NET_WM_PID");
     xcb_atom_t utf8_string = intern_atom(conn, "UTF8_STRING");
     xcb_atom_t cardinal = intern_atom(conn, "CARDINAL");
     if (
         wm_class == XCB_ATOM_NONE || wm_name == XCB_ATOM_NONE ||
+        wm_protocols == XCB_ATOM_NONE || wm_delete_window == XCB_ATOM_NONE ||
         net_wm_name == XCB_ATOM_NONE || net_wm_pid == XCB_ATOM_NONE ||
         utf8_string == XCB_ATOM_NONE || cardinal == XCB_ATOM_NONE) {
         fprintf(stderr, "tx11_synthetic_client: failed to intern atoms\n");
@@ -82,7 +122,18 @@ int main(int argc, char **argv)
     }
 
     xcb_window_t win = xcb_generate_id(conn);
-    uint32_t values[] = {screen->black_pixel};
+    uint32_t event_mask = XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_FOCUS_CHANGE;
+    uint32_t value_mask =
+        XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK |
+        (hold ? XCB_CW_OVERRIDE_REDIRECT : 0);
+    uint32_t values[3];
+    values[0] = screen->black_pixel;
+    if (hold) {
+        values[1] = 1;
+        values[2] = event_mask;
+    } else {
+        values[1] = event_mask;
+    }
     xcb_void_cookie_t create_cookie = xcb_create_window_checked(
         conn,
         XCB_COPY_FROM_PARENT,
@@ -95,7 +146,7 @@ int main(int argc, char **argv)
         0,
         XCB_WINDOW_CLASS_INPUT_OUTPUT,
         screen->root_visual,
-        XCB_CW_BACK_PIXEL,
+        value_mask,
         values);
     xcb_generic_error_t *create_error = xcb_request_check(conn, create_cookie);
     if (create_error != NULL) {
@@ -126,6 +177,15 @@ int main(int argc, char **argv)
         32,
         1,
         &pid);
+    xcb_change_property(
+        conn,
+        XCB_PROP_MODE_REPLACE,
+        win,
+        wm_protocols,
+        XCB_ATOM_ATOM,
+        32,
+        1,
+        &wm_delete_window);
 
     if (
         set_text_property(conn, win, wm_name, XCB_ATOM_STRING, "triad smoke") ||
@@ -138,6 +198,16 @@ int main(int argc, char **argv)
     xcb_map_window(conn, win);
     xcb_flush(conn);
     usleep(200000);
+
+    if (hold) {
+        printf("window=0x%08x\n", win);
+        fflush(stdout);
+        int status = wait_for_close(conn, win, wm_protocols, wm_delete_window);
+        xcb_destroy_window(conn, win);
+        xcb_flush(conn);
+        xcb_disconnect(conn);
+        return status;
+    }
 
     uint32_t configure_mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
         XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
