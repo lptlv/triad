@@ -13,6 +13,8 @@ type
     height*: int32
 
 const FallbackFonts = [
+  "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
+  "/usr/share/fonts/TTF/OpenSans-Regular.ttf",
   "/usr/share/fonts/noto/NotoSans-Regular.ttf", "/usr/share/fonts/TTF/DejaVuSans.ttf",
   "/usr/share/fonts/dejavu/DejaVuSans.ttf",
   "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
@@ -36,26 +38,31 @@ proc fcMatchSansPath(): string =
   except OSError:
     ""
 
-proc defaultTypefacePath(): string =
+proc supportedTypefacePath(path: string): bool =
+  let ext = path.splitFile().ext.normalize()
+  ext in [".ttf", ".otf", ".ttc"]
+
+proc defaultTypefacePaths(): seq[string] =
   let matched = fcMatchSansPath()
-  if matched.len > 0 and fileExists(matched):
-    return matched
+  if matched.len > 0 and fileExists(matched) and matched.supportedTypefacePath():
+    result.add(matched)
   for path in FallbackFonts:
-    if fileExists(path):
-      return path
-  ""
+    if fileExists(path) and path.supportedTypefacePath() and path notin result:
+      result.add(path)
 
 proc overlayTypeface(): Typeface =
   if fontDiscoveryDone:
     return cachedTypeface
   fontDiscoveryDone = true
-  cachedTypefacePath = defaultTypefacePath()
-  if cachedTypefacePath.len == 0:
-    return nil
-  try:
-    cachedTypeface = readTypeface(cachedTypefacePath)
-  except PixieError:
-    cachedTypeface = nil
+  for path in defaultTypefacePaths():
+    try:
+      cachedTypeface = readTypeface(path)
+      cachedTypefacePath = path
+      return cachedTypeface
+    except PixieError:
+      discard
+  cachedTypeface = nil
+  cachedTypefacePath = ""
   cachedTypeface
 
 proc argbToPixieColor(colorValue: uint32): Color =
