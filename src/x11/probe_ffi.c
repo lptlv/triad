@@ -11,6 +11,20 @@
 
 typedef void (*triad_x11_log_fn)(void *user_data, const char *message);
 
+typedef enum TriadX11RequestKind {
+    TRIAD_X11_REQUEST_CONFIGURE_WINDOW = 0,
+    TRIAD_X11_REQUEST_SET_INPUT_FOCUS = 1,
+    TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW = 2,
+} TriadX11RequestKind;
+
+typedef struct TriadX11Request {
+    TriadX11RequestKind kind;
+    uint32_t window_id;
+    uint32_t value_mask;
+    uint32_t value_count;
+    int32_t values[4];
+} TriadX11Request;
+
 typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_WINDOW_DISCOVERED = 0,
     TRIAD_X11_EVENT_WINDOW_DESTROYED = 1,
@@ -105,6 +119,20 @@ static void probe_event(TriadX11Probe *probe, const TriadX11Event *event)
 {
     if (probe->event != NULL)
         probe->event(probe->log_user_data, event);
+}
+
+static void request_log(
+    triad_x11_log_fn log_fn, void *user_data, const char *fmt, ...)
+{
+    char buffer[1024];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    if (log_fn != NULL)
+        log_fn(user_data, buffer);
 }
 
 static xcb_screen_t *screen_for_number(const xcb_setup_t *setup, int screen_number)
@@ -848,4 +876,207 @@ int triad_x11_probe_run(
         xcb_ewmh_connection_wipe(&probe.ewmh);
     xcb_disconnect(probe.conn);
     return 0;
+}
+
+static xcb_atom_t intern_atom_for_conn(
+    xcb_connection_t *conn, const char *name, int only_if_exists)
+{
+    xcb_intern_atom_cookie_t cookie =
+        xcb_intern_atom(conn, only_if_exists, (uint16_t)strlen(name), name);
+    xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, cookie, NULL);
+    if (reply == NULL)
+        return XCB_ATOM_NONE;
+    xcb_atom_t atom = reply->atom;
+    free(reply);
+    return atom;
+}
+
+static int execute_configure_request(
+    xcb_connection_t *conn,
+    const TriadX11Request *request,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    if (request->value_count < 4) {
+        request_log(
+            log_fn,
+            user_data,
+            "error configure window=0x%08x value_count=%u",
+            request->window_id,
+            request->value_count);
+        return 1;
+    }
+
+    uint32_t values[4] = {
+        (uint32_t)request->values[0],
+        (uint32_t)request->values[1],
+        (uint32_t)request->values[2],
+        (uint32_t)request->values[3],
+    };
+    xcb_void_cookie_t cookie = xcb_configure_window_checked(
+        conn, request->window_id, (uint16_t)request->value_mask, values);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error configure window=0x%08x code=%u",
+            request->window_id,
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    request_log(log_fn, user_data, "applied configure window=0x%08x", request->window_id);
+    return 0;
+}
+
+static int execute_focus_request(
+    xcb_connection_t *conn,
+    const TriadX11Request *request,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    xcb_void_cookie_t cookie = xcb_set_input_focus_checked(
+        conn, XCB_INPUT_FOCUS_POINTER_ROOT, request->window_id, XCB_CURRENT_TIME);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error focus window=0x%08x code=%u",
+            request->window_id,
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    request_log(log_fn, user_data, "applied focus window=0x%08x", request->window_id);
+    return 0;
+}
+
+static int execute_close_request(
+    xcb_connection_t *conn,
+    const TriadX11Request *request,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    xcb_atom_t wm_protocols = intern_atom_for_conn(conn, "WM_PROTOCOLS", 0);
+    xcb_atom_t wm_delete_window = intern_atom_for_conn(conn, "WM_DELETE_WINDOW", 0);
+    if (wm_protocols == XCB_ATOM_NONE || wm_delete_window == XCB_ATOM_NONE) {
+        request_log(log_fn, user_data, "error close atoms unavailable");
+        return 1;
+    }
+
+    xcb_client_message_event_t event;
+    memset(&event, 0, sizeof(event));
+    event.response_type = XCB_CLIENT_MESSAGE;
+    event.format = 32;
+    event.window = request->window_id;
+    event.type = wm_protocols;
+    event.data.data32[0] = wm_delete_window;
+    event.data.data32[1] = XCB_CURRENT_TIME;
+
+    xcb_void_cookie_t cookie = xcb_send_event_checked(
+        conn, 0, request->window_id, XCB_EVENT_MASK_NO_EVENT, (const char *)&event);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error close window=0x%08x code=%u",
+            request->window_id,
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    request_log(log_fn, user_data, "applied close window=0x%08x", request->window_id);
+    return 0;
+}
+
+int triad_x11_execute_requests(
+    const char *display_name,
+    const TriadX11Request *requests,
+    uint32_t count,
+    int dry_run,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    if (count > 0 && requests == NULL) {
+        request_log(log_fn, user_data, "error requests pointer is null");
+        return 1;
+    }
+
+    if (dry_run) {
+        for (uint32_t i = 0; i < count; i++) {
+            const TriadX11Request *request = &requests[i];
+            switch (request->kind) {
+            case TRIAD_X11_REQUEST_CONFIGURE_WINDOW:
+                if (request->value_count < 4) {
+                    request_log(
+                        log_fn,
+                        user_data,
+                        "error configure window=0x%08x value_count=%u",
+                        request->window_id,
+                        request->value_count);
+                    return 1;
+                }
+                request_log(
+                    log_fn,
+                    user_data,
+                    "dry_run configure window=0x%08x x=%d y=%d w=%d h=%d",
+                    request->window_id,
+                    request->values[0],
+                    request->values[1],
+                    request->values[2],
+                    request->values[3]);
+                break;
+            case TRIAD_X11_REQUEST_SET_INPUT_FOCUS:
+                request_log(log_fn, user_data, "dry_run focus window=0x%08x", request->window_id);
+                break;
+            case TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW:
+                request_log(log_fn, user_data, "dry_run close window=0x%08x", request->window_id);
+                break;
+            default:
+                request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);
+                return 1;
+            }
+        }
+        request_log(log_fn, user_data, "request execution complete dry_run=1 count=%u", count);
+        return 0;
+    }
+
+    int screen_number = 0;
+    xcb_connection_t *conn = xcb_connect(display_name, &screen_number);
+    if (xcb_connection_has_error(conn)) {
+        request_log(log_fn, user_data, "error failed to connect to X display");
+        if (conn != NULL)
+            xcb_disconnect(conn);
+        return 1;
+    }
+
+    int status = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        const TriadX11Request *request = &requests[i];
+        int request_status = 0;
+        switch (request->kind) {
+        case TRIAD_X11_REQUEST_CONFIGURE_WINDOW:
+            request_status = execute_configure_request(conn, request, log_fn, user_data);
+            break;
+        case TRIAD_X11_REQUEST_SET_INPUT_FOCUS:
+            request_status = execute_focus_request(conn, request, log_fn, user_data);
+            break;
+        case TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW:
+            request_status = execute_close_request(conn, request, log_fn, user_data);
+            break;
+        default:
+            request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);
+            request_status = 1;
+            break;
+        }
+        if (request_status != 0)
+            status = request_status;
+    }
+    xcb_flush(conn);
+    xcb_disconnect(conn);
+    request_log(log_fn, user_data, "request execution complete dry_run=0 count=%u", count);
+    return status;
 }

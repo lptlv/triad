@@ -1,11 +1,16 @@
 import std/strutils
 
-import request_builder
+import request_builder, xcb_ffi
 
 type X11RequestExecution* = object
   request*: X11Request
   applied*: bool
   description*: string
+
+type X11RequestRunResult* = object
+  code*: int
+  dryRun*: bool
+  logs*: seq[string]
 
 proc requestDescription(request: X11Request): string =
   case request.kind
@@ -26,3 +31,35 @@ proc executeDryRun*(request: X11Request): X11RequestExecution =
 proc executeDryRun*(requests: openArray[X11Request]): seq[X11RequestExecution] =
   for request in requests:
     result.add(request.executeDryRun())
+
+proc requestLogCallback(userData: pointer, message: cstring) {.cdecl.} =
+  if userData != nil and message != nil:
+    cast[ptr seq[string]](userData)[].add($message)
+
+proc executeWithXcb*(
+    requests: openArray[X11Request], displayName = "", dryRun = true
+): X11RequestRunResult =
+  var logs: seq[string]
+  let display =
+    if displayName.len == 0:
+      nil
+    else:
+      displayName.cstring
+  let requestPtr =
+    if requests.len == 0:
+      nil
+    else:
+      unsafeAddr requests[0]
+  result.code =
+    int(
+      triadX11ExecuteRequests(
+        display,
+        requestPtr,
+        cuint(requests.len),
+        cint(ord(dryRun)),
+        requestLogCallback,
+        addr logs,
+      )
+    )
+  result.dryRun = dryRun
+  result.logs = logs

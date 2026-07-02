@@ -111,13 +111,14 @@ effects for inspection without executing any XCB control operations.
 The first effect adapter is available through `src/x11/effect_adapter.nim`. It
 maps `EffSetPosition`, `EffFocusWindow`, and `EffCloseWindow` into pure X11
 request intents. Those intents are testable without a live server and are not
-executed yet.
+executed by the probe CLI.
 
 `src/x11/request_builder.nim` lowers those intents into stable XCB request
 records for configure-window, input-focus, and polite close operations.
 `src/x11/request_executor.nim` can dry-run those records and report what would
-be sent without mutating a live server. A later C/XCB executor can consume the
-same request records for live execution.
+be sent without mutating a live server. The same module also exposes a guarded
+C/XCB boundary: dry-run mode does not connect to a display, while live mode
+connects only when explicitly called with `dryRun = false`.
 
 ### Phase 1: Inventory and Vocabulary
 
@@ -150,13 +151,14 @@ Expected event inputs:
 Dry-run model admission is implemented for discovered windows, outputs, focus,
 destroyed windows, and explicit observed-only no-ops. Pure request-intent
 mapping plus request-record construction is implemented for configure, focus,
-and close effects, with non-mutating dry-run execution. The next step is to
-execute those records through XCB:
+and close effects, with non-mutating dry-run execution and a guarded C/XCB
+execution boundary. The next step is to validate live execution against the
+synthetic Xvfb client:
 
 - update window records from property and configure notifications
-- execute configure-window intents from `EffSetPosition`
-- execute input-focus intents from `EffFocusWindow`
-- execute WM_DELETE_WINDOW client-message intents from `EffCloseWindow`
+- smoke-test configure-window intents from `EffSetPosition`
+- smoke-test input-focus intents from `EffFocusWindow`
+- smoke-test WM_DELETE_WINDOW client-message intents from `EffCloseWindow`
 - update EWMH state for fullscreen, maximized, and minimized windows
 
 Only after this subset works should the branch attempt tiling, shell snapshots,
