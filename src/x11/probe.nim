@@ -21,6 +21,10 @@ proc dryRunMessageLabel(msg: Msg): string =
       $msg.actualWidth & "x" & $msg.actualHeight
   of MsgKind.WlWindowPid:
     "WlWindowPid id=" & $msg.pidWindowId & " pid=" & $msg.windowPid
+  of MsgKind.WlWindowAppId:
+    "WlWindowAppId id=" & $msg.appIdWindowId & " app_id=\"" & msg.updatedAppId & "\""
+  of MsgKind.WlWindowTitle:
+    "WlWindowTitle id=" & $msg.titleWindowId & " title=\"" & msg.updatedTitle & "\""
   of MsgKind.WlOutputDimensions:
     "WlOutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" &
       $msg.height

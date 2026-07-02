@@ -64,10 +64,15 @@ suite "X11 event mapping":
     )
     for idx, ch in "_NET_WM_STATE":
       propertyRaw.name[idx] = ch
+    for idx, ch in "state-value":
+      propertyRaw.title[idx] = ch
+    propertyRaw.pid = 1234
     let property = propertyRaw.backendEventFromProbe()
     check property.kind == X11BackendEventKind.PropertyChanged
     check property.propertyWindowId == 9
     check property.propertyAtom == "_NET_WM_STATE"
+    check property.propertyValue == "state-value"
+    check property.propertyPid == 1234
 
     let configure =
       X11ProbeEvent(
@@ -197,11 +202,60 @@ suite "X11 event mapping":
     check focused[0].newFocusedId == 88
     check unfocused.len == 0
 
-  test "observed-only events are explicit no-ops":
+  test "configure request maps explicit size changes to dimensions":
+    let messages =
+      X11BackendEvent(
+        kind: X11BackendEventKind.ConfigureRequested,
+        configure: X11ConfigureRequest(windowId: 1, valueMask: 0x0c, w: 640, h: 480),
+      ).messagesFor()
+
+    check messages.len == 1
+    check messages[0].kind == MsgKind.WlWindowDimensions
+    check messages[0].dimensionsWindowId == 1
+    check messages[0].actualWidth == 640
+    check messages[0].actualHeight == 480
+
+  test "known property changes map to window metadata updates":
+    let title =
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 1,
+        propertyAtom: "_NET_WM_NAME",
+        propertyValue: "Updated",
+      ).messagesFor()
+    let appId =
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 1,
+        propertyAtom: "WM_CLASS",
+        propertyValue: "kitty/kitty",
+      ).messagesFor()
+    let pid =
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 1,
+        propertyAtom: "_NET_WM_PID",
+        propertyPid: 4321,
+      ).messagesFor()
+
+    check title.len == 1
+    check title[0].kind == MsgKind.WlWindowTitle
+    check title[0].titleWindowId == 1
+    check title[0].updatedTitle == "Updated"
+    check appId.len == 1
+    check appId[0].kind == MsgKind.WlWindowAppId
+    check appId[0].appIdWindowId == 1
+    check appId[0].updatedAppId == "kitty"
+    check pid.len == 1
+    check pid[0].kind == MsgKind.WlWindowPid
+    check pid[0].pidWindowId == 1
+    check pid[0].windowPid == 4321
+
+  test "observed-only and incomplete events are explicit no-ops":
     let events = [
       X11BackendEvent(
         kind: X11BackendEventKind.ConfigureRequested,
-        configure: X11ConfigureRequest(windowId: 1, w: 100, h: 100),
+        configure: X11ConfigureRequest(windowId: 1, valueMask: 0x04, w: 100, h: 0),
       ),
       X11BackendEvent(
         kind: X11BackendEventKind.PropertyChanged,

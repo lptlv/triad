@@ -752,6 +752,21 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         event.kind = TRIAD_X11_EVENT_PROPERTY_CHANGED;
         event.id = ev->window;
         copy_text(event.name, sizeof(event.name), name);
+        if (ev->state == XCB_PROPERTY_NEW_VALUE) {
+            if (ev->atom == probe->atoms.wm_class) {
+                char *class_name = window_class(probe, ev->window);
+                copy_text(event.title, sizeof(event.title), class_name);
+                free(class_name);
+            } else if (
+                ev->atom == probe->atoms.wm_name ||
+                ev->atom == probe->atoms.net_wm_name) {
+                char *title = window_title(probe, ev->window);
+                copy_text(event.title, sizeof(event.title), title);
+                free(title);
+            } else if (ev->atom == probe->atoms.net_wm_pid) {
+                event.pid = (int32_t)window_pid(probe, ev->window);
+            }
+        }
         probe_event(probe, &event);
         free(name);
         break;

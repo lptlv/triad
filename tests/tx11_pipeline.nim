@@ -1,6 +1,8 @@
-import std/unittest
+import std/[sequtils, unittest]
 
 import ../src/config/parser
+import ../src/core/effects
+import ../src/core/msg
 import ../src/state/engine
 import ../src/systems/runtime_facade
 import ../src/types/model
@@ -96,3 +98,32 @@ suite "X11 admission pipeline":
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
     check step.xcbRun.logs.len == 0
+
+  test "configure updates produce model effects but no executor requests":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 33, wmClass: "app", title: "App", w: 300, h: 200, mapped: true
+        ),
+      )
+    )
+
+    let step =
+      model.processEventDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.ConfigureRequested,
+          configure: X11ConfigureRequest(
+            windowId: 33, valueMask: 0x0c, w: 640, h: 480
+          ),
+        )
+      )
+
+    check step.admission.messages.len == 1
+    check step.admission.messages[0].kind == MsgKind.WlWindowDimensions
+    check step.admission.effects.len > 0
+    check step.admission.effects.anyIt(it.kind == EffectKind.EffRenderDirty)
+    check step.intents.len == 0
+    check step.requests.len == 0
+    check step.dryRunExecutions.len == 0

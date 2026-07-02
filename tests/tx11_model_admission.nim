@@ -2,6 +2,7 @@ import std/unittest
 
 import ../src/config/parser
 import ../src/core/effects
+import ../src/core/msg
 import ../src/core/shell_focus
 import ../src/state/engine
 import ../src/systems/runtime_facade
@@ -148,3 +149,56 @@ suite "X11 model admission":
     check result.effects.len == 0
     check model.shellSnapshot().windows.len == before.windows.len
     check model.shellSnapshot().outputs.len == before.outputs.len
+
+  test "admits configure and property updates into existing window state":
+    var model = x11Model()
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 21, wmClass: "app", title: "Old", w: 300, h: 200, mapped: true
+        ),
+      )
+    )
+
+    let configured =
+      model.admitDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.ConfigureRequested,
+          configure: X11ConfigureRequest(
+            windowId: 21, valueMask: 0x0c, w: 640, h: 480
+          ),
+        )
+      )
+    let title =
+      model.admitDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.PropertyChanged,
+          propertyWindowId: 21,
+          propertyAtom: "_NET_WM_NAME",
+          propertyValue: "New",
+        )
+      )
+    let appId =
+      model.admitDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.PropertyChanged,
+          propertyWindowId: 21,
+          propertyAtom: "WM_CLASS",
+          propertyValue: "kitty/kitty",
+        )
+      )
+
+    check configured.messages.len == 1
+    check configured.messages[0].kind == MsgKind.WlWindowDimensions
+    check configured.effects.hasEffect(EffectKind.EffRenderDirty)
+    check title.messages.len == 1
+    check title.messages[0].kind == MsgKind.WlWindowTitle
+    check appId.messages.len == 1
+    check appId.messages[0].kind == MsgKind.WlWindowAppId
+
+    let win = model.snapshotWindow(21)
+    check win.actualW == 640
+    check win.actualH == 480
+    check win.title == "New"
+    check win.appId == "kitty"

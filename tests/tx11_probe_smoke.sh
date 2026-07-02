@@ -130,6 +130,7 @@ for pattern in \
   "backend_event ConfigureRequested" \
   "event PropertyNotify" \
   "backend_event PropertyChanged" \
+  "dry_run_msg WlWindowTitle" \
   "event DestroyNotify" \
   "backend_event WindowDestroyed" \
   "dry_run_msg WlWindowDestroyed"; do

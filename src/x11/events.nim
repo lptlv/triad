@@ -2,6 +2,10 @@ import std/strutils
 
 import ../core/msg
 
+const
+  X11ConfigureMaskWidth = 1'u32 shl 2
+  X11ConfigureMaskHeight = 1'u32 shl 3
+
 type
   X11ProbeEventKind* {.size: sizeof(cuint).} = enum
     XpeWindowDiscovered = 0
@@ -78,6 +82,8 @@ type
     of X11BackendEventKind.PropertyChanged:
       propertyWindowId*: uint32
       propertyAtom*: string
+      propertyValue*: string
+      propertyPid*: int32
     of X11BackendEventKind.FocusChanged:
       focusWindowId*: uint32
       focused*: bool
@@ -160,6 +166,8 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       kind: X11BackendEventKind.PropertyChanged,
       propertyWindowId: event.id,
       propertyAtom: event.name.cArrayString(),
+      propertyValue: event.title.cArrayString(),
+      propertyPid: event.pid,
     )
   of XpeFocusChanged:
     X11BackendEvent(
@@ -245,8 +253,47 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   of X11BackendEventKind.FocusChanged:
     if event.focused:
       result.add(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: event.focusWindowId))
-  of X11BackendEventKind.ConfigureRequested,
-      X11BackendEventKind.PropertyChanged,
-      X11BackendEventKind.PointerEntered,
-      X11BackendEventKind.RandrChanged:
+  of X11BackendEventKind.ConfigureRequested:
+    let requiredMask = X11ConfigureMaskWidth or X11ConfigureMaskHeight
+    if (event.configure.valueMask and requiredMask) == requiredMask and
+        event.configure.w > 0 and event.configure.h > 0:
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowDimensions,
+          dimensionsWindowId: event.configure.windowId,
+          actualWidth: event.configure.w,
+          actualHeight: event.configure.h,
+        )
+      )
+  of X11BackendEventKind.PropertyChanged:
+    case event.propertyAtom
+    of "WM_CLASS":
+      if event.propertyValue.len > 0:
+        result.add(
+          Msg(
+            kind: MsgKind.WlWindowAppId,
+            appIdWindowId: event.propertyWindowId,
+            updatedAppId: event.propertyValue.appIdFromWmClass(),
+          )
+        )
+    of "WM_NAME", "_NET_WM_NAME":
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowTitle,
+          titleWindowId: event.propertyWindowId,
+          updatedTitle: event.propertyValue,
+        )
+      )
+    of "_NET_WM_PID":
+      if event.propertyPid > 0:
+        result.add(
+          Msg(
+            kind: MsgKind.WlWindowPid,
+            pidWindowId: event.propertyWindowId,
+            windowPid: event.propertyPid,
+          )
+        )
+    else:
+      discard
+  of X11BackendEventKind.PointerEntered, X11BackendEventKind.RandrChanged:
     discard
