@@ -108,6 +108,11 @@ Dry-run model admission is also available through `src/x11/admission.nim`. It
 applies mapped X11 messages to an isolated `Model` and returns the resulting
 effects for inspection without executing any XCB control operations.
 
+The first effect adapter is available through `src/x11/effect_adapter.nim`. It
+maps `EffSetPosition`, `EffFocusWindow`, and `EffCloseWindow` into pure X11
+request intents. Those intents are testable without a live server and are not
+executed yet.
+
 ### Phase 1: Inventory and Vocabulary
 
 Keep the current River daemon intact where possible, but document and isolate
@@ -137,13 +142,14 @@ Expected event inputs:
 ### Phase 3: Model Admission and Minimal Effect Adapter
 
 Dry-run model admission is implemented for discovered windows, outputs, focus,
-destroyed windows, and explicit observed-only no-ops. The next step is to wire a
-narrow subset of Triad effects to XCB:
+destroyed windows, and explicit observed-only no-ops. Pure request-intent
+mapping is implemented for configure, focus, and close effects. The next step is
+to execute those intents through XCB:
 
 - update window records from property and configure notifications
-- configure window geometry from `EffSetPosition`
-- focus windows from `EffFocusWindow`
-- send close requests from `EffCloseWindow`
+- execute configure-window intents from `EffSetPosition`
+- execute input-focus intents from `EffFocusWindow`
+- execute WM_DELETE_WINDOW client-message intents from `EffCloseWindow`
 - update EWMH state for fullscreen, maximized, and minimized windows
 
 Only after this subset works should the branch attempt tiling, shell snapshots,
