@@ -104,6 +104,10 @@ events when `Xvfb` is available. The C/XCB probe emits typed `X11BackendEvent`
 values into Nim; the CLI logs those events and the Triad messages they would
 produce without calling `Model.update`.
 
+Dry-run model admission is also available through `src/x11/admission.nim`. It
+applies mapped X11 messages to an isolated `Model` and returns the resulting
+effects for inspection without executing any XCB control operations.
+
 ### Phase 1: Inventory and Vocabulary
 
 Keep the current River daemon intact where possible, but document and isolate
@@ -132,10 +136,11 @@ Expected event inputs:
 
 ### Phase 3: Model Admission and Minimal Effect Adapter
 
-After event mapping is covered by tests, admit discovered windows and outputs
-into the Triad model and wire a narrow subset of Triad effects to XCB:
+Dry-run model admission is implemented for discovered windows, outputs, focus,
+destroyed windows, and explicit observed-only no-ops. The next step is to wire a
+narrow subset of Triad effects to XCB:
 
-- create/update window records from discovered top-level windows
+- update window records from property and configure notifications
 - configure window geometry from `EffSetPosition`
 - focus windows from `EffFocusWindow`
 - send close requests from `EffCloseWindow`
