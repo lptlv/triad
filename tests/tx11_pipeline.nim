@@ -127,3 +127,33 @@ suite "X11 admission pipeline":
     check step.intents.len == 0
     check step.requests.len == 0
     check step.dryRunExecutions.len == 0
+
+  test "net wm state updates remain model-only in the pipeline":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 44, wmClass: "app", title: "App", w: 300, h: 200, mapped: true
+        ),
+      )
+    )
+
+    let step =
+      model.processEventDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.PropertyChanged,
+          propertyWindowId: 44,
+          propertyAtom: "_NET_WM_STATE",
+          propertyValue:
+            "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ",
+        )
+      )
+
+    check step.admission.messages.len == 1
+    check step.admission.messages[0].kind == MsgKind.WlWindowStateChanged
+    check step.admission.effects.len > 0
+    check step.admission.effects.anyIt(it.kind == EffectKind.EffRenderDirty)
+    check step.intents.len == 0
+    check step.requests.len == 0
+    check step.dryRunExecutions.len == 0

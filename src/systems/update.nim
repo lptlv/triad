@@ -10,9 +10,10 @@ proc shouldLogRuntimeUpdate(kind: MsgKind): bool =
     MsgKind.WlWindowCreated, MsgKind.WlWindowDestroyed, MsgKind.WlWindowAppId,
     MsgKind.WlWindowMaximizeRequested, MsgKind.WlWindowUnmaximizeRequested,
     MsgKind.WlWindowMinimizeRequested, MsgKind.WlWindowFullscreenRequested,
-    MsgKind.WlWindowExitFullscreenRequested, MsgKind.WlSessionLocked,
-    MsgKind.WlSessionUnlocked, MsgKind.WlFocusChanged, MsgKind.WlFrameTabClicked,
-    MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft, MsgKind.CmdFocusTagRight,
+    MsgKind.WlWindowStateChanged, MsgKind.WlWindowExitFullscreenRequested,
+    MsgKind.WlSessionLocked, MsgKind.WlSessionUnlocked, MsgKind.WlFocusChanged,
+    MsgKind.WlFrameTabClicked, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
+    MsgKind.CmdFocusTagRight,
     MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace, MsgKind.CmdMoveToTag,
     MsgKind.CmdMoveToTagLeft, MsgKind.CmdMoveToTagRight,
     MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveWindowToTag,
@@ -69,6 +70,8 @@ proc addMsgWindowId(ids: var seq[uint32], msg: Msg) =
     ids.addTrackedWindowId(msg.unmaximizeRequestId)
   of MsgKind.WlWindowMinimizeRequested:
     ids.addTrackedWindowId(msg.minimizeRequestId)
+  of MsgKind.WlWindowStateChanged:
+    ids.addTrackedWindowId(msg.stateWindowId)
   of MsgKind.WlWindowFullscreenRequested:
     ids.addTrackedWindowId(msg.fullscreenRequestId)
   of MsgKind.WlWindowExitFullscreenRequested:

@@ -5,6 +5,10 @@ import ../core/msg
 const
   X11ConfigureMaskWidth = 1'u32 shl 2
   X11ConfigureMaskHeight = 1'u32 shl 3
+  X11StateFullscreen = "_NET_WM_STATE_FULLSCREEN"
+  X11StateMaximizedHorz = "_NET_WM_STATE_MAXIMIZED_HORZ"
+  X11StateMaximizedVert = "_NET_WM_STATE_MAXIMIZED_VERT"
+  X11StateHidden = "_NET_WM_STATE_HIDDEN"
 
 type
   X11ProbeEventKind* {.size: sizeof(cuint).} = enum
@@ -104,6 +108,15 @@ proc appIdFromWmClass*(wmClass: string): string =
   if slash >= 0 and slash + 1 < cleaned.len:
     return cleaned[slash + 1 .. ^1]
   cleaned
+
+proc stateTokenSet(value: string): seq[string] =
+  for token in value.splitWhitespace():
+    result.add(token)
+
+proc hasState(tokens: openArray[string], state: string): bool =
+  for token in tokens:
+    if token == state:
+      return true
 
 proc cArrayString[N: static[int]](value: array[N, char]): string =
   for ch in value:
@@ -293,6 +306,19 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
             windowPid: event.propertyPid,
           )
         )
+    of "_NET_WM_STATE":
+      let tokens = event.propertyValue.stateTokenSet()
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowStateChanged,
+          stateWindowId: event.propertyWindowId,
+          stateFullscreen: tokens.hasState(X11StateFullscreen),
+          stateMaximized:
+            tokens.hasState(X11StateMaximizedHorz) or
+            tokens.hasState(X11StateMaximizedVert),
+          stateMinimized: tokens.hasState(X11StateHidden),
+        )
+      )
     else:
       discard
   of X11BackendEventKind.PointerEntered, X11BackendEventKind.RandrChanged:

@@ -379,6 +379,13 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
   of MsgKind.WlWindowMinimizeRequested:
     result.dirty =
       model.requestMinimizeForExternal(msg.minimizeRequestId.externalWindowId())
+  of MsgKind.WlWindowStateChanged:
+    result.dirty = model.updateWindowStateForExternal(
+      msg.stateWindowId.externalWindowId(),
+      msg.stateFullscreen,
+      msg.stateMaximized,
+      msg.stateMinimized,
+    )
   of MsgKind.WlWindowAdmissionSettled:
     result.dirty =
       model.settleWindowAdmissionForExternal(msg.admissionWindowId.externalWindowId())

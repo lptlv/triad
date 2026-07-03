@@ -251,6 +251,36 @@ suite "X11 event mapping":
     check pid[0].pidWindowId == 1
     check pid[0].windowPid == 4321
 
+  test "net wm state changes map to observed window state":
+    let messages =
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 1,
+        propertyAtom: "_NET_WM_STATE",
+        propertyValue:
+          "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
+          "_NET_WM_STATE_HIDDEN",
+      ).messagesFor()
+    let cleared =
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 1,
+        propertyAtom: "_NET_WM_STATE",
+        propertyValue: "",
+      ).messagesFor()
+
+    check messages.len == 1
+    check messages[0].kind == MsgKind.WlWindowStateChanged
+    check messages[0].stateWindowId == 1
+    check messages[0].stateFullscreen
+    check messages[0].stateMaximized
+    check messages[0].stateMinimized
+    check cleared.len == 1
+    check cleared[0].kind == MsgKind.WlWindowStateChanged
+    check not cleared[0].stateFullscreen
+    check not cleared[0].stateMaximized
+    check not cleared[0].stateMinimized
+
   test "observed-only and incomplete events are explicit no-ops":
     let events = [
       X11BackendEvent(
@@ -260,7 +290,7 @@ suite "X11 event mapping":
       X11BackendEvent(
         kind: X11BackendEventKind.PropertyChanged,
         propertyWindowId: 1,
-        propertyAtom: "_NET_WM_STATE",
+        propertyAtom: "_NET_WM_WINDOW_TYPE",
       ),
       X11BackendEvent(kind: X11BackendEventKind.PointerEntered, enterWindowId: 1),
       X11BackendEvent(kind: X11BackendEventKind.RandrChanged, randrRoot: 1),

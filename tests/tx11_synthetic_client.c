@@ -109,12 +109,19 @@ int main(int argc, char **argv)
     xcb_atom_t wm_delete_window = intern_atom(conn, "WM_DELETE_WINDOW");
     xcb_atom_t net_wm_name = intern_atom(conn, "_NET_WM_NAME");
     xcb_atom_t net_wm_pid = intern_atom(conn, "_NET_WM_PID");
+    xcb_atom_t net_wm_state = intern_atom(conn, "_NET_WM_STATE");
+    xcb_atom_t net_wm_state_fullscreen = intern_atom(conn, "_NET_WM_STATE_FULLSCREEN");
+    xcb_atom_t net_wm_state_maximized_horz =
+        intern_atom(conn, "_NET_WM_STATE_MAXIMIZED_HORZ");
     xcb_atom_t utf8_string = intern_atom(conn, "UTF8_STRING");
     xcb_atom_t cardinal = intern_atom(conn, "CARDINAL");
     if (
         wm_class == XCB_ATOM_NONE || wm_name == XCB_ATOM_NONE ||
         wm_protocols == XCB_ATOM_NONE || wm_delete_window == XCB_ATOM_NONE ||
         net_wm_name == XCB_ATOM_NONE || net_wm_pid == XCB_ATOM_NONE ||
+        net_wm_state == XCB_ATOM_NONE ||
+        net_wm_state_fullscreen == XCB_ATOM_NONE ||
+        net_wm_state_maximized_horz == XCB_ATOM_NONE ||
         utf8_string == XCB_ATOM_NONE || cardinal == XCB_ATOM_NONE) {
         fprintf(stderr, "tx11_synthetic_client: failed to intern atoms\n");
         xcb_disconnect(conn);
@@ -221,6 +228,19 @@ int main(int argc, char **argv)
         xcb_disconnect(conn);
         return 1;
     }
+    xcb_flush(conn);
+    usleep(200000);
+
+    xcb_atom_t states[] = {net_wm_state_fullscreen, net_wm_state_maximized_horz};
+    xcb_change_property(
+        conn,
+        XCB_PROP_MODE_REPLACE,
+        win,
+        net_wm_state,
+        XCB_ATOM_ATOM,
+        32,
+        sizeof(states) / sizeof(states[0]),
+        states);
     xcb_flush(conn);
     usleep(200000);
 

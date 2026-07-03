@@ -25,6 +25,10 @@ proc dryRunMessageLabel(msg: Msg): string =
     "WlWindowAppId id=" & $msg.appIdWindowId & " app_id=\"" & msg.updatedAppId & "\""
   of MsgKind.WlWindowTitle:
     "WlWindowTitle id=" & $msg.titleWindowId & " title=\"" & msg.updatedTitle & "\""
+  of MsgKind.WlWindowStateChanged:
+    "WlWindowStateChanged id=" & $msg.stateWindowId & " fullscreen=" &
+      $msg.stateFullscreen & " maximized=" & $msg.stateMaximized & " minimized=" &
+      $msg.stateMinimized
   of MsgKind.WlOutputDimensions:
     "WlOutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" &
       $msg.height

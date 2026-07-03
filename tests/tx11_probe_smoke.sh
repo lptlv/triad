@@ -131,6 +131,7 @@ for pattern in \
   "event PropertyNotify" \
   "backend_event PropertyChanged" \
   "dry_run_msg WlWindowTitle" \
+  "dry_run_msg WlWindowStateChanged" \
   "event DestroyNotify" \
   "backend_event WindowDestroyed" \
   "dry_run_msg WlWindowDestroyed"; do

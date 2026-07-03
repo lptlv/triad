@@ -277,6 +277,44 @@ proc requestMinimizeForExternal*(model: var Model, externalId: ExternalWindowId)
       discard model.setTagFocus(tagId, focused)
   true
 
+proc updateWindowStateForExternal*(
+    model: var Model,
+    externalId: ExternalWindowId,
+    fullscreen, maximized, minimized: bool,
+): bool =
+  let winId = model.windowForExternal(externalId)
+  if winId == NullWindowId:
+    return false
+
+  var win = model.windowData(winId).get()
+  if win.isFullscreen != fullscreen:
+    result =
+      model.setWindowFullscreen(
+        winId,
+        fullscreen,
+        if fullscreen:
+          model.chooseFullscreenOutputForWindow(winId, NullExternalOutputId)
+        else:
+          NullExternalOutputId,
+      ) or result
+
+  win = model.windowData(winId).get()
+  if win.isMaximized != maximized:
+    result = model.setWindowMaximized(winId, maximized) or result
+
+  win = model.windowData(winId).get()
+  if win.isMinimized != minimized:
+    result = model.setWindowMinimized(winId, minimized) or result
+    if minimized:
+      for tagId, tag in model.tagsWithId():
+        if tag.focusedWindow == winId:
+          var focused = NullWindowId
+          for candidateId, candidate in model.windowsOnTagWithId(tagId):
+            if not candidate.isMinimized and candidate.windowAdmitted():
+              focused = candidateId
+              break
+          discard model.setTagFocus(tagId, focused)
+
 proc focusedWindow*(model: Model): WindowId =
   let tagOpt = model.tag(model.activeTag)
   if tagOpt.isNone:

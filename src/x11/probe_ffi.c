@@ -68,6 +68,10 @@ typedef struct TriadX11Atoms {
     xcb_atom_t net_wm_name;
     xcb_atom_t net_wm_pid;
     xcb_atom_t net_wm_state;
+    xcb_atom_t net_wm_state_fullscreen;
+    xcb_atom_t net_wm_state_maximized_horz;
+    xcb_atom_t net_wm_state_maximized_vert;
+    xcb_atom_t net_wm_state_hidden;
     xcb_atom_t net_wm_window_type;
     xcb_atom_t net_supported;
     xcb_atom_t net_supporting_wm_check;
@@ -270,6 +274,48 @@ static uint32_t window_pid(TriadX11Probe *probe, xcb_window_t win)
     return pid;
 }
 
+static char *window_state_atoms(TriadX11Probe *probe, xcb_window_t win)
+{
+    xcb_get_property_cookie_t cookie = xcb_get_property(
+        probe->conn, 0, win, probe->atoms.net_wm_state, XCB_ATOM_ATOM, 0, 64);
+    xcb_get_property_reply_t *reply =
+        xcb_get_property_reply(probe->conn, cookie, NULL);
+    if (reply == NULL)
+        return NULL;
+
+    int len = xcb_get_property_value_length(reply) / (int)sizeof(xcb_atom_t);
+    xcb_atom_t *atoms = xcb_get_property_value(reply);
+    char *result = calloc(512, 1);
+    if (result == NULL) {
+        free(reply);
+        return NULL;
+    }
+
+    size_t used = 0;
+    for (int i = 0; i < len && used + 1 < 512; i++) {
+        char *name = atom_name(probe, atoms[i]);
+        if (name == NULL)
+            continue;
+        int written = snprintf(
+            result + used,
+            512 - used,
+            "%s%s",
+            used > 0 ? " " : "",
+            name);
+        free(name);
+        if (written < 0)
+            break;
+        if ((size_t)written >= 512 - used) {
+            used = 511;
+            break;
+        }
+        used += (size_t)written;
+    }
+
+    free(reply);
+    return result;
+}
+
 static int select_window_events(TriadX11Probe *probe, xcb_window_t win)
 {
     uint32_t mask =
@@ -378,6 +424,14 @@ static void init_atoms(TriadX11Probe *probe)
     probe->atoms.net_wm_name = intern_atom(probe, "_NET_WM_NAME", 0);
     probe->atoms.net_wm_pid = intern_atom(probe, "_NET_WM_PID", 0);
     probe->atoms.net_wm_state = intern_atom(probe, "_NET_WM_STATE", 0);
+    probe->atoms.net_wm_state_fullscreen =
+        intern_atom(probe, "_NET_WM_STATE_FULLSCREEN", 0);
+    probe->atoms.net_wm_state_maximized_horz =
+        intern_atom(probe, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
+    probe->atoms.net_wm_state_maximized_vert =
+        intern_atom(probe, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
+    probe->atoms.net_wm_state_hidden =
+        intern_atom(probe, "_NET_WM_STATE_HIDDEN", 0);
     probe->atoms.net_wm_window_type = intern_atom(probe, "_NET_WM_WINDOW_TYPE", 0);
     probe->atoms.net_supported = intern_atom(probe, "_NET_SUPPORTED", 0);
     probe->atoms.net_supporting_wm_check =
@@ -489,6 +543,10 @@ static int claim_wm(TriadX11Probe *probe)
         probe->atoms.net_wm_name,
         probe->atoms.net_wm_pid,
         probe->atoms.net_wm_state,
+        probe->atoms.net_wm_state_fullscreen,
+        probe->atoms.net_wm_state_maximized_horz,
+        probe->atoms.net_wm_state_maximized_vert,
+        probe->atoms.net_wm_state_hidden,
         probe->atoms.net_wm_window_type,
     };
     xcb_change_property(
@@ -765,6 +823,10 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
                 free(title);
             } else if (ev->atom == probe->atoms.net_wm_pid) {
                 event.pid = (int32_t)window_pid(probe, ev->window);
+            } else if (ev->atom == probe->atoms.net_wm_state) {
+                char *state = window_state_atoms(probe, ev->window);
+                copy_text(event.title, sizeof(event.title), state);
+                free(state);
             }
         }
         probe_event(probe, &event);

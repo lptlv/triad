@@ -155,13 +155,14 @@ and close effects, with non-mutating dry-run execution and a guarded C/XCB
 execution boundary. Live execution is validated against the synthetic Xvfb
 client for configure, focus, and polite close requests. The controlled
 admission-to-executor loop is available through `src/x11/pipeline.nim`; it is
-still opt-in and the probe CLI remains observational. Configure requests and
-known property notifications now update isolated model state through existing
-Triad messages. The next step is to expand the model updates that produce
-executable effects:
+still opt-in and the probe CLI remains observational. Configure requests,
+metadata notifications, and `_NET_WM_STATE` changes for fullscreen, maximized,
+and minimized windows now update isolated model state through existing Triad
+messages. The next step is to expand the model updates that produce executable
+effects:
 
-- update EWMH state for fullscreen, maximized, and minimized windows
 - decide which admitted state changes should remain model-only versus request-backed
+- add an explicit urgency model field before admitting `_NET_WM_STATE_DEMANDS_ATTENTION`
 
 Only after this subset works should the branch attempt tiling, shell snapshots,
 bindings, overlays, or live-session packaging.

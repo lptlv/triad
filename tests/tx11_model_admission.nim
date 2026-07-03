@@ -202,3 +202,56 @@ suite "X11 model admission":
     check win.actualH == 480
     check win.title == "New"
     check win.appId == "kitty"
+
+  test "admits net wm state updates into existing window state":
+    var model = x11Model()
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 22, wmClass: "app", title: "App", w: 300, h: 200, mapped: true
+        ),
+      )
+    )
+
+    let state =
+      model.admitDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.PropertyChanged,
+          propertyWindowId: 22,
+          propertyAtom: "_NET_WM_STATE",
+          propertyValue:
+            "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_VERT " &
+            "_NET_WM_STATE_HIDDEN",
+        )
+      )
+
+    check state.messages.len == 1
+    check state.messages[0].kind == MsgKind.WlWindowStateChanged
+    check state.effects.hasEffect(EffectKind.EffRenderDirty)
+
+    var win = model.snapshotWindow(22)
+    check win.isFullscreen
+    check win.isMaximized
+    check win.isMinimized
+
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 22,
+        propertyAtom: "_NET_WM_STATE",
+        propertyValue: "",
+      )
+    )
+    win = model.snapshotWindow(22)
+    check not win.isFullscreen
+    check not win.isMaximized
+    check not win.isMinimized

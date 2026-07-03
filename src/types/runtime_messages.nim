@@ -31,6 +31,7 @@ type
     WlWindowMaximizeRequested
     WlWindowUnmaximizeRequested
     WlWindowMinimizeRequested
+    WlWindowStateChanged
     WlWindowAdmissionSettled
     WlLayerFocusExclusive
     WlLayerFocusNonExclusive
@@ -279,6 +280,11 @@ type
       unmaximizeRequestId*: uint32
     of MsgKind.WlWindowMinimizeRequested:
       minimizeRequestId*: uint32
+    of MsgKind.WlWindowStateChanged:
+      stateWindowId*: uint32
+      stateFullscreen*: bool
+      stateMaximized*: bool
+      stateMinimized*: bool
     of MsgKind.WlWindowAdmissionSettled:
       admissionWindowId*: uint32
     of MsgKind.WlOutputDimensions:
