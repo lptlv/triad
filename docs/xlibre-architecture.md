@@ -212,29 +212,31 @@ Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. Manage mode installs X11
 passive key grabs for configured key bindings whose commands pass the current
 XLibre allowlist. It also installs passive core button grabs for supported
-command-style pointer bindings, currently left, middle, and right button
-bindings after translating Triad's evdev button codes to core X11 button
-details. Core X11 wheel buttons 4, 5, 6, and 7 are also translated into
-one-tick axis dispatch for supported `axis-bind` commands. Matching `KeyPress`
-and `ButtonPress` events are converted back into the same `dispatch-binding`
-path used by IPC, so real input and synthetic dispatch share command validation
-and execution. Interactive pointer bindings can also start the existing model
-pointer operation path for floating windows; motion and release events from the
-active X11 grab are translated to `WlPointerDelta` and `WlPointerRelease`, then
-executed as configure-window requests. The Xvfb smoke test uses XTEST, when
-available, to fake `Super+h`, `Super+middle`, `Super+wheel-up`, plus
+command-style pointer bindings after translating Triad's evdev button codes to
+core X11 button details, including left, middle, right, and common extra mouse
+buttons such as back/forward. Core X11 wheel buttons 4, 5, 6, and 7 are also
+translated into one-tick axis dispatch for supported `axis-bind` commands.
+Matching `KeyPress` and `ButtonPress` events are converted back into the same
+`dispatch-binding` path used by IPC, so real input and synthetic dispatch share
+command validation and execution. Interactive pointer bindings can also start
+the existing model pointer operation path for floating windows; motion and
+release events from the active X11 grab are translated to `WlPointerDelta` and
+`WlPointerRelease`, then executed as configure-window requests. The Xvfb smoke
+test uses XTEST, when available, to fake `Super+h`, `Super+middle`,
+`Super+wheel-up`, plus
 `Super+left` move and `Super+right` resize drags of a floating synthetic client.
 Resize chooses top/bottom and left/right edges from the pointer's initial
 position in the floating window. This first input path is intentionally narrow:
-gesture bindings, extra mouse buttons, high-resolution wheel deltas, and
-shifted-symbol normalization still need follow-up work.
+gesture bindings, device-specific extra button mappings beyond common core X11
+details, high-resolution wheel deltas, and shifted-symbol normalization still
+need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
 - expand the explicit XLibre action set only one command family at a time
-- use XInput/XKB discovery to add high-resolution wheel, extra mouse button, and gesture dispatch
+- use XInput/XKB discovery to add high-resolution wheel, device-specific button, and gesture dispatch
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

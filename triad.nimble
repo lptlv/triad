@@ -109,6 +109,7 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tx11-probe-smoke-ipc-focus-workspace.json",
     "tests/tx11-probe-smoke-ipc-binding-dispatch.json",
     "tests/tx11-probe-smoke-key-press.log", "tests/tx11-probe-smoke-button-press.log",
+    "tests/tx11-probe-smoke-back-button-press.log",
     "tests/tx11-probe-smoke-axis-press.log", "tests/tx11-probe-smoke-pointer-drag.log",
     "tests/tx11-probe-smoke-pointer-resize.log",
     "tests/tx11-probe-smoke-ipc-move-workspace.json",

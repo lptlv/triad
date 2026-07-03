@@ -100,6 +100,11 @@ proc buttonName(button: uint32): string =
   of 0x110'u32: "left"
   of 0x111'u32: "right"
   of 0x112'u32: "middle"
+  of 0x113'u32: "side"
+  of 0x114'u32: "extra"
+  of 0x115'u32: "forward"
+  of 0x116'u32: "back"
+  of 0x117'u32: "task"
   else: ""
 
 proc x11ButtonDetail(button: uint32): uint32 =
@@ -107,6 +112,11 @@ proc x11ButtonDetail(button: uint32): uint32 =
   of 0x110'u32: 1'u32
   of 0x111'u32: 3'u32
   of 0x112'u32: 2'u32
+  of 0x113'u32: 8'u32
+  of 0x114'u32: 9'u32
+  of 0x115'u32: 9'u32
+  of 0x116'u32: 8'u32
+  of 0x117'u32: 10'u32
   else: 0'u32
 
 proc bindingSpec(binding: PointerBindingConfig): string =
