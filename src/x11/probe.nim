@@ -1,12 +1,14 @@
 import std/[asyncdispatch, json, options, strutils, times]
 
+import ../config/keysyms
 import ../core/msg
 import ../config/loading
 import ../config/parser
+import ../ipc/binding_dispatch
 import ../ipc/socket
 import ../state/snapshot
-import ../systems/runtime_facade
-import ../types/[model, shell_snapshot]
+import ../systems/[binding_profiles, runtime_facade]
+import ../types/[model, runtime_values, shell_snapshot]
 import atoms, events, ipc_runtime, pipeline, request_executor, xcb_ffi
 
 const X11IpcListenReadyTimeoutMs = 1000
@@ -23,6 +25,7 @@ type
     model: Model
     stopRequested: bool
     stopPolls: int
+    keyGrabsConfigured: bool
 
   X11ModelLoadResult* = object
     ok*: bool
@@ -39,10 +42,13 @@ proc probeLogCallback(userData: pointer, message: cstring) {.cdecl.} =
 proc discardIpcMsg(msg: Msg) {.gcsafe.} =
   discard msg
 
+proc configureKeyGrabs(context: ptr X11ProbeContext) {.gcsafe.}
+
 proc probeTickCallback(userData: pointer) {.cdecl.} =
   asyncdispatch.poll(0)
   if userData != nil:
     let context = cast[ptr X11ProbeContext](userData)
+    context.configureKeyGrabs()
     if context.stopRequested:
       inc context.stopPolls
       if context.stopPolls >= 2:
@@ -61,6 +67,122 @@ proc modeLabel(mode: X11ProbeMode): string =
   of X11ProbeMode.Observe: "observe"
   of X11ProbeMode.Admit: "admit"
   of X11ProbeMode.Manage: "manage"
+
+proc bindingSpec(binding: KeyBindingConfig): string =
+  var parts: seq[string]
+  if (binding.modifiers and 64'u32) != 0:
+    parts.add("Super")
+  if (binding.modifiers and 4'u32) != 0:
+    parts.add("Ctrl")
+  if (binding.modifiers and 1'u32) != 0:
+    parts.add("Shift")
+  if (binding.modifiers and 8'u32) != 0:
+    parts.add("Alt")
+  if (binding.modifiers and 32'u32) != 0:
+    parts.add("Mod3")
+  if (binding.modifiers and 128'u32) != 0:
+    parts.add("Mod5")
+  parts.add(binding.key)
+  parts.join("+")
+
+proc bindingText(value: string): array[128, char] =
+  let limit = min(value.len, result.len - 1)
+  for i in 0 ..< limit:
+    result[i] = value[i]
+
+proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
+  let snapshot = model.shellSnapshot()
+  for binding in model.resolvedKeyBindings():
+    let keysym = keySymForBinding(binding.key, binding.modifiers)
+    if keysym == 0:
+      continue
+    let spec = binding.bindingSpec()
+    let request = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindKey, binding: spec, ticks: 1'i32
+    )
+    let parsed =
+      xlibreWritableRequestFor(bindingDispatchPayload(request), model, snapshot)
+    if parsed.handled and parsed.bindingDispatch.ok:
+      result.add(
+        X11KeyGrab(
+          keysym: keysym, modifiers: binding.modifiers, binding: spec.bindingText()
+        )
+      )
+
+proc configureKeyGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
+  if context == nil or context.keyGrabsConfigured or context.mode != X11ProbeMode.Manage:
+    return
+  {.cast(gcsafe).}:
+    let grabs = context.model.xlibreKeyGrabs()
+    let status =
+      if grabs.len == 0:
+        triadX11ConfigureActiveKeyGrabs(cast[ptr X11KeyGrab](nil), 0)
+      else:
+        triadX11ConfigureActiveKeyGrabs(unsafeAddr grabs[0], cuint(grabs.len))
+    context.keyGrabsConfigured = true
+    stdout.writeLine("xlibre_key_grabs requested=" & $grabs.len & " status=" & $status)
+    stdout.flushFile()
+
+proc executeXlibreWritableRequest(
+  context: ptr X11ProbeContext, request: X11WritableIpcRequest
+): string {.gcsafe.}
+
+proc dispatchKeyBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.} =
+  if context == nil or binding.len == 0:
+    return
+  {.cast(gcsafe).}:
+    let dispatch = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindKey, binding: binding, ticks: 1'i32
+    )
+    let request = xlibreWritableRequestFor(
+      bindingDispatchPayload(dispatch), context.model, context.model.shellSnapshot()
+    )
+    if request.handled:
+      stdout.writeLine(
+        "xlibre_key_binding_reply " & context.executeXlibreWritableRequest(request)
+      )
+      stdout.flushFile()
+
+proc executeXlibreWritableRequest(
+    context: ptr X11ProbeContext, request: X11WritableIpcRequest
+): string {.gcsafe.} =
+  {.cast(gcsafe).}:
+    if request.reply.len > 0:
+      return replyForExecutedXlibreWritableRequest(request, X11RequestRunResult())
+    if request.requestName == "xlibre-stop":
+      context.stopRequested = true
+      context.stopPolls = 0
+      stdout.writeLine("xlibre_ipc_stop requested=true")
+      stdout.flushFile()
+      return replyForExecutedXlibreWritableRequest(
+        request, X11RequestRunResult(code: 0, dryRun: false, logs: @["stop requested"])
+      )
+    if request.messages.len > 0:
+      var run = X11RequestRunResult(code: 0, dryRun: false)
+      for message in request.messages:
+        let step = context.model.processCommandWithActiveProbe(message)
+        for x11Request in step.layoutRequests:
+          stdout.writeLine(
+            "xlibre_ipc_layout_request " & x11Request.executeDryRun().description
+          )
+        for x11Request in step.requests:
+          stdout.writeLine(
+            "xlibre_ipc_request " & x11Request.executeDryRun().description
+          )
+        for line in step.xcbRun.logs:
+          stdout.writeLine("xlibre_ipc_xcb " & line)
+        run = step.xcbRun
+        if run.code != 0:
+          break
+      stdout.flushFile()
+      return replyForExecutedXlibreWritableRequest(request, run)
+    for x11Request in request.requests:
+      stdout.writeLine("xlibre_ipc_request " & x11Request.executeDryRun().description)
+    let run = request.requests.executeWithActiveProbe()
+    for line in run.logs:
+      stdout.writeLine("xlibre_ipc_xcb " & line)
+    stdout.flushFile()
+    replyForExecutedXlibreWritableRequest(request, run)
 
 proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
   if socketPath.len == 0:
@@ -90,46 +212,7 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
       let request = xlibreWritableRequestFor(line, context.model, snapshot)
       if not request.handled:
         return none(string)
-      if request.reply.len > 0:
-        return
-          some(replyForExecutedXlibreWritableRequest(request, X11RequestRunResult()))
-      if request.requestName == "xlibre-stop":
-        context.stopRequested = true
-        context.stopPolls = 0
-        stdout.writeLine("xlibre_ipc_stop requested=true")
-        stdout.flushFile()
-        return some(
-          replyForExecutedXlibreWritableRequest(
-            request,
-            X11RequestRunResult(code: 0, dryRun: false, logs: @["stop requested"]),
-          )
-        )
-      if request.messages.len > 0:
-        var run = X11RequestRunResult(code: 0, dryRun: false)
-        for message in request.messages:
-          let step = context.model.processCommandWithActiveProbe(message)
-          for x11Request in step.layoutRequests:
-            stdout.writeLine(
-              "xlibre_ipc_layout_request " & x11Request.executeDryRun().description
-            )
-          for x11Request in step.requests:
-            stdout.writeLine(
-              "xlibre_ipc_request " & x11Request.executeDryRun().description
-            )
-          for line in step.xcbRun.logs:
-            stdout.writeLine("xlibre_ipc_xcb " & line)
-          run = step.xcbRun
-          if run.code != 0:
-            break
-        stdout.flushFile()
-        return some(replyForExecutedXlibreWritableRequest(request, run))
-      for x11Request in request.requests:
-        stdout.writeLine("xlibre_ipc_request " & x11Request.executeDryRun().description)
-      let run = request.requests.executeWithActiveProbe()
-      for line in run.logs:
-        stdout.writeLine("xlibre_ipc_xcb " & line)
-      stdout.flushFile()
-      some(replyForExecutedXlibreWritableRequest(request, run))
+      some(context.executeXlibreWritableRequest(request))
 
   let listenReady = newFuture[bool]("xlibre triad ipc listener ready")
   asyncCheck startIpcServer(
@@ -211,6 +294,9 @@ proc eventLabel(event: X11BackendEvent): string =
   of X11BackendEventKind.RandrChanged:
     "RandrChanged root=" & $event.randrRoot & " size=" & $event.randrW & "x" &
       $event.randrH
+  of X11BackendEventKind.KeyBinding:
+    "KeyBinding binding=\"" & event.keyBinding & "\" keycode=" & $event.keyBindingKeycode &
+      " modifiers=0x" & toHex(event.keyBindingModifiers, 4).toLowerAscii()
 
 proc x11ConfigPath*(configPath = ""): string =
   if configPath.len > 0:
@@ -236,6 +322,13 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
     return
   let event = backendEventFromProbe(raw[])
   stdout.writeLine("backend_event " & event.eventLabel())
+  if event.kind == X11BackendEventKind.KeyBinding:
+    if userData == nil:
+      stdout.writeLine("dry_run_msg X11KeyBinding binding=\"" & event.keyBinding & "\"")
+    else:
+      cast[ptr X11ProbeContext](userData).dispatchKeyBinding(event.keyBinding)
+    stdout.flushFile()
+    return
   if userData == nil:
     for msg in event.messagesFor():
       stdout.writeLine("dry_run_msg " & msg.dryRunMessageLabel())

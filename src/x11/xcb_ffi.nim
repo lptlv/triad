@@ -15,6 +15,11 @@ type
   X11ProbeTickFn* = proc(userData: pointer) {.cdecl.}
   X11RequestLogFn* = proc(userData: pointer, message: cstring) {.cdecl.}
 
+  X11KeyGrab* {.bycopy.} = object
+    keysym*: uint32
+    modifiers*: uint32
+    binding*: array[128, char]
+
 proc triadX11ProbeRun*(
   displayName: cstring,
   once: cint,
@@ -38,3 +43,7 @@ proc triadX11ExecuteRequestsOnActiveProbe*(
 ): cint {.importc: "triad_x11_execute_requests_on_active_probe".}
 
 proc triadX11StopActiveProbe*(): cint {.importc: "triad_x11_stop_active_probe".}
+
+proc triadX11ConfigureActiveKeyGrabs*(
+  grabs: ptr X11KeyGrab, count: cuint
+): cint {.importc: "triad_x11_configure_active_key_grabs".}

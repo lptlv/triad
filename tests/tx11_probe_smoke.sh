@@ -223,6 +223,8 @@ fi
 for pattern in \
   "config loaded path=\"$config\"" \
   "ipc listening path=\"$ipc_socket\" mode=read-only" \
+  "key grabs configured count=" \
+  "xlibre_key_grabs requested=" \
   "backend_event MapRequested" \
   "model_msg WlWindowCreated" \
   "layout_x11_request configure window=" \

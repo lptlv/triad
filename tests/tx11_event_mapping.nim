@@ -86,10 +86,7 @@ suite "X11 event mapping":
     check event.output.h == 1440
 
   test "raw probe configure and property events preserve observed data":
-    var propertyRaw = X11ProbeEvent(
-      kind: X11ProbeEventKind.XpePropertyChanged,
-      id: 9,
-    )
+    var propertyRaw = X11ProbeEvent(kind: X11ProbeEventKind.XpePropertyChanged, id: 9)
     for idx, ch in "_NET_WM_STATE":
       propertyRaw.name[idx] = ch
     for idx, ch in "state-value":
@@ -102,18 +99,17 @@ suite "X11 event mapping":
     check property.propertyValue == "state-value"
     check property.propertyPid == 1234
 
-    let configure =
-      X11ProbeEvent(
-        kind: X11ProbeEventKind.XpeConfigureRequested,
-        id: 10,
-        valueMask: 0x0f,
-        x: 1,
-        y: 2,
-        w: 300,
-        h: 200,
-        sibling: 11,
-        stackMode: 1,
-      ).backendEventFromProbe()
+    let configure = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeConfigureRequested,
+      id: 10,
+      valueMask: 0x0f,
+      x: 1,
+      y: 2,
+      w: 300,
+      h: 200,
+      sibling: 11,
+      stackMode: 1,
+    ).backendEventFromProbe()
     check configure.kind == X11BackendEventKind.ConfigureRequested
     check configure.configure.windowId == 10
     check configure.configure.valueMask == 0x0f
@@ -124,23 +120,35 @@ suite "X11 event mapping":
     check configure.configure.sibling == 11
     check configure.configure.stackMode == 1
 
+  test "raw key binding event preserves binding identity without model messages":
+    var raw =
+      X11ProbeEvent(kind: X11ProbeEventKind.XpeKeyBinding, id: 43, valueMask: 64'u32)
+    for idx, ch in "Super+h":
+      raw.name[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.KeyBinding
+    check event.keyBinding == "Super+h"
+    check event.keyBindingKeycode == 43
+    check event.keyBindingModifiers == 64'u32
+    check event.messagesFor().len == 0
+
   test "window discovery maps to creation, dimensions, and pid messages":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.WindowDiscovered,
-        window: X11WindowSnapshot(
-          id: 42,
-          parentId: 7,
-          pid: 1234,
-          wmClass: "kitty/kitty",
-          title: "Terminal",
-          x: 10,
-          y: 20,
-          w: 800,
-          h: 600,
-          mapped: true,
-        ),
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.WindowDiscovered,
+      window: X11WindowSnapshot(
+        id: 42,
+        parentId: 7,
+        pid: 1234,
+        wmClass: "kitty/kitty",
+        title: "Terminal",
+        x: 10,
+        y: 20,
+        w: 800,
+        h: 600,
+        mapped: true,
+      ),
+    ).messagesFor()
 
     check messages.len == 3
     check messages[0].kind == MsgKind.WlWindowCreated
@@ -160,19 +168,12 @@ suite "X11 event mapping":
     check messages[2].windowPid == 1234
 
   test "map request maps to creation, dimensions, and pid messages":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.MapRequested,
-        window: X11WindowSnapshot(
-          id: 43,
-          parentId: 7,
-          pid: 1235,
-          wmClass: "app/app",
-          title: "App",
-          w: 640,
-          h: 480,
-        ),
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.MapRequested,
+      window: X11WindowSnapshot(
+        id: 43, parentId: 7, pid: 1235, wmClass: "app/app", title: "App", w: 640, h: 480
+      ),
+    ).messagesFor()
 
     check messages.len == 3
     check messages[0].kind == MsgKind.WlWindowCreated
@@ -184,20 +185,19 @@ suite "X11 event mapping":
     check messages[2].pidWindowId == 43
 
   test "override-redirect windows are not admitted":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.WindowDiscovered,
-        window: X11WindowSnapshot(id: 9, wmClass: "menu", overrideRedirect: true),
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.WindowDiscovered,
+      window: X11WindowSnapshot(id: 9, wmClass: "menu", overrideRedirect: true),
+    ).messagesFor()
     check messages.len == 0
 
   test "destroyed and unmapped windows map to destroy messages":
-    let destroyed =
-      X11BackendEvent(
-        kind: X11BackendEventKind.WindowDestroyed, windowId: 11
-      ).messagesFor()
-    let unmapped =
-      X11BackendEvent(kind: X11BackendEventKind.WindowUnmapped, windowId: 12).messagesFor()
+    let destroyed = X11BackendEvent(
+      kind: X11BackendEventKind.WindowDestroyed, windowId: 11
+    ).messagesFor()
+    let unmapped = X11BackendEvent(
+      kind: X11BackendEventKind.WindowUnmapped, windowId: 12
+    ).messagesFor()
 
     check destroyed.len == 1
     check destroyed[0].kind == MsgKind.WlWindowDestroyed
@@ -207,13 +207,12 @@ suite "X11 event mapping":
     check unmapped[0].destroyedId == 12
 
   test "connected output maps to dimensions, name, and position messages":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.OutputDiscovered,
-        output: X11OutputSnapshot(
-          id: 3, name: "DP-1", connected: true, x: 1920, y: 0, w: 2560, h: 1440
-        ),
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.OutputDiscovered,
+      output: X11OutputSnapshot(
+        id: 3, name: "DP-1", connected: true, x: 1920, y: 0, w: 2560, h: 1440
+      ),
+    ).messagesFor()
 
     check messages.len == 3
     check messages[0].kind == MsgKind.WlOutputDimensions
@@ -229,25 +228,22 @@ suite "X11 event mapping":
     check messages[2].outputY == 0
 
   test "disconnected output maps to removed output":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.OutputDiscovered,
-        output: X11OutputSnapshot(id: 4, name: "HDMI-A-1", connected: false),
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.OutputDiscovered,
+      output: X11OutputSnapshot(id: 4, name: "HDMI-A-1", connected: false),
+    ).messagesFor()
 
     check messages.len == 1
     check messages[0].kind == MsgKind.WlOutputRemoved
     check messages[0].removedOutputId == 4
 
   test "focused event maps to focus changed and unfocused event is ignored":
-    let focused =
-      X11BackendEvent(
-        kind: X11BackendEventKind.FocusChanged, focusWindowId: 88, focused: true
-      ).messagesFor()
-    let unfocused =
-      X11BackendEvent(
-        kind: X11BackendEventKind.FocusChanged, focusWindowId: 88, focused: false
-      ).messagesFor()
+    let focused = X11BackendEvent(
+      kind: X11BackendEventKind.FocusChanged, focusWindowId: 88, focused: true
+    ).messagesFor()
+    let unfocused = X11BackendEvent(
+      kind: X11BackendEventKind.FocusChanged, focusWindowId: 88, focused: false
+    ).messagesFor()
 
     check focused.len == 1
     check focused[0].kind == MsgKind.WlFocusChanged
@@ -255,11 +251,10 @@ suite "X11 event mapping":
     check unfocused.len == 0
 
   test "configure request maps explicit size changes to dimensions":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.ConfigureRequested,
-        configure: X11ConfigureRequest(windowId: 1, valueMask: 0x0c, w: 640, h: 480),
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.ConfigureRequested,
+      configure: X11ConfigureRequest(windowId: 1, valueMask: 0x0c, w: 640, h: 480),
+    ).messagesFor()
 
     check messages.len == 1
     check messages[0].kind == MsgKind.WlWindowDimensions
@@ -268,27 +263,24 @@ suite "X11 event mapping":
     check messages[0].actualHeight == 480
 
   test "known property changes map to window metadata updates":
-    let title =
-      X11BackendEvent(
-        kind: X11BackendEventKind.PropertyChanged,
-        propertyWindowId: 1,
-        propertyAtom: "_NET_WM_NAME",
-        propertyValue: "Updated",
-      ).messagesFor()
-    let appId =
-      X11BackendEvent(
-        kind: X11BackendEventKind.PropertyChanged,
-        propertyWindowId: 1,
-        propertyAtom: "WM_CLASS",
-        propertyValue: "kitty/kitty",
-      ).messagesFor()
-    let pid =
-      X11BackendEvent(
-        kind: X11BackendEventKind.PropertyChanged,
-        propertyWindowId: 1,
-        propertyAtom: "_NET_WM_PID",
-        propertyPid: 4321,
-      ).messagesFor()
+    let title = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 1,
+      propertyAtom: "_NET_WM_NAME",
+      propertyValue: "Updated",
+    ).messagesFor()
+    let appId = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 1,
+      propertyAtom: "WM_CLASS",
+      propertyValue: "kitty/kitty",
+    ).messagesFor()
+    let pid = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 1,
+      propertyAtom: "_NET_WM_PID",
+      propertyPid: 4321,
+    ).messagesFor()
 
     check title.len == 1
     check title[0].kind == MsgKind.WlWindowTitle
@@ -304,22 +296,20 @@ suite "X11 event mapping":
     check pid[0].windowPid == 4321
 
   test "net wm state changes map to observed window state":
-    let messages =
-      X11BackendEvent(
-        kind: X11BackendEventKind.PropertyChanged,
-        propertyWindowId: 1,
-        propertyAtom: "_NET_WM_STATE",
-        propertyValue:
-          "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
-          "_NET_WM_STATE_HIDDEN _NET_WM_STATE_DEMANDS_ATTENTION",
-      ).messagesFor()
-    let cleared =
-      X11BackendEvent(
-        kind: X11BackendEventKind.PropertyChanged,
-        propertyWindowId: 1,
-        propertyAtom: "_NET_WM_STATE",
-        propertyValue: "",
-      ).messagesFor()
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 1,
+      propertyAtom: "_NET_WM_STATE",
+      propertyValue:
+        "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
+        "_NET_WM_STATE_HIDDEN _NET_WM_STATE_DEMANDS_ATTENTION",
+    ).messagesFor()
+    let cleared = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 1,
+      propertyAtom: "_NET_WM_STATE",
+      propertyValue: "",
+    ).messagesFor()
 
     check messages.len == 1
     check messages[0].kind == MsgKind.WlWindowStateChanged
