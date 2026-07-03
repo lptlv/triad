@@ -185,6 +185,18 @@ input {
 ## Bindings
 Triad supports keyboard, pointer, wheel, and gesture bindings.
 
+Modifier names are configurable through an optional top-level `modifiers` block.
+Alias targets are physical modifier slots such as `Shift`, `Ctrl`, `Mod1`,
+`Mod3`, `Mod4`, and `Mod5`.
+
+```kdl
+modifiers {
+  alias "Super" "Mod4"
+  alias "Alt" "Mod1"
+  alias "Hyper" "Mod3"
+}
+```
+
 ```kdl
 bindings {
   bind "Super+Return" "spawn kitty"

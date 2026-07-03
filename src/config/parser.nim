@@ -747,15 +747,38 @@ proc normalizeKeySpec(
     result.key = shifted
     result.modifiers = modifiers and not ShiftModifier
 
-proc parseKeySpec*(value: string): tuple[key: string, modifiers: uint32] =
+proc parseKeySpec*(
+    value: string, modifierAliases: ModifierAliases
+): tuple[key: string, modifiers: uint32] =
   let parts = value.split("+")
   if parts.len == 0:
     return ("", 0'u32)
   let rawKey = parts[^1].strip()
   var modifiers = 0'u32
   if parts.len > 1:
-    modifiers = parseModifiers(parts[0 .. ^2].join("+"))
+    modifiers = parseModifiers(parts[0 .. ^2].join("+"), modifierAliases)
   result = normalizeKeySpec(rawKey, modifiers)
+
+proc parseKeySpec*(value: string): tuple[key: string, modifiers: uint32] =
+  parseKeySpec(value, defaultModifierAliases())
+
+proc parseConfigModifierAliases(doc: KdlDoc): ModifierAliases =
+  result = defaultModifierAliases()
+  for node in doc:
+    if node.name != "modifiers":
+      continue
+    for child in node.children:
+      try:
+        if child.name == "alias" and child.args.len >= 2:
+          let alias = child.args[0].kString()
+          let target = child.args[1].kString()
+          let value = target.physicalModifierValue()
+          if value != 0 or target.strip().normalize() == "none":
+            result.setAlias(alias, value)
+          else:
+            warn "Ignoring invalid modifier alias target", alias = alias, target = target
+      except CatchableError as e:
+        warn "Ignoring invalid modifier alias", field = child.name, error = e.msg
 
 proc applyHotkeyOverlayTitle(binding: var KeyBindingConfig, value: KdlVal) =
   if value.kind == KNull:
@@ -1148,39 +1171,45 @@ proc mirrorHjklArrowBindings(bindings: var seq[KeyBindingConfig]) =
     if not bindings.hasKeySlot(mirrored):
       bindings.add(mirrored)
 
-proc hotkeyOverlayFallbackBinding(): KeyBindingConfig =
+proc hotkeyOverlayFallbackBinding(
+    modifierAliases: ModifierAliases = defaultModifierAliases()
+): KeyBindingConfig =
   KeyBindingConfig(
     key: "Question",
-    modifiers: ModifierSuper,
+    modifiers: modifierAliases.modifierValue("Super"),
     command: "toggle-hotkey-overlay",
     bypassShortcutsInhibit: true,
     hotkeyOverlayTitleKind: HotkeyOverlayTitleKind.HotkeyTitleCustom,
     hotkeyOverlayTitle: "Show Important Hotkeys",
   )
 
-proc defaultRecentWindowBindings*(): seq[KeyBindingConfig] =
+proc defaultRecentWindowBindings*(
+    modifierAliases: ModifierAliases = defaultModifierAliases()
+): seq[KeyBindingConfig] =
+  let alt = modifierAliases.modifierValue("Alt")
+  let shift = modifierAliases.modifierValue("Shift")
   @[
     KeyBindingConfig(
       key: "Tab",
-      modifiers: ModifierAlt,
+      modifiers: alt,
       command: "recent-window-next",
       mode: BindingMode.BindRecent,
     ),
     KeyBindingConfig(
       key: "Tab",
-      modifiers: ModifierAlt or ModifierShift,
+      modifiers: alt or shift,
       command: "recent-window-prev",
       mode: BindingMode.BindRecent,
     ),
     KeyBindingConfig(
       key: "grave",
-      modifiers: ModifierAlt,
+      modifiers: alt,
       command: "recent-window-next --filter app-id",
       mode: BindingMode.BindRecent,
     ),
     KeyBindingConfig(
       key: "grave",
-      modifiers: ModifierAlt or ModifierShift,
+      modifiers: alt or shift,
       command: "recent-window-prev --filter app-id",
       mode: BindingMode.BindRecent,
     ),
@@ -1246,11 +1275,14 @@ proc canonicalLayoutScope(value: string): string =
     stripped
 
 proc keyBindingFromNode(
-    node: KdlNode, defaultMode = BindingMode.BindAlways, layoutScope = ""
+    node: KdlNode,
+    modifierAliases: ModifierAliases,
+    defaultMode = BindingMode.BindAlways,
+    layoutScope = "",
 ): Option[KeyBindingConfig] =
   if node.args.len < 2:
     return none(KeyBindingConfig)
-  let spec = parseKeySpec(node.args[0].kString())
+  let spec = parseKeySpec(node.args[0].kString(), modifierAliases)
   if spec.key.len == 0:
     return none(KeyBindingConfig)
   var binding = KeyBindingConfig(
@@ -1289,8 +1321,11 @@ proc hasHotkeyOverlayCommand(bindings: seq[KeyBindingConfig]): bool =
       return true
   false
 
-proc ensureHotkeyOverlayFallback(bindings: var seq[KeyBindingConfig]) =
-  let fallback = hotkeyOverlayFallbackBinding()
+proc ensureHotkeyOverlayFallback(
+    bindings: var seq[KeyBindingConfig],
+    modifierAliases: ModifierAliases = defaultModifierAliases(),
+) =
+  let fallback = hotkeyOverlayFallbackBinding(modifierAliases)
   if not bindings.hasHotkeyOverlayCommand() and not bindings.hasKeySlot(fallback):
     bindings.add(fallback)
 
@@ -1483,76 +1518,76 @@ proc parseIdleInhibitMode(
   else:
     (false, WindowRuleIdleInhibitMode.IdleInhibitNone)
 
-proc defaultKeyBindings*(): seq[KeyBindingConfig] =
+proc defaultKeyBindings*(
+    modifierAliases: ModifierAliases = defaultModifierAliases()
+): seq[KeyBindingConfig] =
+  let shift = modifierAliases.modifierValue("Shift")
+  let ctrl = modifierAliases.modifierValue("Ctrl")
+  let alt = modifierAliases.modifierValue("Alt")
+  let super = modifierAliases.modifierValue("Super")
   @[
-    hotkeyOverlayFallbackBinding(),
-    KeyBindingConfig(key: "q", modifiers: ModifierSuper, command: "close-window"),
+    hotkeyOverlayFallbackBinding(modifierAliases),
+    KeyBindingConfig(key: "q", modifiers: super, command: "close-window"),
     KeyBindingConfig(
-      key: "f", modifiers: ModifierSuper, command: "maximize-window-to-edges"
+      key: "f", modifiers: super, command: "maximize-window-to-edges"
     ),
     KeyBindingConfig(
-      key: "f", modifiers: ModifierSuper or ModifierShift, command: "fullscreen-window"
+      key: "f", modifiers: super or shift, command: "fullscreen-window"
     ),
-    KeyBindingConfig(key: "m", modifiers: ModifierSuper, command: "maximize-column"),
-    KeyBindingConfig(
-      key: "b", modifiers: ModifierSuper or ModifierShift, command: "minimize"
-    ),
-    KeyBindingConfig(key: "s", modifiers: ModifierSuper, command: "move-to-scratchpad"),
-    KeyBindingConfig(
-      key: "s", modifiers: ModifierSuper or ModifierAlt, command: "toggle-scratchpad"
-    ),
-    KeyBindingConfig(
-      key: "s", modifiers: ModifierSuper or ModifierShift, command: "restore-scratchpad"
-    ),
+    KeyBindingConfig(key: "m", modifiers: super, command: "maximize-column"),
+    KeyBindingConfig(key: "b", modifiers: super or shift, command: "minimize"),
+    KeyBindingConfig(key: "s", modifiers: super, command: "move-to-scratchpad"),
+    KeyBindingConfig(key: "s", modifiers: super or alt, command: "toggle-scratchpad"),
+    KeyBindingConfig(key: "s", modifiers: super or shift, command: "restore-scratchpad"),
     KeyBindingConfig(
       key: "r",
-      modifiers: ModifierCtrl or ModifierAlt,
+      modifiers: ctrl or alt,
       command: "triad-reload",
       bypassShortcutsInhibit: true,
     ),
-    KeyBindingConfig(key: "t", modifiers: ModifierSuper, command: "spawn-terminal"),
-    KeyBindingConfig(key: "Tab", modifiers: ModifierSuper, command: "focus-next"),
-    KeyBindingConfig(key: "Left", modifiers: ModifierAlt, command: "focus-left"),
-    KeyBindingConfig(key: "Right", modifiers: ModifierAlt, command: "focus-right"),
-    KeyBindingConfig(key: "Up", modifiers: ModifierAlt, command: "focus-up"),
-    KeyBindingConfig(key: "Down", modifiers: ModifierAlt, command: "focus-down"),
-    KeyBindingConfig(key: "n", modifiers: ModifierSuper, command: "switch-layout"),
-    KeyBindingConfig(key: "1", modifiers: ModifierSuper or ModifierAlt, command: "scroller"),
-    KeyBindingConfig(key: "2", modifiers: ModifierSuper or ModifierAlt, command: "notion"),
-    KeyBindingConfig(key: "3", modifiers: ModifierSuper or ModifierAlt, command: "dwindle"),
-    KeyBindingConfig(key: "4", modifiers: ModifierSuper or ModifierAlt, command: "grid"),
-    KeyBindingConfig(
-      key: "5", modifiers: ModifierSuper or ModifierAlt, command: "center-tile"
-    ),
-    KeyBindingConfig(key: "6", modifiers: ModifierSuper or ModifierAlt, command: "spiral"),
-    KeyBindingConfig(key: "7", modifiers: ModifierSuper or ModifierAlt, command: "i3"),
-    KeyBindingConfig(
-      key: "n", modifiers: ModifierSuper or ModifierShift, command: "new-workspace"
-    ),
-    KeyBindingConfig(key: "1", modifiers: ModifierSuper, command: "focus-workspace 1"),
-    KeyBindingConfig(key: "2", modifiers: ModifierSuper, command: "focus-workspace 2"),
-    KeyBindingConfig(key: "3", modifiers: ModifierSuper, command: "focus-workspace 3"),
-    KeyBindingConfig(key: "4", modifiers: ModifierSuper, command: "focus-workspace 4"),
+    KeyBindingConfig(key: "t", modifiers: super, command: "spawn-terminal"),
+    KeyBindingConfig(key: "Tab", modifiers: super, command: "focus-next"),
+    KeyBindingConfig(key: "Left", modifiers: alt, command: "focus-left"),
+    KeyBindingConfig(key: "Right", modifiers: alt, command: "focus-right"),
+    KeyBindingConfig(key: "Up", modifiers: alt, command: "focus-up"),
+    KeyBindingConfig(key: "Down", modifiers: alt, command: "focus-down"),
+    KeyBindingConfig(key: "n", modifiers: super, command: "switch-layout"),
+    KeyBindingConfig(key: "1", modifiers: super or alt, command: "scroller"),
+    KeyBindingConfig(key: "2", modifiers: super or alt, command: "notion"),
+    KeyBindingConfig(key: "3", modifiers: super or alt, command: "dwindle"),
+    KeyBindingConfig(key: "4", modifiers: super or alt, command: "grid"),
+    KeyBindingConfig(key: "5", modifiers: super or alt, command: "center-tile"),
+    KeyBindingConfig(key: "6", modifiers: super or alt, command: "spiral"),
+    KeyBindingConfig(key: "7", modifiers: super or alt, command: "i3"),
+    KeyBindingConfig(key: "n", modifiers: super or shift, command: "new-workspace"),
+    KeyBindingConfig(key: "1", modifiers: super, command: "focus-workspace 1"),
+    KeyBindingConfig(key: "2", modifiers: super, command: "focus-workspace 2"),
+    KeyBindingConfig(key: "3", modifiers: super, command: "focus-workspace 3"),
+    KeyBindingConfig(key: "4", modifiers: super, command: "focus-workspace 4"),
   ]
 
-proc defaultPointerBindings*(): seq[PointerBindingConfig] =
+proc defaultPointerBindings*(
+    modifierAliases: ModifierAliases = defaultModifierAliases()
+): seq[PointerBindingConfig] =
+  let super = modifierAliases.modifierValue("Super")
   @[
     PointerBindingConfig(
       button: 0x110'u32,
-      modifiers: ModifierSuper,
+      modifiers: super,
       op: PointerOpKind.OpMove,
       command: "move",
     ),
     PointerBindingConfig(
       button: 0x111'u32,
-      modifiers: ModifierSuper,
+      modifiers: super,
       op: PointerOpKind.OpResize,
       command: "resize",
     ),
   ]
 
 proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
-  var recentWindowBindings = defaultRecentWindowBindings()
+  let modifierAliases = parseConfigModifierAliases(doc)
+  var recentWindowBindings = defaultRecentWindowBindings(modifierAliases)
   # Default values
   result.layout.gaps = DefaultGaps
   result.layout.centerFocusedColumn = DefaultCenterFocusedColumn
@@ -2130,7 +2165,7 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
             if child.name == "mirror-hjkl-arrows" and child.args.len > 0:
               result.mirrorHjklArrows = child.args[0].kBool()
             elif child.name == "bind" and child.args.len >= 2:
-              let binding = child.keyBindingFromNode()
+              let binding = child.keyBindingFromNode(modifierAliases)
               if binding.isSome:
                 result.keyBindings.add(binding.get())
             elif child.name == "layout" and child.args.len >= 1:
@@ -2141,7 +2176,7 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
                 try:
                   if scopedChild.name == "bind" and scopedChild.args.len >= 2:
                     let binding = scopedChild.keyBindingFromNode(
-                      BindingMode.BindNormal, layoutScope
+                      modifierAliases, BindingMode.BindNormal, layoutScope
                     )
                     if binding.isSome:
                       result.keyBindings.add(binding.get())
@@ -2149,7 +2184,7 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
                   warn "Ignoring invalid layout binding config field",
                     layout = layoutScope, field = scopedChild.name, error = e.msg
             elif child.name == "pointer-bind" and child.args.len >= 2:
-              let spec = parseKeySpec(child.args[0].kString())
+              let spec = parseKeySpec(child.args[0].kString(), modifierAliases)
               let button = buttonValue(spec.key)
               let command = child.args[1].kString()
               if button != 0 and command.len > 0:
@@ -2167,7 +2202,7 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
                     not child.props["allow-inhibiting"].kBool()
                 result.pointerBindings.add(binding)
             elif child.name == "axis-bind" and child.args.len >= 2:
-              let spec = parseKeySpec(child.args[0].kString())
+              let spec = parseKeySpec(child.args[0].kString(), modifierAliases)
               let direction = axisDirectionValue(spec.key)
               let command = child.args[1].kString()
               if direction != AxisBindingDirection.AxisNone and command.len > 0:
@@ -2184,7 +2219,7 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
                     not child.props["allow-inhibiting"].kBool()
                 result.axisBindings.add(binding)
             elif child.name == "gesture-bind" and child.args.len >= 2:
-              let spec = parseKeySpec(child.args[0].kString())
+              let spec = parseKeySpec(child.args[0].kString(), modifierAliases)
               let direction = gestureDirectionValue(spec.key)
               let fingers =
                 if child.props.hasKey("fingers"):
@@ -2417,7 +2452,9 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
               for bindChild in child.children:
                 try:
                   if bindChild.name == "bind":
-                    let binding = bindChild.keyBindingFromNode(BindingMode.BindRecent)
+                    let binding = bindChild.keyBindingFromNode(
+                      modifierAliases, BindingMode.BindRecent
+                    )
                     if binding.isSome and binding.get().command.isRecentWindowCommand():
                       recentWindowBindings.add(binding.get())
                 except CatchableError as e:
@@ -2582,13 +2619,13 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
   )
 
   if result.keyBindings.len == 0:
-    result.keyBindings = defaultKeyBindings()
+    result.keyBindings = defaultKeyBindings(modifierAliases)
   else:
-    result.keyBindings.ensureHotkeyOverlayFallback()
+    result.keyBindings.ensureHotkeyOverlayFallback(modifierAliases)
   if result.recentWindows.enabled:
     result.keyBindings.addRecentWindowBindings(recentWindowBindings)
   if result.pointerBindings.len == 0:
-    result.pointerBindings = defaultPointerBindings()
+    result.pointerBindings = defaultPointerBindings(modifierAliases)
 
 proc loadConfig*(path: string): Config =
   try:

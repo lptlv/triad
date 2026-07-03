@@ -755,6 +755,59 @@ bindings {
     check keySymForBinding("!", Super) == 0x21'u32
     check keySymForBinding("~", Super) == 0x7e'u32
 
+  test "Config supports semantic modifier aliases":
+    let path = getCurrentDir() / "test_config_modifier_aliases.kdl"
+    writeFile(
+      path,
+      """
+modifiers {
+  alias "Super" "Mod3"
+  alias "Alt" "Mod5"
+}
+
+bindings {
+  bind "Super+h" "focus-left"
+  pointer-bind "Super+left" "move"
+  axis-bind "Alt+wheel-up" "focus-up"
+}
+""",
+    )
+    let config = loadConfig(path)
+    removeFile(path)
+
+    check config.commandForBinding("h", ModifierMod3) == "focus-left"
+    check config.commandForBinding("h", ModifierSuper).len == 0
+    check config.pointerBindings.anyIt(
+      it.button == buttonValue("left") and it.modifiers == ModifierMod3 and
+        it.command == "move"
+    )
+    check config.axisBindings.anyIt(
+      it.direction == AxisBindingDirection.AxisUp and it.modifiers == ModifierMod5 and
+        it.command == "focus-up"
+    )
+
+  test "Default bindings honor configured modifier aliases":
+    let path = getCurrentDir() / "test_config_default_modifier_aliases.kdl"
+    writeFile(
+      path,
+      """
+modifiers {
+  alias "Super" "Mod3"
+  alias "Alt" "Mod5"
+}
+""",
+    )
+    let config = loadConfig(path)
+    removeFile(path)
+
+    check config.commandForBinding("q", ModifierMod3) == "close-window"
+    check config.commandForBinding("Left", ModifierMod5) == "focus-left"
+    check config.commandForBinding("q", ModifierSuper).len == 0
+    check config.pointerBindings.anyIt(
+      it.button == buttonValue("left") and it.modifiers == ModifierMod3 and
+        it.command == "move"
+    )
+
   test "Config clamps hotkey overlay columns and ignores invalid position":
     let path = getCurrentDir() / "test_config_hotkey_overlay_layout.kdl"
     writeFile(
