@@ -276,7 +276,9 @@ for pattern in \
   '"backend":"xlibre"' \
   '"mode":"manage"' \
   '"socket_path":"'"$ipc_socket"'"' \
-  '"writable_ipc":false' \
+  '"writable_ipc":true' \
+  '"binding_dispatch_ipc":true' \
+  '"general_command_ipc":false' \
   '"window_count":1' \
   '"output_count":1'; do
   if ! grep -q "$pattern" "$ipc_status_log"; then

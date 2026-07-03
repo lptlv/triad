@@ -78,7 +78,9 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
         "display": context.displayName,
         "socket_path": socketPath,
         "read_only": true,
-        "writable_ipc": false,
+        "writable_ipc": true,
+        "binding_dispatch_ipc": true,
+        "general_command_ipc": false,
         "window_count": snapshot.windows.len,
         "output_count": snapshot.outputs.len,
       }

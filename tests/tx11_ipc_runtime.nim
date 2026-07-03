@@ -8,35 +8,33 @@ proc x11Snapshot(): ShellSnapshot =
     version: 1,
     activeTag: 1,
     activeWorkspaceIdx: 1,
-    workspaces:
-      @[
-        ShellWorkspace(
-          tagId: 1,
-          workspaceIdx: 1,
-          name: "main",
-          layoutMode: LayoutMode.Scroller,
-          isActive: true,
-          focusedWindow: 0x2a,
-          occupied: true,
-          outputName: "Xvfb-0",
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        )
-      ],
-    windows:
-      @[
-        ShellWindow(
-          id: 0x2a,
-          title: "triad smoke",
-          appId: "triad-smoke",
-          tagId: some(1'u32),
-          workspaceIdx: 1,
-          outputName: "Xvfb-0",
-          isFocused: true,
-          actualW: 760,
-          actualH: 560,
-        )
-      ],
+    workspaces: @[
+      ShellWorkspace(
+        tagId: 1,
+        workspaceIdx: 1,
+        name: "main",
+        layoutMode: LayoutMode.Scroller,
+        isActive: true,
+        focusedWindow: 0x2a,
+        occupied: true,
+        outputName: "Xvfb-0",
+        masterCount: 1,
+        masterSplitRatio: 0.5,
+      )
+    ],
+    windows: @[
+      ShellWindow(
+        id: 0x2a,
+        title: "triad smoke",
+        appId: "triad-smoke",
+        tagId: some(1'u32),
+        workspaceIdx: 1,
+        outputName: "Xvfb-0",
+        isFocused: true,
+        actualW: 760,
+        actualH: 560,
+      )
+    ],
     outputs: @[ShellOutput(id: 1, name: "Xvfb-0", w: 800, h: 600, isPrimary: true)],
   )
 
@@ -81,7 +79,9 @@ suite "X11 read-only native IPC":
           "mode": "manage",
           "socket_path": "/tmp/triad-xlibre.sock",
           "read_only": true,
-          "writable_ipc": false,
+          "writable_ipc": true,
+          "binding_dispatch_ipc": true,
+          "general_command_ipc": false,
           "window_count": 1,
           "output_count": 1,
         },
@@ -91,7 +91,9 @@ suite "X11 read-only native IPC":
     check reply["ok"].getBool()
     check reply["triad"]["type"].getStr() == "runtime-status"
     check reply["triad"]["status"]["backend"].getStr() == "xlibre"
-    check not reply["triad"]["status"]["writable_ipc"].getBool()
+    check reply["triad"]["status"]["writable_ipc"].getBool()
+    check reply["triad"]["status"]["binding_dispatch_ipc"].getBool()
+    check not reply["triad"]["status"]["general_command_ipc"].getBool()
 
   test "runtime status reports unavailable without provider":
     let reply = parseJson(

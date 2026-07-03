@@ -188,11 +188,12 @@ Manage mode can also expose opt-in read-only native Triad IPC with
 `state`, `workspaces`, `outputs`, `windows`, `focused-window`, and
 `capabilities` while rejecting command, binding-dispatch, text-command, and
 event-stream requests. It also exposes an XLibre-specific `runtime-status`
-request with backend, mode, socket path, read-only/writable flags, and live
-window/output counts. The XCB event loop pumps this socket from a single
-threaded tick so IPC snapshots read the live X11 model without introducing
-cross-thread state access. `triad msg --socket PATH ...` can target this socket
-for the supported read-only requests.
+request with backend, mode, socket path, read-only status, explicit writable
+action status, binding-dispatch status, general-command IPC status, and live
+window/output counts. The XCB event loop pumps this socket from a single threaded
+tick so IPC snapshots read the live X11 model without introducing cross-thread
+state access. `triad msg --socket PATH ...` can target this socket for the
+supported read-only requests.
 The initial writable exceptions are explicit XLibre-only requests:
 `xlibre-close-window`, `xlibre-focus-window`, `xlibre-focus-workspace`, and
 `xlibre-move-window-to-workspace`, plus the recovery request `xlibre-stop`.
