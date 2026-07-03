@@ -102,79 +102,6 @@ proc bindingSpec(binding: KeyBindingConfig): string =
   parts.add(binding.key)
   parts.join("+")
 
-proc x11PhysicalKeyGrab(
-    binding: KeyBindingConfig
-): tuple[keysym: uint32, modifiers: uint32] =
-  result.modifiers = binding.modifiers
-  var physicalKey = binding.key
-  case binding.key.strip()
-  of "~":
-    physicalKey = "`"
-    result.modifiers = result.modifiers or X11ModShift
-  of "!":
-    physicalKey = "1"
-    result.modifiers = result.modifiers or X11ModShift
-  of "@":
-    physicalKey = "2"
-    result.modifiers = result.modifiers or X11ModShift
-  of "#":
-    physicalKey = "3"
-    result.modifiers = result.modifiers or X11ModShift
-  of "$":
-    physicalKey = "4"
-    result.modifiers = result.modifiers or X11ModShift
-  of "%":
-    physicalKey = "5"
-    result.modifiers = result.modifiers or X11ModShift
-  of "^":
-    physicalKey = "6"
-    result.modifiers = result.modifiers or X11ModShift
-  of "&":
-    physicalKey = "7"
-    result.modifiers = result.modifiers or X11ModShift
-  of "*":
-    physicalKey = "8"
-    result.modifiers = result.modifiers or X11ModShift
-  of "(":
-    physicalKey = "9"
-    result.modifiers = result.modifiers or X11ModShift
-  of ")":
-    physicalKey = "0"
-    result.modifiers = result.modifiers or X11ModShift
-  of "_":
-    physicalKey = "-"
-    result.modifiers = result.modifiers or X11ModShift
-  of "+":
-    physicalKey = "="
-    result.modifiers = result.modifiers or X11ModShift
-  of "{":
-    physicalKey = "["
-    result.modifiers = result.modifiers or X11ModShift
-  of "}":
-    physicalKey = "]"
-    result.modifiers = result.modifiers or X11ModShift
-  of "|":
-    physicalKey = "\\"
-    result.modifiers = result.modifiers or X11ModShift
-  of ":":
-    physicalKey = ";"
-    result.modifiers = result.modifiers or X11ModShift
-  of "\"":
-    physicalKey = "'"
-    result.modifiers = result.modifiers or X11ModShift
-  of "<":
-    physicalKey = ","
-    result.modifiers = result.modifiers or X11ModShift
-  of ">":
-    physicalKey = "."
-    result.modifiers = result.modifiers or X11ModShift
-  of "Question":
-    physicalKey = "/"
-    result.modifiers = result.modifiers or X11ModShift
-  else:
-    discard
-  result.keysym = keySymForBinding(physicalKey)
-
 proc buttonName(button: uint32): string =
   case button
   of 0x110'u32: "left"
@@ -308,8 +235,7 @@ proc axisGrabSignature(grabs: openArray[X11AxisGrab]): string =
 proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
   let snapshot = model.shellSnapshot()
   for binding in model.resolvedKeyBindings():
-    let grab = binding.x11PhysicalKeyGrab()
-    let keysym = grab.keysym
+    let keysym = keySymForBinding(binding.key, binding.modifiers)
     if keysym == 0:
       continue
     let spec = binding.bindingSpec()
@@ -321,7 +247,7 @@ proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
     if parsed.handled and parsed.bindingDispatch.ok:
       result.add(
         X11KeyGrab(
-          keysym: keysym, modifiers: grab.modifiers, binding: spec.bindingText()
+          keysym: keysym, modifiers: binding.modifiers, binding: spec.bindingText()
         )
       )
 

@@ -76,6 +76,11 @@ typedef struct TriadX11KeyGrab {
     char binding[128];
 } TriadX11KeyGrab;
 
+typedef struct TriadX11ResolvedKeysym {
+    xcb_keycode_t keycode;
+    uint32_t modifiers;
+} TriadX11ResolvedKeysym;
+
 typedef struct TriadX11ButtonGrab {
     uint32_t button;
     uint32_t modifiers;
@@ -421,8 +426,11 @@ static uint32_t binding_modifier_mask(uint32_t state)
             XCB_MOD_MASK_5);
 }
 
-static xcb_keycode_t keycode_for_keysym(TriadX11Probe *probe, uint32_t keysym)
+static TriadX11ResolvedKeysym resolved_key_for_keysym(
+    TriadX11Probe *probe,
+    uint32_t keysym)
 {
+    TriadX11ResolvedKeysym result = {0, 0};
     xcb_keycode_t min_keycode = probe->setup->min_keycode;
     xcb_keycode_t max_keycode = probe->setup->max_keycode;
     uint8_t count = (uint8_t)(max_keycode - min_keycode + 1);
@@ -431,16 +439,17 @@ static xcb_keycode_t keycode_for_keysym(TriadX11Probe *probe, uint32_t keysym)
     xcb_get_keyboard_mapping_reply_t *reply =
         xcb_get_keyboard_mapping_reply(probe->conn, cookie, NULL);
     if (reply == NULL)
-        return 0;
+        return result;
 
     xcb_keysym_t *keysyms = xcb_get_keyboard_mapping_keysyms(reply);
     int per_keycode = reply->keysyms_per_keycode;
-    xcb_keycode_t result = 0;
-    for (uint16_t keycode = min_keycode; keycode <= max_keycode && result == 0; keycode++) {
+    for (uint16_t keycode = min_keycode; keycode <= max_keycode && result.keycode == 0; keycode++) {
         int offset = (keycode - min_keycode) * per_keycode;
         for (int level = 0; level < per_keycode; level++) {
             if (keysyms[offset + level] == keysym) {
-                result = (xcb_keycode_t)keycode;
+                result.keycode = (xcb_keycode_t)keycode;
+                if ((level % 2) == 1)
+                    result.modifiers |= XCB_MOD_MASK_SHIFT;
                 break;
             }
         }
@@ -1591,8 +1600,8 @@ int triad_x11_configure_active_key_grabs(
 
     uint32_t resolved_count = 0;
     for (uint32_t i = 0; i < count; i++) {
-        xcb_keycode_t keycode = keycode_for_keysym(probe, grabs[i].keysym);
-        if (keycode == 0) {
+        TriadX11ResolvedKeysym key = resolved_key_for_keysym(probe, grabs[i].keysym);
+        if (key.keycode == 0) {
             probe_log(
                 probe,
                 "key grab unavailable binding=\"%s\" keysym=0x%08x",
@@ -1600,23 +1609,25 @@ int triad_x11_configure_active_key_grabs(
                 grabs[i].keysym);
             continue;
         }
-        if (!grab_key_variants(probe, keycode, grabs[i].modifiers, grabs[i].binding))
+        uint32_t modifiers = grabs[i].modifiers | key.modifiers;
+        if (!grab_key_variants(probe, key.keycode, modifiers, grabs[i].binding))
             continue;
 
         resolved[resolved_count].keysym = grabs[i].keysym;
-        resolved[resolved_count].modifiers = grabs[i].modifiers;
-        resolved[resolved_count].keycode = keycode;
+        resolved[resolved_count].modifiers = modifiers;
+        resolved[resolved_count].keycode = key.keycode;
         copy_text(
             resolved[resolved_count].binding,
             sizeof(resolved[resolved_count].binding),
             grabs[i].binding);
         probe_log(
             probe,
-            "key grab configured binding=\"%s\" keysym=0x%08x keycode=%u modifiers=0x%04x",
+            "key grab configured binding=\"%s\" keysym=0x%08x keycode=%u modifiers=0x%04x required_modifiers=0x%04x",
             resolved[resolved_count].binding,
             resolved[resolved_count].keysym,
             resolved[resolved_count].keycode,
-            resolved[resolved_count].modifiers);
+            resolved[resolved_count].modifiers,
+            key.modifiers);
         resolved_count++;
     }
 
