@@ -216,15 +216,14 @@ same `dispatch-binding key <binding>` path used by IPC, so real key input and
 synthetic dispatch share command validation and execution. The Xvfb smoke test
 uses XTEST, when available, to fake `Super+h` and verify the passive grab reaches
 the binding dispatcher. This first input path is intentionally narrow: pointer
-grabs, button bindings, wheel/gesture bindings, layout-sensitive
-reconfiguration, and shifted-symbol normalization still need follow-up work.
+grabs, button bindings, wheel/gesture bindings, and shifted-symbol normalization
+still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
 - expand the explicit XLibre action set only one command family at a time
-- extend the key-grab path to reconfigure on binding mode/layout changes
 - use XInput/XKB discovery to add pointer button, wheel, and gesture dispatch
 
 Only after this subset works should the branch attempt bindings, overlays, shell

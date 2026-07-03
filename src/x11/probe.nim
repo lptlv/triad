@@ -25,7 +25,7 @@ type
     model: Model
     stopRequested: bool
     stopPolls: int
-    keyGrabsConfigured: bool
+    keyGrabSignature: string
 
   X11ModelLoadResult* = object
     ok*: bool
@@ -90,6 +90,21 @@ proc bindingText(value: string): array[128, char] =
   for i in 0 ..< limit:
     result[i] = value[i]
 
+proc grabBinding(value: X11KeyGrab): string =
+  for ch in value.binding:
+    if ch == '\0':
+      break
+    result.add(ch)
+
+proc keyGrabSignature(grabs: openArray[X11KeyGrab]): string =
+  for grab in grabs:
+    result.add($grab.keysym)
+    result.add(":")
+    result.add($grab.modifiers)
+    result.add(":")
+    result.add(grab.grabBinding())
+    result.add("\n")
+
 proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
   let snapshot = model.shellSnapshot()
   for binding in model.resolvedKeyBindings():
@@ -110,16 +125,19 @@ proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
       )
 
 proc configureKeyGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
-  if context == nil or context.keyGrabsConfigured or context.mode != X11ProbeMode.Manage:
+  if context == nil or context.mode != X11ProbeMode.Manage:
     return
   {.cast(gcsafe).}:
     let grabs = context.model.xlibreKeyGrabs()
+    let signature = grabs.keyGrabSignature()
+    if context.keyGrabSignature == signature:
+      return
     let status =
       if grabs.len == 0:
         triadX11ConfigureActiveKeyGrabs(cast[ptr X11KeyGrab](nil), 0)
       else:
         triadX11ConfigureActiveKeyGrabs(unsafeAddr grabs[0], cuint(grabs.len))
-    context.keyGrabsConfigured = true
+    context.keyGrabSignature = signature
     stdout.writeLine("xlibre_key_grabs requested=" & $grabs.len & " status=" & $status)
     stdout.flushFile()
 
