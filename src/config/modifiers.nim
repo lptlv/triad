@@ -12,6 +12,7 @@ const
   ModifierShift* = 1'u32
   ModifierCtrl* = 4'u32
   ModifierAlt* = 8'u32
+  ModifierMod2* = 16'u32
   ModifierMod3* = 32'u32
   ModifierSuper* = 64'u32
   ModifierMod5* = 128'u32
@@ -26,6 +27,7 @@ proc physicalModifierValue*(name: string): uint32 =
   of "shift": ModifierShift
   of "ctrl", "control": ModifierCtrl
   of "mod1": ModifierAlt
+  of "mod2": ModifierMod2
   of "mod3": ModifierMod3
   of "mod4": ModifierSuper
   of "mod5": ModifierMod5
@@ -83,6 +85,8 @@ proc modifierLabels*(modifiers: uint32): seq[string] =
     result.add("Shift")
   if (modifiers and ModifierAlt) != 0:
     result.add("Alt")
+  if (modifiers and ModifierMod2) != 0:
+    result.add("Mod2")
   if (modifiers and ModifierMod3) != 0:
     result.add("Mod3")
   if (modifiers and ModifierMod5) != 0:

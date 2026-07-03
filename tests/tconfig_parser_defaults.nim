@@ -790,6 +790,8 @@ bindings {
       it.direction == AxisBindingDirection.AxisUp and it.modifiers == ModifierMod5 and
         it.command == "focus-up"
     )
+    check parseModifiers("Mod2") == ModifierMod2
+    check bindingSpec(ModifierMod2 or ModifierMod5, "x") == "Mod2+Mod5+x"
 
   test "Default bindings honor configured modifier aliases":
     let path = getCurrentDir() / "test_config_default_modifier_aliases.kdl"

@@ -150,6 +150,7 @@ typedef struct TriadX11Probe {
     const xcb_query_extension_reply_t *randr_ext;
     const xcb_query_extension_reply_t *xinput_ext;
     const xcb_query_extension_reply_t *xkb_ext;
+    uint32_t ignored_lock_modifiers;
     int stop_requested;
     TriadX11ResolvedKeyGrab *key_grabs;
     uint32_t key_grab_count;
@@ -164,6 +165,10 @@ typedef struct TriadX11Probe {
 } TriadX11Probe;
 
 static TriadX11Probe *active_probe = NULL;
+
+#define TRIAD_XK_NUM_LOCK 0xff7f
+#define TRIAD_XK_SCROLL_LOCK 0xff14
+#define TRIAD_X11_MAX_GRAB_VARIANTS 256
 
 static void probe_log(TriadX11Probe *probe, const char *fmt, ...)
 {
@@ -433,15 +438,174 @@ static int select_window_events(TriadX11Probe *probe, xcb_window_t win)
     return 1;
 }
 
-static uint32_t binding_modifier_mask(uint32_t state)
+static uint32_t modifier_mask_for_index(int index)
 {
-    return state &
-           (XCB_MOD_MASK_SHIFT |
-            XCB_MOD_MASK_CONTROL |
-            XCB_MOD_MASK_1 |
-            XCB_MOD_MASK_3 |
-            XCB_MOD_MASK_4 |
-            XCB_MOD_MASK_5);
+    switch (index) {
+    case 0:
+        return XCB_MOD_MASK_SHIFT;
+    case 1:
+        return XCB_MOD_MASK_LOCK;
+    case 2:
+        return XCB_MOD_MASK_CONTROL;
+    case 3:
+        return XCB_MOD_MASK_1;
+    case 4:
+        return XCB_MOD_MASK_2;
+    case 5:
+        return XCB_MOD_MASK_3;
+    case 6:
+        return XCB_MOD_MASK_4;
+    case 7:
+        return XCB_MOD_MASK_5;
+    default:
+        return 0;
+    }
+}
+
+static int keyboard_mapping_has_keysym(
+    xcb_get_keyboard_mapping_reply_t *reply,
+    xcb_keycode_t min_keycode,
+    xcb_keycode_t max_keycode,
+    xcb_keycode_t keycode,
+    uint32_t keysym)
+{
+    if (reply == NULL || keycode < min_keycode || keycode > max_keycode)
+        return 0;
+
+    const xcb_keysym_t *keysyms = xcb_get_keyboard_mapping_keysyms(reply);
+    int per_keycode = reply->keysyms_per_keycode;
+    int offset = (keycode - min_keycode) * per_keycode;
+    for (int level = 0; level < per_keycode; level++) {
+        if (keysyms[offset + level] == keysym)
+            return 1;
+    }
+    return 0;
+}
+
+static void detect_ignored_lock_modifiers(TriadX11Probe *probe)
+{
+    uint32_t ignored = XCB_MOD_MASK_LOCK;
+    uint32_t num_lock_mask = 0;
+    uint32_t scroll_lock_mask = 0;
+    xcb_keycode_t min_keycode = probe->setup->min_keycode;
+    xcb_keycode_t max_keycode = probe->setup->max_keycode;
+    uint8_t keycode_count = (uint8_t)(max_keycode - min_keycode + 1);
+
+    xcb_get_modifier_mapping_cookie_t mod_cookie = xcb_get_modifier_mapping(probe->conn);
+    xcb_get_keyboard_mapping_cookie_t key_cookie =
+        xcb_get_keyboard_mapping(probe->conn, min_keycode, keycode_count);
+    xcb_get_modifier_mapping_reply_t *mod_reply =
+        xcb_get_modifier_mapping_reply(probe->conn, mod_cookie, NULL);
+    xcb_get_keyboard_mapping_reply_t *key_reply =
+        xcb_get_keyboard_mapping_reply(probe->conn, key_cookie, NULL);
+
+    if (mod_reply == NULL || key_reply == NULL) {
+        probe->ignored_lock_modifiers = ignored;
+        probe_log(
+            probe,
+            "x11 ignored lock modifiers mask=0x%04x detection=unavailable",
+            ignored);
+        free(mod_reply);
+        free(key_reply);
+        return;
+    }
+
+    xcb_keycode_t *keycodes = xcb_get_modifier_mapping_keycodes(mod_reply);
+    int per_modifier = mod_reply->keycodes_per_modifier;
+    for (int mod_index = 0; mod_index < 8; mod_index++) {
+        uint32_t modifier_mask = modifier_mask_for_index(mod_index);
+        if (modifier_mask == 0)
+            continue;
+        for (int slot = 0; slot < per_modifier; slot++) {
+            xcb_keycode_t keycode = keycodes[mod_index * per_modifier + slot];
+            if (keycode == 0)
+                continue;
+            if (keyboard_mapping_has_keysym(
+                    key_reply,
+                    min_keycode,
+                    max_keycode,
+                    keycode,
+                    TRIAD_XK_NUM_LOCK)) {
+                num_lock_mask |= modifier_mask;
+                ignored |= modifier_mask;
+            }
+            if (keyboard_mapping_has_keysym(
+                    key_reply,
+                    min_keycode,
+                    max_keycode,
+                    keycode,
+                    TRIAD_XK_SCROLL_LOCK)) {
+                scroll_lock_mask |= modifier_mask;
+                ignored |= modifier_mask;
+            }
+        }
+    }
+
+    probe->ignored_lock_modifiers = ignored;
+    probe_log(
+        probe,
+        "x11 ignored lock modifiers mask=0x%04x num_lock=0x%04x scroll_lock=0x%04x",
+        ignored,
+        num_lock_mask,
+        scroll_lock_mask);
+    free(mod_reply);
+    free(key_reply);
+}
+
+static int append_unique_variant(
+    uint32_t variants[TRIAD_X11_MAX_GRAB_VARIANTS],
+    size_t *count,
+    uint32_t variant)
+{
+    for (size_t i = 0; i < *count; i++) {
+        if (variants[i] == variant)
+            return 1;
+    }
+    if (*count >= TRIAD_X11_MAX_GRAB_VARIANTS)
+        return 0;
+    variants[*count] = variant;
+    (*count)++;
+    return 1;
+}
+
+static size_t grab_modifier_variants(
+    TriadX11Probe *probe,
+    uint32_t modifiers,
+    uint32_t variants[TRIAD_X11_MAX_GRAB_VARIANTS])
+{
+    size_t ignored_count = 0;
+    uint32_t ignored_bits[8];
+    for (int mod_index = 0; mod_index < 8; mod_index++) {
+        uint32_t modifier_mask = modifier_mask_for_index(mod_index);
+        if ((probe->ignored_lock_modifiers & modifier_mask) != 0)
+            ignored_bits[ignored_count++] = modifier_mask;
+    }
+
+    size_t variant_count = 0;
+    size_t combo_count = ((size_t)1) << ignored_count;
+    for (size_t combo = 0; combo < combo_count; combo++) {
+        uint32_t variant = modifiers;
+        for (size_t bit = 0; bit < ignored_count; bit++) {
+            if ((combo & (((size_t)1) << bit)) != 0)
+                variant |= ignored_bits[bit];
+        }
+        if (!append_unique_variant(variants, &variant_count, variant))
+            break;
+    }
+    return variant_count;
+}
+
+static uint32_t binding_modifier_mask(TriadX11Probe *probe, uint32_t state)
+{
+    uint32_t binding_modifiers =
+        XCB_MOD_MASK_SHIFT |
+        XCB_MOD_MASK_CONTROL |
+        XCB_MOD_MASK_1 |
+        XCB_MOD_MASK_2 |
+        XCB_MOD_MASK_3 |
+        XCB_MOD_MASK_4 |
+        XCB_MOD_MASK_5;
+    return (state & binding_modifiers) & ~probe->ignored_lock_modifiers;
 }
 
 static TriadX11ResolvedKeysym resolved_key_for_keysym(
@@ -482,13 +646,9 @@ static void ungrab_key_variants(
     xcb_keycode_t keycode,
     uint32_t modifiers)
 {
-    uint32_t variants[] = {
-        modifiers,
-        modifiers | XCB_MOD_MASK_LOCK,
-        modifiers | XCB_MOD_MASK_2,
-        modifiers | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_2,
-    };
-    for (size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); i++)
+    uint32_t variants[TRIAD_X11_MAX_GRAB_VARIANTS];
+    size_t variant_count = grab_modifier_variants(probe, modifiers, variants);
+    for (size_t i = 0; i < variant_count; i++)
         xcb_ungrab_key(probe->conn, keycode, probe->screen->root, (uint16_t)variants[i]);
 }
 
@@ -498,14 +658,10 @@ static int grab_key_variants(
     uint32_t modifiers,
     const char *binding)
 {
-    uint32_t variants[] = {
-        modifiers,
-        modifiers | XCB_MOD_MASK_LOCK,
-        modifiers | XCB_MOD_MASK_2,
-        modifiers | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_2,
-    };
+    uint32_t variants[TRIAD_X11_MAX_GRAB_VARIANTS];
+    size_t variant_count = grab_modifier_variants(probe, modifiers, variants);
     int ok = 1;
-    for (size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); i++) {
+    for (size_t i = 0; i < variant_count; i++) {
         xcb_void_cookie_t cookie = xcb_grab_key_checked(
             probe->conn,
             1,
@@ -535,7 +691,7 @@ static const TriadX11ResolvedKeyGrab *key_grab_for_event(
     xcb_keycode_t keycode,
     uint32_t state)
 {
-    uint32_t modifiers = binding_modifier_mask(state);
+    uint32_t modifiers = binding_modifier_mask(probe, state);
     for (uint32_t i = 0; i < probe->key_grab_count; i++) {
         TriadX11ResolvedKeyGrab *grab = &probe->key_grabs[i];
         if (grab->keycode == keycode && grab->modifiers == modifiers)
@@ -560,13 +716,9 @@ static void ungrab_button_variants(
     uint32_t button,
     uint32_t modifiers)
 {
-    uint32_t variants[] = {
-        modifiers,
-        modifiers | XCB_MOD_MASK_LOCK,
-        modifiers | XCB_MOD_MASK_2,
-        modifiers | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_2,
-    };
-    for (size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); i++)
+    uint32_t variants[TRIAD_X11_MAX_GRAB_VARIANTS];
+    size_t variant_count = grab_modifier_variants(probe, modifiers, variants);
+    for (size_t i = 0; i < variant_count; i++)
         xcb_ungrab_button(
             probe->conn,
             (uint8_t)button,
@@ -580,14 +732,10 @@ static int grab_button_variants(
     uint32_t modifiers,
     const char *binding)
 {
-    uint32_t variants[] = {
-        modifiers,
-        modifiers | XCB_MOD_MASK_LOCK,
-        modifiers | XCB_MOD_MASK_2,
-        modifiers | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_2,
-    };
+    uint32_t variants[TRIAD_X11_MAX_GRAB_VARIANTS];
+    size_t variant_count = grab_modifier_variants(probe, modifiers, variants);
     int ok = 1;
-    for (size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); i++) {
+    for (size_t i = 0; i < variant_count; i++) {
         xcb_void_cookie_t cookie = xcb_grab_button_checked(
             probe->conn,
             0,
@@ -622,7 +770,7 @@ static const TriadX11ResolvedButtonGrab *button_grab_for_event(
     uint32_t button,
     uint32_t state)
 {
-    uint32_t modifiers = binding_modifier_mask(state);
+    uint32_t modifiers = binding_modifier_mask(probe, state);
     for (uint32_t i = 0; i < probe->button_grab_count; i++) {
         TriadX11ResolvedButtonGrab *grab = &probe->button_grabs[i];
         if (grab->button == button && grab->modifiers == modifiers)
@@ -647,7 +795,7 @@ static const TriadX11ResolvedAxisGrab *axis_grab_for_event(
     uint32_t button,
     uint32_t state)
 {
-    uint32_t modifiers = binding_modifier_mask(state);
+    uint32_t modifiers = binding_modifier_mask(probe, state);
     for (uint32_t i = 0; i < probe->axis_grab_count; i++) {
         TriadX11ResolvedAxisGrab *grab = &probe->axis_grabs[i];
         if (grab->button == button && grab->modifiers == modifiers)
@@ -1376,7 +1524,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             memset(&event, 0, sizeof(event));
             event.kind = TRIAD_X11_EVENT_KEY_BINDING;
             event.id = ev->detail;
-            event.value_mask = binding_modifier_mask(ev->state);
+            event.value_mask = binding_modifier_mask(probe, ev->state);
             copy_text(event.name, sizeof(event.name), grab->binding);
             probe_event(probe, &event);
         }
@@ -1403,7 +1551,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             event.parent_id = ev->child;
             event.x = ev->root_x;
             event.y = ev->root_y;
-            event.value_mask = binding_modifier_mask(ev->state);
+            event.value_mask = binding_modifier_mask(probe, ev->state);
             copy_text(event.name, sizeof(event.name), grab->binding);
             probe_event(probe, &event);
         } else if (axis_grab != NULL) {
@@ -1414,7 +1562,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             event.parent_id = ev->child;
             event.x = ev->root_x;
             event.y = ev->root_y;
-            event.value_mask = binding_modifier_mask(ev->state);
+            event.value_mask = binding_modifier_mask(probe, ev->state);
             copy_text(event.name, sizeof(event.name), axis_grab->binding);
             probe_event(probe, &event);
         }
@@ -1436,7 +1584,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         event.id = ev->child;
         event.x = ev->root_x;
         event.y = ev->root_y;
-        event.value_mask = binding_modifier_mask(ev->state);
+        event.value_mask = binding_modifier_mask(probe, ev->state);
         probe_event(probe, &event);
         break;
     }
@@ -1458,7 +1606,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         event.parent_id = ev->child;
         event.x = ev->root_x;
         event.y = ev->root_y;
-        event.value_mask = binding_modifier_mask(ev->state);
+        event.value_mask = binding_modifier_mask(probe, ev->state);
         probe_event(probe, &event);
         break;
     }
@@ -1679,6 +1827,7 @@ int triad_x11_probe_run(
         probe.screen->width_in_pixels,
         probe.screen->height_in_pixels);
 
+    detect_ignored_lock_modifiers(&probe);
     init_atoms(&probe);
     if (!claim_wm(&probe)) {
         if (probe.ewmh_ready)

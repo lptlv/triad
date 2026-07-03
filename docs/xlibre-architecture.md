@@ -212,10 +212,14 @@ than run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. Manage mode installs X11
 passive key grabs for configured key bindings whose commands pass the current
-XLibre allowlist. Modifier parsing, configurable modifier aliases, and
-binding-string formatting are centralized in the config layer, while the C/XCB
-key resolver derives any required Shift modifier from the server keyboard map
-level for shifted keysyms before installing the passive grab. It also installs
+XLibre allowlist. Modifier parsing, configurable modifier aliases including
+physical `Mod2`/`Mod3`/`Mod5`, and binding-string formatting are centralized in
+the config layer, while the C/XCB key resolver derives any required Shift
+modifier from the server keyboard map level for shifted keysyms before
+installing the passive grab. XLibre also derives NumLock and ScrollLock modifier
+bits from the server modifier map instead of assuming a fixed ignored-modifier
+mask, then expands key, button, and axis passive grabs across those detected
+lock-state variants. It also installs
 passive core button grabs for supported command-style pointer bindings after
 translating Triad's evdev button codes to core X11 button details, including
 left, middle, right, and common extra mouse buttons such as back/forward.
