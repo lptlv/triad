@@ -1,7 +1,10 @@
-import std/[json, options, strutils, unittest]
+import std/[json, options, sequtils, strutils, unittest]
 
+import ../src/config/parser
 import ../src/core/msg
 import ../src/ipc/triad_readonly
+import ../src/systems/runtime_facade
+import ../src/types/model
 import ../src/types/[runtime_values, shell_snapshot]
 import ../src/x11/[ipc_runtime, request_builder, request_executor]
 
@@ -39,6 +42,35 @@ proc x11Snapshot(): ShellSnapshot =
     ],
     outputs: @[ShellOutput(id: 1, name: "Xvfb-0", w: 800, h: 600, isPrimary: true)],
   )
+
+proc bindingModel(): Model =
+  initRuntimeStateFromConfig(
+    Config(
+      workspaces: WorkspaceConfig(defaultCount: 3),
+      keyBindings: @[
+        KeyBindingConfig(
+          key: "h",
+          modifiers: 64'u32,
+          command: "focus-workspace 2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "Return",
+          modifiers: 64'u32,
+          command: "spawn kitty",
+          mode: BindingMode.BindAlways,
+        ),
+      ],
+      axisBindings: @[
+        AxisBindingConfig(
+          direction: AxisBindingDirection.AxisUp,
+          modifiers: 64'u32,
+          command: "focus-next",
+          mode: BindingMode.BindAlways,
+        )
+      ],
+    )
+  ).model
 
 suite "X11 writable IPC":
   test "close-window request builds one polite close request":
@@ -150,6 +182,47 @@ suite "X11 writable IPC":
     check parsed.messages.len == 0
     check parsed.requests.len == 0
 
+  test "binding dispatch resolves configured key binding to supported command":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+h"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.requestName == "dispatch-binding"
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "focus-workspace 2"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
+    check parsed.messages[0].workspaceIndex == 2
+
+  test "binding dispatch expands axis ticks into repeated supported commands":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"axis","binding":"Super+wheel-up","ticks":2}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.dispatched == 2
+    check parsed.messages.len == 2
+    check parsed.messages.allIt(it.kind == MsgKind.CmdFocusNext)
+
+  test "binding dispatch rejects unsupported configured command":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Return"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let reply = parseJson(parsed.reply)
+
+    check parsed.handled
+    check parsed.messages.len == 0
+    check not reply["ok"].getBool()
+    check reply["error"].getStr().contains("not supported by XLibre")
+
   test "read-only handler rejects xlibre close without writable callback":
     let reply = parseJson(
       handleTriadReadOnlyRequest(
@@ -249,4 +322,23 @@ suite "X11 writable IPC":
 
     check reply["ok"].getBool()
     check reply["triad"]["type"].getStr() == "xlibre-stop"
+    check reply["triad"]["applied"].getBool()
+
+  test "executed reply reports successful binding dispatch":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+h"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let reply = parseJson(
+      replyForExecutedXlibreWritableRequest(
+        parsed, X11RequestRunResult(code: 0, dryRun: false, logs: @["applied focus"])
+      )
+    )
+
+    check reply["ok"].getBool()
+    check reply["triad"]["type"].getStr() == "xlibre-binding-dispatch"
+    check reply["triad"]["kind"].getStr() == "key"
+    check reply["triad"]["binding"].getStr() == "Super+h"
+    check reply["triad"]["command"].getStr() == "focus-workspace 2"
     check reply["triad"]["applied"].getBool()

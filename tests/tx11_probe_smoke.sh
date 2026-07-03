@@ -57,12 +57,13 @@ ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
 ipc_status_log="$root/tests/tx11-probe-smoke-ipc-status.json"
 ipc_focus_log="$root/tests/tx11-probe-smoke-ipc-focus.json"
 ipc_focus_workspace_log="$root/tests/tx11-probe-smoke-ipc-focus-workspace.json"
+ipc_binding_dispatch_log="$root/tests/tx11-probe-smoke-ipc-binding-dispatch.json"
 ipc_move_workspace_log="$root/tests/tx11-probe-smoke-ipc-move-workspace.json"
 ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -89,7 +90,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -175,6 +176,10 @@ layout {
 
 workspaces {
   default-count 3
+}
+
+bindings {
+  bind "Super+h" "focus-workspace 1"
 }
 EOF
 
@@ -335,6 +340,26 @@ for pattern in \
   if ! grep -q "$pattern" "$ipc_focus_workspace_log"; then
     printf '%s\n' "tx11_probe_smoke: missing ipc focus workspace pattern: $pattern" >&2
     cat "$ipc_focus_workspace_log" >&2
+    exit 1
+  fi
+done
+
+if ! "$triad" msg --socket "$ipc_socket" dispatch-binding key Super+h >"$ipc_binding_dispatch_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_binding_dispatch_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"xlibre-binding-dispatch"' \
+  '"kind":"key"' \
+  '"binding":"Super+h"' \
+  '"command":"focus-workspace 1"' \
+  '"dispatched":1' \
+  '"applied":true'; do
+  if ! grep -q "$pattern" "$ipc_binding_dispatch_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc binding dispatch pattern: $pattern" >&2
+    cat "$ipc_binding_dispatch_log" >&2
     exit 1
   fi
 done

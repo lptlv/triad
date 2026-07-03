@@ -201,19 +201,24 @@ current shell snapshot. Direct window requests lower to one existing XCB request
 record; workspace requests are vetted Triad model messages that run through
 `Model.update`, layout projection, and the X11 request executor. `xlibre-stop`
 asks the active probe loop to exit cleanly. General Triad command IPC remains
-disabled on the XLibre socket.
+disabled on the XLibre socket. The socket also accepts the existing
+`dispatch-binding` request in XLibre manage mode. Binding dispatch resolves the
+configured key, pointer, axis, or gesture binding against the live model, but it
+only executes the current XLibre allowlist: focus, close-window, focus-workspace,
+move-to-workspace, and move-window-to-workspace commands. Unsupported configured
+commands such as `spawn` are rejected rather than run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. This is discovery only:
-the XLibre branch does not grab keys/buttons or dispatch configured bindings
-yet.
+the XLibre branch does not grab keys/buttons yet; current binding support is
+synthetic IPC dispatch through configured bindings.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
 - expand the explicit XLibre action set only one command family at a time
-- use XInput/XKB discovery to model a minimal tested binding path before
-  enabling normal user bindings
+- use XInput/XKB discovery to turn the synthetic binding dispatcher into real
+  key/button grabs before enabling normal user bindings
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

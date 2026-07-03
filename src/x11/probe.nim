@@ -85,7 +85,7 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
 
   proc writableReply(line: string, snapshot: ShellSnapshot): Option[string] {.gcsafe.} =
     {.cast(gcsafe).}:
-      let request = xlibreWritableRequestFor(line, snapshot)
+      let request = xlibreWritableRequestFor(line, context.model, snapshot)
       if not request.handled:
         return none(string)
       if request.reply.len > 0:
