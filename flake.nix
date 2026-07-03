@@ -384,6 +384,7 @@
               pkgs.pixman
               pkgs.libxcb
               pkgs.xorg-server
+              pkgs.xvfb
               pkgs.libxcb-wm
             ];
 
@@ -391,6 +392,7 @@
               export TRIAD_NIMBLE_DIR="''${TRIAD_NIMBLE_DIR:-$PWD/.nimble}"
               echo "Triad dev shell"
               echo "  build:         nimble build"
+              echo "  xlibre tests:  nimble testXlibre (uses Xvfb)"
               echo "  nix build:     nix build .#triad"
               echo "  install seat:  tools/install_live_session.sh (uses native River)"
             '';

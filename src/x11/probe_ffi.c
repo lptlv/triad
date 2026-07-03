@@ -1,4 +1,6 @@
 #include <stdarg.h>
+#include <errno.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -958,25 +960,43 @@ int triad_x11_probe_run(
         return 0;
     }
 
+    int xcb_fd = xcb_get_file_descriptor(probe.conn);
     probe_log(&probe, "event loop started");
     while (1) {
-        xcb_generic_event_t *event = xcb_poll_for_event(probe.conn);
-        if (event == NULL) {
-            int err = xcb_connection_has_error(probe.conn);
-            if (err != 0) {
-                probe_log(&probe, "event loop stopped connection_error=%d", err);
-                break;
-            }
-            if (tick_fn != NULL)
-                tick_fn(user_data);
-            usleep(10000);
-            continue;
+        xcb_generic_event_t *event = NULL;
+        while ((event = xcb_poll_for_event(probe.conn)) != NULL) {
+            log_event(&probe, event);
+            free(event);
+            xcb_flush(probe.conn);
         }
-        log_event(&probe, event);
-        free(event);
-        xcb_flush(probe.conn);
+
+        int err = xcb_connection_has_error(probe.conn);
+        if (err != 0) {
+            probe_log(&probe, "event loop stopped connection_error=%d", err);
+            break;
+        }
+
         if (tick_fn != NULL)
             tick_fn(user_data);
+
+        struct pollfd pfd;
+        memset(&pfd, 0, sizeof(pfd));
+        pfd.fd = xcb_fd;
+        pfd.events = POLLIN;
+        int ready = poll(&pfd, 1, 10);
+        if (ready < 0) {
+            if (errno == EINTR)
+                continue;
+            probe_log(&probe, "event loop stopped poll_error=%d", errno);
+            break;
+        }
+        if (ready == 0)
+            continue;
+        if ((pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+            err = xcb_connection_has_error(probe.conn);
+            probe_log(&probe, "event loop stopped poll_revents=0x%x connection_error=%d", pfd.revents, err);
+            break;
+        }
     }
 
     if (probe.ewmh_ready)

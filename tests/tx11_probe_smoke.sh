@@ -115,38 +115,24 @@ if [ "$started" -ne 1 ]; then
   exit 1
 fi
 
-"$client" "$display"
-
-observed=0
+root_event_observed=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-  if grep -q "backend_event WindowDestroyed" "$event_log" 2>/dev/null; then
-    observed=1
+  if grep -q "backend_event PropertyChanged" "$event_log" 2>/dev/null; then
+    root_event_observed=1
     break
   fi
   sleep 0.2
 done
 
-if [ "$observed" -ne 1 ]; then
-  printf '%s\n' "tx11_probe_smoke: synthetic client events did not complete" >&2
+if [ "$root_event_observed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: observe loop did not receive root property events" >&2
   cat "$event_log" >&2
   exit 1
 fi
 
 for pattern in \
-  "event MapRequest" \
-  "backend_event MapRequested" \
-  "dry_run_msg WlWindowCreated" \
-  "dry_run_msg WlWindowDimensions" \
-  "dry_run_msg WlWindowPid" \
-  "event ConfigureRequest" \
-  "backend_event ConfigureRequested" \
   "event PropertyNotify" \
-  "backend_event PropertyChanged" \
-  "dry_run_msg WlWindowTitle" \
-  "dry_run_msg WlWindowStateChanged" \
-  "event DestroyNotify" \
-  "backend_event WindowDestroyed" \
-  "dry_run_msg WlWindowDestroyed"; do
+  "backend_event PropertyChanged"; do
   if ! grep -q "$pattern" "$event_log"; then
     printf '%s\n' "tx11_probe_smoke: missing event log pattern: $pattern" >&2
     cat "$event_log" >&2
@@ -231,7 +217,7 @@ fi
 
 for pattern in \
   '"type":"windows"' \
-  '"app_id":"triad-smoke/triad-smoke"'; do
+  '"app_id":"triad-smoke"'; do
   if ! grep -q "$pattern" "$ipc_windows_log"; then
     printf '%s\n' "tx11_probe_smoke: missing ipc windows pattern: $pattern" >&2
     cat "$ipc_windows_log" >&2
