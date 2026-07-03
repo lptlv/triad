@@ -52,6 +52,9 @@ if pkg-config --exists xcb-xtest; then
   xtest_cflags="$(pkg-config --cflags xcb-xtest) -DTRIAD_X11_XTEST=1"
   xtest_libs="$(pkg-config --libs xcb-xtest)"
 fi
+x11_mod_shift=1
+x11_mod_super=64
+x11_mod_super_shift=$((x11_mod_super | x11_mod_shift))
 
 cc -Wall -Wextra -Werror -o "$client" "$client_src" \
   $(pkg-config --cflags xcb) $xtest_cflags \
@@ -70,6 +73,7 @@ ipc_focus_log="$root/tests/tx11-probe-smoke-ipc-focus.json"
 ipc_focus_workspace_log="$root/tests/tx11-probe-smoke-ipc-focus-workspace.json"
 ipc_binding_dispatch_log="$root/tests/tx11-probe-smoke-ipc-binding-dispatch.json"
 key_press_log="$root/tests/tx11-probe-smoke-key-press.log"
+shifted_key_press_log="$root/tests/tx11-probe-smoke-shifted-key-press.log"
 button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 back_button_press_log="$root/tests/tx11-probe-smoke-back-button-press.log"
 axis_press_log="$root/tests/tx11-probe-smoke-axis-press.log"
@@ -80,7 +84,7 @@ ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$button_press_log" "$back_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -107,7 +111,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$button_press_log" "$back_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -206,6 +210,7 @@ window-rule {
 
 bindings {
   bind "Super+h" "focus-workspace 1"
+  bind "Super+Question" "focus-workspace 1"
   pointer-bind "Super+left" "move"
   pointer-bind "Super+right" "resize"
   pointer-bind "Super+middle" "focus-workspace 2"
@@ -404,7 +409,7 @@ for pattern in \
 done
 
 if [ "$xtest_available" -eq 1 ]; then
-  if ! "$client" "$display" --fake-key 0x68 64 >"$key_press_log" 2>&1; then
+  if ! "$client" "$display" --fake-key 0x68 "$x11_mod_super" >"$key_press_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$key_press_log" >&2
     exit 1
@@ -426,7 +431,29 @@ if [ "$xtest_available" -eq 1 ]; then
     exit 1
   fi
 
-  if ! "$client" "$display" --fake-drag 1 64 220 170 270 205 >"$pointer_drag_log" 2>&1; then
+  if ! "$client" "$display" --fake-key 0x2f "$x11_mod_super_shift" >"$shifted_key_press_log" 2>&1; then
+    cat "$manager_log" >&2
+    cat "$shifted_key_press_log" >&2
+    exit 1
+  fi
+
+  shifted_key_dispatched=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q 'backend_event KeyBinding binding="Super+Question"' "$manager_log" &&
+        grep -q 'xlibre_key_binding_reply .*"binding":"Super+Question"' "$manager_log"; then
+      shifted_key_dispatched=1
+      break
+    fi
+    sleep 0.2
+  done
+  if [ "$shifted_key_dispatched" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: fake Super+Shift+/ did not dispatch through key grab" >&2
+    cat "$manager_log" >&2
+    cat "$shifted_key_press_log" >&2
+    exit 1
+  fi
+
+  if ! "$client" "$display" --fake-drag 1 "$x11_mod_super" 220 170 270 205 >"$pointer_drag_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$pointer_drag_log" >&2
     exit 1
@@ -450,7 +477,7 @@ if [ "$xtest_available" -eq 1 ]; then
     exit 1
   fi
 
-  if ! "$client" "$display" --fake-drag 3 64 300 220 360 260 >"$pointer_resize_log" 2>&1; then
+  if ! "$client" "$display" --fake-drag 3 "$x11_mod_super" 300 220 360 260 >"$pointer_resize_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$pointer_resize_log" >&2
     exit 1
@@ -473,7 +500,7 @@ if [ "$xtest_available" -eq 1 ]; then
     exit 1
   fi
 
-  if ! "$client" "$display" --fake-button 2 64 >"$button_press_log" 2>&1; then
+  if ! "$client" "$display" --fake-button 2 "$x11_mod_super" >"$button_press_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$button_press_log" >&2
     exit 1
@@ -495,7 +522,7 @@ if [ "$xtest_available" -eq 1 ]; then
     exit 1
   fi
 
-  if ! "$client" "$display" --fake-button 8 64 >"$back_button_press_log" 2>&1; then
+  if ! "$client" "$display" --fake-button 8 "$x11_mod_super" >"$back_button_press_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$back_button_press_log" >&2
     exit 1
@@ -517,7 +544,7 @@ if [ "$xtest_available" -eq 1 ]; then
     exit 1
   fi
 
-  if ! "$client" "$display" --fake-button 4 64 >"$axis_press_log" 2>&1; then
+  if ! "$client" "$display" --fake-button 4 "$x11_mod_super" >"$axis_press_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$axis_press_log" >&2
     exit 1

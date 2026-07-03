@@ -17,6 +17,13 @@ const
   X11ResizeEdgeBottom = 2'u32
   X11ResizeEdgeLeft = 4'u32
   X11ResizeEdgeRight = 8'u32
+  # Core X11/XCB modifier masks, kept aligned with config modifier parsing.
+  X11ModShift = ShiftModifier
+  X11ModCtrl = 4'u32
+  X11ModAlt = 8'u32
+  X11Mod3 = 32'u32
+  X11ModSuper = 64'u32
+  X11Mod5 = 128'u32
 
 type
   X11ProbeMode* {.pure.} = enum
@@ -80,20 +87,93 @@ proc modeLabel(mode: X11ProbeMode): string =
 
 proc bindingSpec(binding: KeyBindingConfig): string =
   var parts: seq[string]
-  if (binding.modifiers and 64'u32) != 0:
+  if (binding.modifiers and X11ModSuper) != 0:
     parts.add("Super")
-  if (binding.modifiers and 4'u32) != 0:
+  if (binding.modifiers and X11ModCtrl) != 0:
     parts.add("Ctrl")
-  if (binding.modifiers and 1'u32) != 0:
+  if (binding.modifiers and X11ModShift) != 0:
     parts.add("Shift")
-  if (binding.modifiers and 8'u32) != 0:
+  if (binding.modifiers and X11ModAlt) != 0:
     parts.add("Alt")
-  if (binding.modifiers and 32'u32) != 0:
+  if (binding.modifiers and X11Mod3) != 0:
     parts.add("Mod3")
-  if (binding.modifiers and 128'u32) != 0:
+  if (binding.modifiers and X11Mod5) != 0:
     parts.add("Mod5")
   parts.add(binding.key)
   parts.join("+")
+
+proc x11PhysicalKeyGrab(
+    binding: KeyBindingConfig
+): tuple[keysym: uint32, modifiers: uint32] =
+  result.modifiers = binding.modifiers
+  var physicalKey = binding.key
+  case binding.key.strip()
+  of "~":
+    physicalKey = "`"
+    result.modifiers = result.modifiers or X11ModShift
+  of "!":
+    physicalKey = "1"
+    result.modifiers = result.modifiers or X11ModShift
+  of "@":
+    physicalKey = "2"
+    result.modifiers = result.modifiers or X11ModShift
+  of "#":
+    physicalKey = "3"
+    result.modifiers = result.modifiers or X11ModShift
+  of "$":
+    physicalKey = "4"
+    result.modifiers = result.modifiers or X11ModShift
+  of "%":
+    physicalKey = "5"
+    result.modifiers = result.modifiers or X11ModShift
+  of "^":
+    physicalKey = "6"
+    result.modifiers = result.modifiers or X11ModShift
+  of "&":
+    physicalKey = "7"
+    result.modifiers = result.modifiers or X11ModShift
+  of "*":
+    physicalKey = "8"
+    result.modifiers = result.modifiers or X11ModShift
+  of "(":
+    physicalKey = "9"
+    result.modifiers = result.modifiers or X11ModShift
+  of ")":
+    physicalKey = "0"
+    result.modifiers = result.modifiers or X11ModShift
+  of "_":
+    physicalKey = "-"
+    result.modifiers = result.modifiers or X11ModShift
+  of "+":
+    physicalKey = "="
+    result.modifiers = result.modifiers or X11ModShift
+  of "{":
+    physicalKey = "["
+    result.modifiers = result.modifiers or X11ModShift
+  of "}":
+    physicalKey = "]"
+    result.modifiers = result.modifiers or X11ModShift
+  of "|":
+    physicalKey = "\\"
+    result.modifiers = result.modifiers or X11ModShift
+  of ":":
+    physicalKey = ";"
+    result.modifiers = result.modifiers or X11ModShift
+  of "\"":
+    physicalKey = "'"
+    result.modifiers = result.modifiers or X11ModShift
+  of "<":
+    physicalKey = ","
+    result.modifiers = result.modifiers or X11ModShift
+  of ">":
+    physicalKey = "."
+    result.modifiers = result.modifiers or X11ModShift
+  of "Question":
+    physicalKey = "/"
+    result.modifiers = result.modifiers or X11ModShift
+  else:
+    discard
+  result.keysym = keySymForBinding(physicalKey)
 
 proc buttonName(button: uint32): string =
   case button
@@ -124,17 +204,17 @@ proc bindingSpec(binding: PointerBindingConfig): string =
   if name.len == 0:
     return ""
   var parts: seq[string]
-  if (binding.modifiers and 64'u32) != 0:
+  if (binding.modifiers and X11ModSuper) != 0:
     parts.add("Super")
-  if (binding.modifiers and 4'u32) != 0:
+  if (binding.modifiers and X11ModCtrl) != 0:
     parts.add("Ctrl")
-  if (binding.modifiers and 1'u32) != 0:
+  if (binding.modifiers and X11ModShift) != 0:
     parts.add("Shift")
-  if (binding.modifiers and 8'u32) != 0:
+  if (binding.modifiers and X11ModAlt) != 0:
     parts.add("Alt")
-  if (binding.modifiers and 32'u32) != 0:
+  if (binding.modifiers and X11Mod3) != 0:
     parts.add("Mod3")
-  if (binding.modifiers and 128'u32) != 0:
+  if (binding.modifiers and X11Mod5) != 0:
     parts.add("Mod5")
   parts.add(name)
   parts.join("+")
@@ -160,17 +240,17 @@ proc bindingSpec(binding: AxisBindingConfig): string =
   if name.len == 0:
     return ""
   var parts: seq[string]
-  if (binding.modifiers and 64'u32) != 0:
+  if (binding.modifiers and X11ModSuper) != 0:
     parts.add("Super")
-  if (binding.modifiers and 4'u32) != 0:
+  if (binding.modifiers and X11ModCtrl) != 0:
     parts.add("Ctrl")
-  if (binding.modifiers and 1'u32) != 0:
+  if (binding.modifiers and X11ModShift) != 0:
     parts.add("Shift")
-  if (binding.modifiers and 8'u32) != 0:
+  if (binding.modifiers and X11ModAlt) != 0:
     parts.add("Alt")
-  if (binding.modifiers and 32'u32) != 0:
+  if (binding.modifiers and X11Mod3) != 0:
     parts.add("Mod3")
-  if (binding.modifiers and 128'u32) != 0:
+  if (binding.modifiers and X11Mod5) != 0:
     parts.add("Mod5")
   parts.add(name)
   parts.join("+")
@@ -228,7 +308,8 @@ proc axisGrabSignature(grabs: openArray[X11AxisGrab]): string =
 proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
   let snapshot = model.shellSnapshot()
   for binding in model.resolvedKeyBindings():
-    let keysym = keySymForBinding(binding.key, binding.modifiers)
+    let grab = binding.x11PhysicalKeyGrab()
+    let keysym = grab.keysym
     if keysym == 0:
       continue
     let spec = binding.bindingSpec()
@@ -240,7 +321,7 @@ proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
     if parsed.handled and parsed.bindingDispatch.ok:
       result.add(
         X11KeyGrab(
-          keysym: keysym, modifiers: binding.modifiers, binding: spec.bindingText()
+          keysym: keysym, modifiers: grab.modifiers, binding: spec.bindingText()
         )
       )
 
