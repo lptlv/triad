@@ -191,6 +191,14 @@ proc shellWindow(
     )
   )
 
+proc tagHasUrgentWindow(model: Model, tagId: TagId): bool =
+  if tagId == NullTagId:
+    return false
+  for winId, win in model.windowsOnTagWithId(tagId):
+    if win.windowAdmitted() and win.isUrgent and not model.windowHiddenBySwallow(winId):
+      return true
+  false
+
 proc addShellOutputs(snapshot: var ShellSnapshot, model: Model) =
   if model.outputCount() == 0:
     snapshot.outputs.add(
@@ -332,6 +340,7 @@ proc shellSnapshot*(model: Model): ShellSnapshot =
         isConfigured: model.workspaceSlotConfigured(slot),
         isActive: slot == model.activeSlot,
         isOutputVisible: outputVisible,
+        isUrgent: model.tagHasUrgentWindow(tagId),
         focusedWindow: model.externalWindowId(model.effectiveTagFocusedWindow(tagId)),
         occupied: tagId != NullTagId and model.tagHasNonStickyLiveWindows(tagId),
         outputName:

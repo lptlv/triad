@@ -31,6 +31,12 @@ proc snapshotWindow(model: Model, id: uint32): ShellWindow =
       return win
   ShellWindow()
 
+proc snapshotWorkspace(model: Model, id: uint32): ShellWorkspace =
+  for workspace in model.shellSnapshot().workspaces:
+    if workspace.tagId == id:
+      return workspace
+  ShellWorkspace()
+
 proc hasEffect(effects: seq[Effect], kind: EffectKind): bool =
   for effect in effects:
     if effect.kind == kind:
@@ -243,6 +249,23 @@ suite "X11 model admission":
     check win.isMaximized
     check win.isMinimized
     check win.isUrgent
+    check model.snapshotWorkspace(1).isUrgent
+    check not model.snapshotWorkspace(2).isUrgent
+    check not model.snapshotWorkspace(3).isUrgent
+
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.FocusChanged, focusWindowId: 22, focused: true
+      )
+    )
+    check model.snapshotWindow(22).isUrgent
+    check model.snapshotWorkspace(1).isUrgent
+
+    let internalId = model.windowForExternal(ExternalWindowId(22))
+    check internalId != NullWindowId
+    check model.setWindowSticky(internalId, true)
+    check model.snapshotWorkspace(1).isUrgent
+    check not model.snapshotWorkspace(2).isUrgent
 
     discard model.admitDryRun(
       X11BackendEvent(
@@ -257,3 +280,4 @@ suite "X11 model admission":
     check not win.isMaximized
     check not win.isMinimized
     check not win.isUrgent
+    check not model.snapshotWorkspace(1).isUrgent

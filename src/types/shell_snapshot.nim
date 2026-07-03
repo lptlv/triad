@@ -64,6 +64,7 @@ type
     isConfigured*: bool
     isActive*: bool
     isOutputVisible*: bool
+    isUrgent*: bool
     focusedWindow*: uint32
     occupied*: bool
     outputName*: string

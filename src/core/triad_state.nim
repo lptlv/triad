@@ -244,7 +244,7 @@ proc triadWorkspaceLayoutJson*(workspace: ShellWorkspace): JsonNode =
     "is_configured": workspace.isConfigured,
     "is_active": workspace.isActive,
     "is_output_visible": workspace.isOutputVisible,
-    "is_urgent": false,
+    "is_urgent": workspace.isUrgent,
     "occupied": workspace.occupied,
     "focused_window_id":
       if workspace.focusedWindow == 0:
@@ -436,7 +436,7 @@ proc triadCapabilitiesJson*(): JsonNode =
     "keyboard_layout": true,
     "output_metadata": true,
     "monitor_power": true,
-    "workspace_urgency": false,
+    "workspace_urgency": true,
   }
 
 proc triadStateJson*(snapshot: ShellSnapshot): JsonNode =

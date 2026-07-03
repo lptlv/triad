@@ -837,20 +837,27 @@ suite "Shell compatibility contracts":
     check not windowTriad.subscribeState
     check windowTriad.initialEvents.len == 0
 
-  test "native state exposes urgency capability and stable workspace urgency":
+  test "workspace JSON surfaces preserve urgency":
     let capabilitiesReply = handleTriadRequest(
       """{"triad":{"version":1,"request":"capabilities"}}""", snapshotForShell()
     )
     let capabilities = parseJson(capabilitiesReply.reply)["triad"]["capabilities"]
-    check capabilities["workspace_urgency"].getBool() == false
+    check capabilities["workspace_urgency"].getBool()
+
+    var snapshot = snapshotForShell()
+    snapshot.workspaces[0].isUrgent = true
+
+    let niriReply = handleNiriRequest("\"Workspaces\"", snapshot)
+    let niriWorkspaces = parseJson(niriReply.reply)["Ok"]["Workspaces"]
+    check niriWorkspaces[0]["is_urgent"].getBool()
 
     let stateReply = handleTriadRequest(
-      """{"triad":{"version":1,"request":"state"}}""", snapshotForShell()
+      """{"triad":{"version":1,"request":"state"}}""", snapshot
     )
     let workspaces =
       parseJson(stateReply.reply)["triad"]["state"]["layout"]["workspaces"]
     check workspaces.len > 0
-    check workspaces[0]["is_urgent"].getBool() == false
+    check workspaces[0]["is_urgent"].getBool()
 
   test "window JSON surfaces preserve urgency":
     var snapshot = snapshotForShell()

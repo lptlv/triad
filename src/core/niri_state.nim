@@ -97,7 +97,7 @@ proc niriWorkspacesJson*(snapshot: ShellSnapshot): JsonNode =
           else:
             %workspace.name,
         "output": workspace.outputName,
-        "is_urgent": false,
+        "is_urgent": workspace.isUrgent,
         "is_active": workspace.isOutputVisible,
         "is_focused": workspace.isActive,
         "is_configured": workspace.isConfigured,
