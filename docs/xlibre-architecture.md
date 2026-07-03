@@ -198,12 +198,17 @@ The first writable exception is an explicit XLibre-only request,
 the current shell snapshot, and lowers it directly to the existing polite
 close-window XCB request record. General Triad command IPC remains disabled on
 the XLibre socket.
+Startup now also probes XKB and XInput2 capabilities, logging the server
+extension versions plus aggregate input device counts. This is discovery only:
+the XLibre branch does not grab keys/buttons or dispatch configured bindings
+yet.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
-- add XInput/XKB discovery before attempting user bindings
+- use XInput/XKB discovery to model a minimal tested binding path before
+  enabling normal user bindings
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

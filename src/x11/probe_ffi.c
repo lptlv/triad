@@ -11,6 +11,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_ewmh.h>
+#include <xcb/xinput.h>
+#include <xcb/xkb.h>
 
 typedef void (*triad_x11_log_fn)(void *user_data, const char *message);
 
@@ -97,6 +99,8 @@ typedef struct TriadX11Probe {
     xcb_ewmh_connection_t ewmh;
     int ewmh_ready;
     const xcb_query_extension_reply_t *randr_ext;
+    const xcb_query_extension_reply_t *xinput_ext;
+    const xcb_query_extension_reply_t *xkb_ext;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -592,6 +596,152 @@ static int claim_wm(TriadX11Probe *probe)
     return 1;
 }
 
+static int device_has_class(
+    const xcb_input_xi_device_info_t *device,
+    uint16_t class_type)
+{
+    xcb_input_device_class_iterator_t iter =
+        xcb_input_xi_device_info_classes_iterator(device);
+    while (iter.rem > 0) {
+        if (iter.data->type == class_type)
+            return 1;
+        xcb_input_device_class_next(&iter);
+    }
+    return 0;
+}
+
+static void query_xinput_devices(TriadX11Probe *probe)
+{
+    xcb_input_xi_query_device_cookie_t device_cookie =
+        xcb_input_xi_query_device(probe->conn, XCB_INPUT_DEVICE_ALL);
+    xcb_generic_error_t *device_error = NULL;
+    xcb_input_xi_query_device_reply_t *devices =
+        xcb_input_xi_query_device_reply(probe->conn, device_cookie, &device_error);
+    if (device_error != NULL) {
+        probe_log(
+            probe,
+            "xinput devices unavailable error_code=%u",
+            device_error->error_code);
+        free(device_error);
+        return;
+    }
+    if (devices == NULL) {
+        probe_log(probe, "xinput devices unavailable");
+        return;
+    }
+
+    int master_keyboards = 0;
+    int master_pointers = 0;
+    int slave_keyboards = 0;
+    int slave_pointers = 0;
+    int key_class_devices = 0;
+    int button_class_devices = 0;
+    int touch_class_devices = 0;
+
+    xcb_input_xi_device_info_iterator_t iter =
+        xcb_input_xi_query_device_infos_iterator(devices);
+    while (iter.rem > 0) {
+        xcb_input_xi_device_info_t *device = iter.data;
+        switch (device->type) {
+        case XCB_INPUT_DEVICE_TYPE_MASTER_KEYBOARD:
+            master_keyboards++;
+            break;
+        case XCB_INPUT_DEVICE_TYPE_MASTER_POINTER:
+            master_pointers++;
+            break;
+        case XCB_INPUT_DEVICE_TYPE_SLAVE_KEYBOARD:
+            slave_keyboards++;
+            break;
+        case XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER:
+            slave_pointers++;
+            break;
+        default:
+            break;
+        }
+        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_KEY))
+            key_class_devices++;
+        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_BUTTON))
+            button_class_devices++;
+        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_TOUCH))
+            touch_class_devices++;
+        xcb_input_xi_device_info_next(&iter);
+    }
+
+    probe_log(
+        probe,
+        "xinput devices count=%u master_keyboards=%d master_pointers=%d "
+        "slave_keyboards=%d slave_pointers=%d key_class=%d button_class=%d touch_class=%d",
+        devices->num_infos,
+        master_keyboards,
+        master_pointers,
+        slave_keyboards,
+        slave_pointers,
+        key_class_devices,
+        button_class_devices,
+        touch_class_devices);
+    free(devices);
+}
+
+static void query_input_extensions(TriadX11Probe *probe)
+{
+    probe->xkb_ext = xcb_get_extension_data(probe->conn, &xcb_xkb_id);
+    if (probe->xkb_ext == NULL || !probe->xkb_ext->present) {
+        probe_log(probe, "xkb unavailable");
+    } else {
+        xcb_xkb_use_extension_cookie_t xkb_cookie =
+            xcb_xkb_use_extension(probe->conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
+        xcb_generic_error_t *xkb_error = NULL;
+        xcb_xkb_use_extension_reply_t *xkb =
+            xcb_xkb_use_extension_reply(probe->conn, xkb_cookie, &xkb_error);
+        if (xkb_error != NULL) {
+            probe_log(probe, "xkb unavailable error_code=%u", xkb_error->error_code);
+            free(xkb_error);
+        } else if (xkb == NULL) {
+            probe_log(probe, "xkb unavailable");
+        } else {
+            probe_log(
+                probe,
+                "xkb version=%u.%u supported=%u event_base=%u",
+                xkb->serverMajor,
+                xkb->serverMinor,
+                xkb->supported,
+                probe->xkb_ext->first_event);
+            free(xkb);
+        }
+    }
+
+    probe->xinput_ext = xcb_get_extension_data(probe->conn, &xcb_input_id);
+    if (probe->xinput_ext == NULL || !probe->xinput_ext->present) {
+        probe_log(probe, "xinput unavailable");
+        return;
+    }
+
+    xcb_input_xi_query_version_cookie_t xinput_cookie =
+        xcb_input_xi_query_version(probe->conn, 2, 4);
+    xcb_generic_error_t *xinput_error = NULL;
+    xcb_input_xi_query_version_reply_t *xinput =
+        xcb_input_xi_query_version_reply(probe->conn, xinput_cookie, &xinput_error);
+    if (xinput_error != NULL) {
+        probe_log(probe, "xinput unavailable error_code=%u", xinput_error->error_code);
+        free(xinput_error);
+        return;
+    }
+    if (xinput == NULL) {
+        probe_log(probe, "xinput unavailable");
+        return;
+    }
+
+    probe_log(
+        probe,
+        "xinput version=%u.%u opcode=%u event_base=%u",
+        xinput->major_version,
+        xinput->minor_version,
+        probe->xinput_ext->major_opcode,
+        probe->xinput_ext->first_event);
+    free(xinput);
+    query_xinput_devices(probe);
+}
+
 static void query_randr(TriadX11Probe *probe)
 {
     probe->randr_ext = xcb_get_extension_data(probe->conn, &xcb_randr_id);
@@ -948,6 +1098,7 @@ int triad_x11_probe_run(
         return 2;
     }
 
+    query_input_extensions(&probe);
     query_randr(&probe);
     query_existing_windows(&probe);
     xcb_flush(probe.conn);

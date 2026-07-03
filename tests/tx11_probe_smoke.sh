@@ -102,6 +102,9 @@ for pattern in \
   "atoms initialized" \
   "ewmh initialized" \
   "wm claimed" \
+  "xkb version=" \
+  "xinput version=" \
+  "xinput devices count=" \
   "windows count=" \
   "backend_event OutputDiscovered" \
   "dry_run_msg WlOutput" \
