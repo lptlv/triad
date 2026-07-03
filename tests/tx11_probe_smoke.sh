@@ -458,7 +458,7 @@ if [ "$xtest_available" -eq 1 ]; then
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     if grep -q 'backend_event PointerBinding binding="Super+right"' "$manager_log" &&
         grep -q 'xlibre_pointer_xcb applied configure window=0x00400000' "$manager_log" &&
-        grep -q 'xlibre_pointer_request configure window=0x00400000 x=250 y=185 w=380 h=240' "$manager_log"; then
+        grep -q 'xlibre_pointer_request configure window=0x00400000 x=310 y=225 w=260 h=160' "$manager_log"; then
       pointer_resized=1
       break
     fi

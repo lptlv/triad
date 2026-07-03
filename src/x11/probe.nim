@@ -12,6 +12,11 @@ import ../types/[model, runtime_values, shell_snapshot]
 import atoms, events, ipc_runtime, pipeline, request_executor, xcb_ffi
 
 const X11IpcListenReadyTimeoutMs = 1000
+const
+  X11ResizeEdgeTop = 1'u32
+  X11ResizeEdgeBottom = 2'u32
+  X11ResizeEdgeLeft = 4'u32
+  X11ResizeEdgeRight = 8'u32
 
 type
   X11ProbeMode* {.pure.} = enum
@@ -390,6 +395,22 @@ proc runXlibreCommandStep(context: ptr X11ProbeContext, message: Msg) {.gcsafe.}
       stdout.writeLine("xlibre_pointer_xcb " & line)
     stdout.flushFile()
 
+proc resizeEdgesForPointer(
+    model: Model, targetWindowId: uint32, rootX, rootY: int32
+): uint32 =
+  for win in model.shellSnapshot().windows:
+    if win.id != targetWindowId or not win.isFloating:
+      continue
+    let geom = win.floatingGeom
+    if geom.w <= 0 or geom.h <= 0:
+      break
+    let horizontal =
+      if rootX < geom.x + geom.w div 2: X11ResizeEdgeLeft else: X11ResizeEdgeRight
+    let vertical =
+      if rootY < geom.y + geom.h div 2: X11ResizeEdgeTop else: X11ResizeEdgeBottom
+    return horizontal or vertical
+  X11ResizeEdgeBottom or X11ResizeEdgeRight
+
 proc startInteractivePointerBinding(
     context: ptr X11ProbeContext,
     bindingText: string,
@@ -415,7 +436,7 @@ proc startInteractivePointerBinding(
         Msg(
           kind: MsgKind.WlPointerResizeRequested,
           resizeWinId: targetWindowId,
-          resizeEdges: 2'u32 or 8'u32,
+          resizeEdges: context.model.resizeEdgesForPointer(targetWindowId, rootX, rootY),
         )
       )
     of PointerOpKind.OpNone, PointerOpKind.OpOverviewDrag,

@@ -224,7 +224,8 @@ active X11 grab are translated to `WlPointerDelta` and `WlPointerRelease`, then
 executed as configure-window requests. The Xvfb smoke test uses XTEST, when
 available, to fake `Super+h`, `Super+middle`, `Super+wheel-up`, plus
 `Super+left` move and `Super+right` resize drags of a floating synthetic client.
-This first input path is intentionally narrow: richer resize-edge selection,
+Resize chooses top/bottom and left/right edges from the pointer's initial
+position in the floating window. This first input path is intentionally narrow:
 gesture bindings, extra mouse buttons, high-resolution wheel deltas, and
 shifted-symbol normalization still need follow-up work.
 
