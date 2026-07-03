@@ -189,6 +189,8 @@ fi
 for pattern in \
   "backend_event MapRequested" \
   "model_msg WlWindowCreated" \
+  "layout_x11_request configure window=" \
+  "live_xcb applied configure window=" \
   "x11_request map window=" \
   "live_xcb applied map window=" \
   "live_xcb applied focus window="; do
@@ -198,6 +200,22 @@ for pattern in \
     exit 1
   fi
 done
+
+configured=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q '^configure=' "$managed_client_log" 2>/dev/null; then
+    configured=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$configured" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: managed client did not observe configure" >&2
+  cat "$manager_log" >&2
+  cat "$managed_client_log" >&2
+  exit 1
+fi
 
 kill "$client_pid" 2>/dev/null || true
 wait "$client_pid" 2>/dev/null || true

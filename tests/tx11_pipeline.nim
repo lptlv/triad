@@ -1,4 +1,4 @@
-import std/[sequtils, unittest]
+import std/[sequtils, strutils, unittest]
 
 import ../src/config/parser
 import ../src/core/effects
@@ -50,10 +50,13 @@ suite "X11 admission pipeline":
 
     check step.admission.messages.len == 2
     check step.intents.len == 1
-    check step.requests.len == 1
-    check step.requests[0].kind == X11RequestKind.XrqSetInputFocus
+    check step.layoutRequests.len == 1
+    check step.requests.len == 2
+    check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
     check step.requests[0].windowId == 0x2a
-    check step.dryRunExecutions.len == 1
+    check step.requests[1].kind == X11RequestKind.XrqSetInputFocus
+    check step.requests[1].windowId == 0x2a
+    check step.dryRunExecutions.len == 2
     check not step.dryRunExecutions[0].applied
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
@@ -83,6 +86,14 @@ suite "X11 admission pipeline":
 
   test "map requests add map before focus execution":
     var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
     let step =
       model.processEventWithExecutor(
         X11BackendEvent(
@@ -95,18 +106,92 @@ suite "X11 admission pipeline":
       )
 
     check step.admission.messages.len == 2
-    check step.requests.len == 2
-    check step.requests[0].kind == X11RequestKind.XrqMapWindow
+    check step.layoutRequests.len == 1
+    check step.requests.len == 3
+    check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
     check step.requests[0].windowId == 0x2c
-    check step.requests[1].kind == X11RequestKind.XrqSetInputFocus
+    check step.requests[0].values[2] > 0
+    check step.requests[0].values[3] > 0
+    check step.requests[1].kind == X11RequestKind.XrqMapWindow
     check step.requests[1].windowId == 0x2c
+    check step.requests[2].kind == X11RequestKind.XrqSetInputFocus
+    check step.requests[2].windowId == 0x2c
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
-    check step.xcbRun.logs == @[
-      "dry_run map window=0x0000002c",
-      "dry_run focus window=0x0000002c",
-      "request execution complete dry_run=1 count=2",
-    ]
+    check step.xcbRun.logs.len == 4
+    check step.xcbRun.logs[0].startsWith("dry_run configure window=0x0000002c")
+    check step.xcbRun.logs[1] == "dry_run map window=0x0000002c"
+    check step.xcbRun.logs[2] == "dry_run focus window=0x0000002c"
+    check step.xcbRun.logs[3] == "request execution complete dry_run=1 count=3"
+
+  test "second managed window reprojects both windows":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window: X11WindowSnapshot(id: 0x30, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+
+    let step =
+      model.processEventWithExecutor(
+        X11BackendEvent(
+          kind: X11BackendEventKind.MapRequested,
+          window: X11WindowSnapshot(id: 0x31, wmClass: "app", title: "Two", w: 300, h: 200),
+        ),
+        dryRun = true,
+      )
+
+    check step.layoutRequests.len == 2
+    check step.layoutRequests.anyIt(it.windowId == 0x30)
+    check step.layoutRequests.anyIt(it.windowId == 0x31)
+    check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.requests[0].windowId == 0x31
+    check step.requests[1].kind == X11RequestKind.XrqMapWindow
+    check step.requests[1].windowId == 0x31
+    check step.requests.anyIt(it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x30)
+
+  test "destroyed windows reproject remaining windows without map requests":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window: X11WindowSnapshot(id: 0x40, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window: X11WindowSnapshot(id: 0x41, wmClass: "app", title: "Two", w: 300, h: 200),
+      )
+    )
+
+    let step =
+      model.processEventWithExecutor(
+        X11BackendEvent(kind: X11BackendEventKind.WindowDestroyed, windowId: 0x41),
+        dryRun = true,
+      )
+
+    check step.layoutRequests.len == 1
+    check step.layoutRequests[0].windowId == 0x40
+    check step.requests.anyIt(it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x40)
+    check not step.requests.anyIt(it.kind == X11RequestKind.XrqMapWindow)
 
   test "observed-only events do not invoke the executor boundary":
     var model = x11Model()
@@ -155,8 +240,16 @@ suite "X11 admission pipeline":
     check step.requests.len == 0
     check step.dryRunExecutions.len == 0
 
-  test "net wm state updates remain model-only in the pipeline":
+  test "net wm state updates trigger layout projection requests":
     var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
     discard model.processEventDryRun(
       X11BackendEvent(
         kind: X11BackendEventKind.WindowDiscovered,
@@ -183,5 +276,7 @@ suite "X11 admission pipeline":
     check step.admission.effects.len > 0
     check step.admission.effects.anyIt(it.kind == EffectKind.EffRenderDirty)
     check step.intents.len == 0
-    check step.requests.len == 0
-    check step.dryRunExecutions.len == 0
+    check step.layoutRequests.len == 1
+    check step.requests.len == 1
+    check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.dryRunExecutions.len == 1

@@ -100,7 +100,8 @@ Default `observe` mode deliberately does not call `Model.update`, publish Triad
 IPC, move windows, focus windows, map windows, or apply layout projection.
 `admit` mode keeps a live in-memory model and runs generated XCB requests
 through the dry-run executor. `manage` mode is opt-in and executes whitelisted
-requests on the active WM-owned XCB connection.
+requests on the active WM-owned XCB connection, including layout configure
+requests generated from Triad's layout projection.
 
 Status: implemented. `nimble testXlibre` runs the pure X11 event mapping tests,
 builds the probe, runs the `triad_xlibre --once` startup smoke harness, and
@@ -119,8 +120,8 @@ request intents. Those intents are testable without a live server and are
 executed by the probe CLI only in explicit manage mode.
 
 `src/x11/request_builder.nim` lowers those intents into stable XCB request
-records for configure-window, input-focus, polite close, and X11 map-window
-operations.
+records for layout configure-window, input-focus, polite close, and X11
+map-window operations.
 `src/x11/request_executor.nim` can dry-run those records and report what would
 be sent without mutating a live server. The same module also exposes a guarded
 C/XCB boundary: dry-run mode does not connect to a display, while live mode
@@ -161,21 +162,23 @@ request-intent mapping plus request-record construction is implemented for
 configure, focus, close, and map operations, with non-mutating dry-run execution
 and guarded C/XCB execution boundaries. Live execution is validated against the
 synthetic Xvfb client for configure, focus, polite close, and WM-owned map
-requests. The controlled admission-to-executor loop is available through
-`src/x11/pipeline.nim`; `triad_xlibre --mode admit` runs it dry, and
-`triad_xlibre --mode manage` executes whitelisted requests on the active probe
-connection. Configure requests, metadata notifications, and `_NET_WM_STATE`
-changes for fullscreen, maximized, minimized, and urgent windows now update
-isolated model state through existing Triad messages. Per-window urgency is
-also aggregated into workspace-level shell snapshot urgency.
+requests. Layout projection now lowers `RenderInstruction` geometry into XCB
+configure-window requests after layout-affecting X11 events. The controlled
+admission-to-executor loop is available through `src/x11/pipeline.nim`;
+`triad_xlibre --mode admit` runs it dry, and `triad_xlibre --mode manage`
+executes whitelisted requests on the active probe connection. Configure
+requests, metadata notifications, and `_NET_WM_STATE` changes for fullscreen,
+maximized, minimized, and urgent windows now update isolated model state through
+existing Triad messages. Per-window urgency is also aggregated into
+workspace-level shell snapshot urgency.
 
-The next step is to expand request-backed state changes cautiously:
+The next step is to expand runtime usability cautiously:
 
-- decide which admitted state changes should remain model-only versus request-backed
-- add live layout projection only after map/focus/configure behavior is stable
+- load real Triad config in XLibre mode instead of the minimal default model
+- expose native IPC/snapshot reads only after managed geometry remains stable
 
-Only after this subset works should the branch attempt tiling, shell snapshots,
-bindings, overlays, or live-session packaging.
+Only after this subset works should the branch attempt bindings, overlays, shell
+compatibility, or live-session packaging.
 
 ## Non-Goals
 

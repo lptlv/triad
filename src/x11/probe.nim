@@ -124,6 +124,8 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
         context.model.processEventWithExecutor(event, context.displayName, dryRun = dryRun)
     for msg in step.admission.messages:
       stdout.writeLine("model_msg " & msg.dryRunMessageLabel())
+    for request in step.layoutRequests:
+      stdout.writeLine("layout_x11_request " & request.executeDryRun().description)
     for request in step.requests:
       stdout.writeLine("x11_request " & request.executeDryRun().description)
     for line in step.xcbRun.logs:

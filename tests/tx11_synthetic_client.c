@@ -73,6 +73,18 @@ static int wait_for_close(
                 free(event);
                 return 0;
             }
+        } else if (type == XCB_CONFIGURE_NOTIFY) {
+            xcb_configure_notify_event_t *configure =
+                (xcb_configure_notify_event_t *)event;
+            if (configure->window == win) {
+                printf(
+                    "configure=%ux%u+%d+%d\n",
+                    configure->width,
+                    configure->height,
+                    configure->x,
+                    configure->y);
+                fflush(stdout);
+            }
         } else if (type == XCB_DESTROY_NOTIFY) {
             xcb_destroy_notify_event_t *destroy = (xcb_destroy_notify_event_t *)event;
             if (destroy->window == win) {
