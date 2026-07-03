@@ -6,6 +6,40 @@
 
 #include <xcb/xcb.h>
 
+#ifdef TRIAD_X11_XTEST
+#include <xcb/xtest.h>
+
+static xcb_keycode_t keycode_for_keysym(xcb_connection_t *conn, uint32_t keysym)
+{
+    const xcb_setup_t *setup = xcb_get_setup(conn);
+    xcb_keycode_t min_keycode = setup->min_keycode;
+    xcb_keycode_t max_keycode = setup->max_keycode;
+    uint8_t count = (uint8_t)(max_keycode - min_keycode + 1);
+    xcb_get_keyboard_mapping_cookie_t cookie =
+        xcb_get_keyboard_mapping(conn, min_keycode, count);
+    xcb_get_keyboard_mapping_reply_t *reply =
+        xcb_get_keyboard_mapping_reply(conn, cookie, NULL);
+    if (reply == NULL)
+        return 0;
+
+    xcb_keysym_t *keysyms = xcb_get_keyboard_mapping_keysyms(reply);
+    int per_keycode = reply->keysyms_per_keycode;
+    xcb_keycode_t result = 0;
+    for (uint16_t keycode = min_keycode; keycode <= max_keycode && result == 0; keycode++) {
+        int offset = (keycode - min_keycode) * per_keycode;
+        for (int level = 0; level < per_keycode; level++) {
+            if (keysyms[offset + level] == keysym) {
+                result = (xcb_keycode_t)keycode;
+                break;
+            }
+        }
+    }
+
+    free(reply);
+    return result;
+}
+#endif
+
 static xcb_atom_t intern_atom(xcb_connection_t *conn, const char *name)
 {
     xcb_intern_atom_cookie_t cookie =
@@ -54,6 +88,89 @@ static xcb_screen_t *screen_for_connection(xcb_connection_t *conn, int screen_nu
     return iter.data;
 }
 
+#ifdef TRIAD_X11_XTEST
+static int fake_input(
+    xcb_connection_t *conn,
+    xcb_screen_t *screen,
+    uint8_t type,
+    xcb_keycode_t keycode)
+{
+    xcb_void_cookie_t cookie = xcb_test_fake_input_checked(
+        conn, type, keycode, XCB_CURRENT_TIME, screen->root, 0, 0, 0);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        fprintf(stderr, "tx11_synthetic_client: fake input error=%u\n", error->error_code);
+        free(error);
+        return 1;
+    }
+    xcb_flush(conn);
+    usleep(20000);
+    return 0;
+}
+
+static int modifier_keysyms(uint32_t modifiers, uint32_t keysyms[6])
+{
+    int count = 0;
+    if ((modifiers & XCB_MOD_MASK_SHIFT) != 0)
+        keysyms[count++] = 0xffe1; /* Shift_L */
+    if ((modifiers & XCB_MOD_MASK_CONTROL) != 0)
+        keysyms[count++] = 0xffe3; /* Control_L */
+    if ((modifiers & XCB_MOD_MASK_1) != 0)
+        keysyms[count++] = 0xffe9; /* Alt_L */
+    if ((modifiers & XCB_MOD_MASK_3) != 0)
+        keysyms[count++] = 0xffed; /* Hyper_L */
+    if ((modifiers & XCB_MOD_MASK_4) != 0)
+        keysyms[count++] = 0xffeb; /* Super_L */
+    if ((modifiers & XCB_MOD_MASK_5) != 0)
+        keysyms[count++] = 0xfe03; /* ISO_Level3_Shift */
+    return count;
+}
+
+static int fake_keypress(
+    xcb_connection_t *conn,
+    xcb_screen_t *screen,
+    uint32_t keysym,
+    uint32_t modifiers)
+{
+    xcb_keycode_t keycode = keycode_for_keysym(conn, keysym);
+    if (keycode == 0) {
+        fprintf(stderr, "tx11_synthetic_client: keysym unavailable=0x%08x\n", keysym);
+        return 1;
+    }
+
+    uint32_t mod_keysyms[6];
+    xcb_keycode_t mod_keycodes[6];
+    int mod_count = modifier_keysyms(modifiers, mod_keysyms);
+    for (int i = 0; i < mod_count; i++) {
+        mod_keycodes[i] = keycode_for_keysym(conn, mod_keysyms[i]);
+        if (mod_keycodes[i] == 0) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: modifier keysym unavailable=0x%08x\n",
+                mod_keysyms[i]);
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < mod_count; i++) {
+        if (fake_input(conn, screen, XCB_KEY_PRESS, mod_keycodes[i]) != 0)
+            return 1;
+    }
+    if (fake_input(conn, screen, XCB_KEY_PRESS, keycode) != 0)
+        return 1;
+    if (fake_input(conn, screen, XCB_KEY_RELEASE, keycode) != 0)
+        return 1;
+    for (int i = mod_count - 1; i >= 0; i--) {
+        if (fake_input(conn, screen, XCB_KEY_RELEASE, mod_keycodes[i]) != 0)
+            return 1;
+    }
+
+    printf("fake-key keysym=0x%08x keycode=%u modifiers=0x%04x\n", keysym, keycode, modifiers);
+    fflush(stdout);
+    return 0;
+}
+#endif
+
 static int wait_for_close(
     xcb_connection_t *conn,
     xcb_window_t win,
@@ -99,6 +216,7 @@ static int wait_for_close(
 int main(int argc, char **argv)
 {
     const char *display = argc > 1 ? argv[1] : NULL;
+    int fake_key = argc > 2 && strcmp(argv[2], "--fake-key") == 0;
     int hold = argc > 2 &&
         (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
     int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
@@ -116,6 +234,24 @@ int main(int argc, char **argv)
         fprintf(stderr, "tx11_synthetic_client: failed to resolve screen\n");
         xcb_disconnect(conn);
         return 1;
+    }
+    if (fake_key) {
+        if (argc < 5) {
+            fprintf(stderr, "tx11_synthetic_client: --fake-key requires keysym modifiers\n");
+            xcb_disconnect(conn);
+            return 1;
+        }
+#ifdef TRIAD_X11_XTEST
+        uint32_t keysym = (uint32_t)strtoul(argv[3], NULL, 0);
+        uint32_t modifiers = (uint32_t)strtoul(argv[4], NULL, 0);
+        int status = fake_keypress(conn, screen, keysym, modifiers);
+        xcb_disconnect(conn);
+        return status;
+#else
+        fprintf(stderr, "tx11_synthetic_client: XTEST support not compiled\n");
+        xcb_disconnect(conn);
+        return 1;
+#endif
     }
     xcb_atom_t wm_class = intern_atom(conn, "WM_CLASS");
     xcb_atom_t wm_name = intern_atom(conn, "WM_NAME");

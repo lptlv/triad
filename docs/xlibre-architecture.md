@@ -213,17 +213,17 @@ extension versions plus aggregate input device counts. Manage mode also installs
 initial X11 passive key grabs for configured key bindings whose commands pass the
 current XLibre allowlist. Matching `KeyPress` events are converted back into the
 same `dispatch-binding key <binding>` path used by IPC, so real key input and
-synthetic dispatch share command validation and execution. This first input path
-is intentionally narrow: pointer grabs, button bindings, wheel/gesture bindings,
-layout-sensitive reconfiguration, and shifted-symbol normalization still need
-follow-up work.
+synthetic dispatch share command validation and execution. The Xvfb smoke test
+uses XTEST, when available, to fake `Super+h` and verify the passive grab reaches
+the binding dispatcher. This first input path is intentionally narrow: pointer
+grabs, button bindings, wheel/gesture bindings, layout-sensitive
+reconfiguration, and shifted-symbol normalization still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
 - expand the explicit XLibre action set only one command family at a time
-- add live XTEST-backed keypress smoke coverage for the passive key-grab path
 - extend the key-grab path to reconfigure on binding mode/layout changes
 - use XInput/XKB discovery to add pointer button, wheel, and gesture dispatch
 
