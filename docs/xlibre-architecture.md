@@ -222,11 +222,11 @@ and execution. Interactive pointer bindings can also start the existing model
 pointer operation path for floating windows; motion and release events from the
 active X11 grab are translated to `WlPointerDelta` and `WlPointerRelease`, then
 executed as configure-window requests. The Xvfb smoke test uses XTEST, when
-available, to fake `Super+h`, `Super+middle`, `Super+wheel-up`, and a
-`Super+left` drag of a floating synthetic client. This first input path is
-intentionally narrow: richer resize-edge selection, gesture bindings, extra
-mouse buttons, high-resolution wheel deltas, and shifted-symbol normalization
-still need follow-up work.
+available, to fake `Super+h`, `Super+middle`, `Super+wheel-up`, plus
+`Super+left` move and `Super+right` resize drags of a floating synthetic client.
+This first input path is intentionally narrow: richer resize-edge selection,
+gesture bindings, extra mouse buttons, high-resolution wheel deltas, and
+shifted-symbol normalization still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
