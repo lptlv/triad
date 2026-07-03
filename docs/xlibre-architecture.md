@@ -205,10 +205,11 @@ asks the active probe loop to exit cleanly. General Triad command IPC remains
 disabled on the XLibre socket. The socket also accepts the existing
 `dispatch-binding` request in XLibre manage mode. Binding dispatch resolves the
 configured key, pointer, axis, or gesture binding against the live model, but it
-only executes the current XLibre allowlist: focus, close-window, focus-workspace,
-move-to-workspace, move-window-to-workspace, and argv-style `spawn` commands.
-Unsupported configured commands such as `spawn-terminal` are rejected rather
-than run through the XLibre socket.
+only executes the current XLibre allowlist: focus, directional focus,
+column focus, close-window, focus-workspace, move-to-workspace,
+move-window-to-workspace, and argv-style `spawn` commands.
+Unsupported configured commands outside that allowlist are rejected rather than
+run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. Manage mode installs X11
 passive key grabs for configured key bindings whose commands pass the current
