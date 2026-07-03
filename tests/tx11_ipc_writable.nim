@@ -55,6 +55,12 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "q",
+          modifiers: 64'u32,
+          command: "close-window",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "Return",
           modifiers: 64'u32,
           command: "spawn kitty",
@@ -196,6 +202,19 @@ suite "X11 writable IPC":
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
     check parsed.messages[0].workspaceIndex == 2
+
+  test "binding dispatch resolves close-window key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+q"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "close-window"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdCloseWindow
 
   test "binding dispatch expands axis ticks into repeated supported commands":
     let parsed = xlibreWritableRequestFor(

@@ -65,6 +65,7 @@ event_log="$root/tests/tx11-probe-smoke-events.log"
 manager_log="$root/tests/tx11-probe-smoke-manager.log"
 client_log="$root/tests/tx11-probe-smoke-client.log"
 managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
+close_key_client_log="$root/tests/tx11-probe-smoke-close-key-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
 ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
 ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
@@ -74,6 +75,7 @@ ipc_focus_workspace_log="$root/tests/tx11-probe-smoke-ipc-focus-workspace.json"
 ipc_binding_dispatch_log="$root/tests/tx11-probe-smoke-ipc-binding-dispatch.json"
 key_press_log="$root/tests/tx11-probe-smoke-key-press.log"
 shifted_key_press_log="$root/tests/tx11-probe-smoke-shifted-key-press.log"
+close_key_press_log="$root/tests/tx11-probe-smoke-close-key-press.log"
 button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 back_button_press_log="$root/tests/tx11-probe-smoke-back-button-press.log"
 device_button_press_log="$root/tests/tx11-probe-smoke-device-button-press.log"
@@ -86,7 +88,7 @@ ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -113,7 +115,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -212,6 +214,7 @@ window-rule {
 
 bindings {
   bind "Super+h" "focus-workspace 1"
+  bind "Super+q" "close-window"
   bind "Super+Question" "focus-workspace 1"
   pointer-bind "Super+left" "move"
   pointer-bind "Super+right" "resize"
@@ -673,6 +676,66 @@ if [ "$managed_closed" -ne 1 ]; then
 fi
 wait "$client_pid" 2>/dev/null || true
 client_pid=""
+
+if [ "$xtest_available" -eq 1 ]; then
+  "$client" "$display" --managed-hold >"$close_key_client_log" 2>&1 &
+  client_pid="$!"
+
+  close_key_window_id=""
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q '^window=0x' "$close_key_client_log" 2>/dev/null; then
+      close_key_window_id="$(sed -n 's/^window=//p' "$close_key_client_log" | head -n 1)"
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ -z "$close_key_window_id" ]; then
+    printf '%s\n' "tx11_probe_smoke: close-key client did not publish a window id" >&2
+    cat "$manager_log" >&2
+    cat "$close_key_client_log" >&2
+    exit 1
+  fi
+
+  if ! "$client" "$display" --fake-key 0x71 "$x11_mod_super" >"$close_key_press_log" 2>&1; then
+    cat "$manager_log" >&2
+    cat "$close_key_press_log" >&2
+    exit 1
+  fi
+
+  close_key_closed=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if ! kill -0 "$client_pid" 2>/dev/null; then
+      close_key_closed=1
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ "$close_key_closed" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: fake Super+q did not close focused client" >&2
+    cat "$manager_log" >&2
+    cat "$close_key_client_log" >&2
+    cat "$close_key_press_log" >&2
+    exit 1
+  fi
+  wait "$client_pid" 2>/dev/null || true
+  client_pid=""
+
+  for pattern in \
+    'backend_event KeyBinding binding="Super+q"' \
+    'xlibre_key_binding_reply .*"binding":"Super+q"' \
+    'xlibre_key_binding_reply .*"command":"close-window"' \
+    "xlibre_ipc_xcb applied close window=$close_key_window_id"; do
+    if ! grep -q "$pattern" "$manager_log"; then
+      printf '%s\n' "tx11_probe_smoke: missing close-key pattern: $pattern" >&2
+      cat "$manager_log" >&2
+      cat "$close_key_client_log" >&2
+      cat "$close_key_press_log" >&2
+      exit 1
+    fi
+  done
+fi
 
 stop_payload='{"triad":{"version":1,"request":"xlibre-stop"}}'
 if ! "$triad" msg --socket "$ipc_socket" request "$stop_payload" >"$ipc_stop_log" 2>&1; then
