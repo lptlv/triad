@@ -66,6 +66,8 @@ manager_log="$root/tests/tx11-probe-smoke-manager.log"
 client_log="$root/tests/tx11-probe-smoke-client.log"
 managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
 close_key_client_log="$root/tests/tx11-probe-smoke-close-key-client.log"
+focus_next_a_client_log="$root/tests/tx11-probe-smoke-focus-next-a-client.log"
+focus_next_b_client_log="$root/tests/tx11-probe-smoke-focus-next-b-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
 ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
 ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
@@ -76,6 +78,7 @@ ipc_binding_dispatch_log="$root/tests/tx11-probe-smoke-ipc-binding-dispatch.json
 key_press_log="$root/tests/tx11-probe-smoke-key-press.log"
 shifted_key_press_log="$root/tests/tx11-probe-smoke-shifted-key-press.log"
 close_key_press_log="$root/tests/tx11-probe-smoke-close-key-press.log"
+focus_next_press_log="$root/tests/tx11-probe-smoke-focus-next-press.log"
 button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 back_button_press_log="$root/tests/tx11-probe-smoke-back-button-press.log"
 device_button_press_log="$root/tests/tx11-probe-smoke-device-button-press.log"
@@ -88,7 +91,7 @@ ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -101,11 +104,21 @@ if [ "$external_display" -eq 0 ]; then
 fi
 probe_pid=""
 client_pid=""
+focus_next_a_pid=""
+focus_next_b_pid=""
 
 cleanup() {
   if [ -n "$client_pid" ]; then
     kill "$client_pid" 2>/dev/null || true
     wait "$client_pid" 2>/dev/null || true
+  fi
+  if [ -n "$focus_next_a_pid" ]; then
+    kill "$focus_next_a_pid" 2>/dev/null || true
+    wait "$focus_next_a_pid" 2>/dev/null || true
+  fi
+  if [ -n "$focus_next_b_pid" ]; then
+    kill "$focus_next_b_pid" 2>/dev/null || true
+    wait "$focus_next_b_pid" 2>/dev/null || true
   fi
   if [ -n "$probe_pid" ]; then
     kill "$probe_pid" 2>/dev/null || true
@@ -115,7 +128,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -215,6 +228,7 @@ window-rule {
 bindings {
   bind "Super+h" "focus-workspace 1"
   bind "Super+q" "close-window"
+  bind "Super+Tab" "focus-next"
   bind "Super+Question" "focus-workspace 1"
   pointer-bind "Super+left" "move"
   pointer-bind "Super+right" "resize"
@@ -735,6 +749,73 @@ if [ "$xtest_available" -eq 1 ]; then
       exit 1
     fi
   done
+fi
+
+if [ "$xtest_available" -eq 1 ]; then
+  "$client" "$display" --managed-hold >"$focus_next_a_client_log" 2>&1 &
+  focus_next_a_pid="$!"
+
+  focus_next_a_window_id=""
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q '^window=0x' "$focus_next_a_client_log" 2>/dev/null; then
+      focus_next_a_window_id="$(sed -n 's/^window=//p' "$focus_next_a_client_log" | head -n 1)"
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ -z "$focus_next_a_window_id" ]; then
+    printf '%s\n' "tx11_probe_smoke: first focus-next client did not publish a window id" >&2
+    cat "$manager_log" >&2
+    cat "$focus_next_a_client_log" >&2
+    exit 1
+  fi
+
+  "$client" "$display" --managed-hold >"$focus_next_b_client_log" 2>&1 &
+  focus_next_b_pid="$!"
+
+  focus_next_b_window_id=""
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q '^window=0x' "$focus_next_b_client_log" 2>/dev/null; then
+      focus_next_b_window_id="$(sed -n 's/^window=//p' "$focus_next_b_client_log" | head -n 1)"
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ -z "$focus_next_b_window_id" ]; then
+    printf '%s\n' "tx11_probe_smoke: second focus-next client did not publish a window id" >&2
+    cat "$manager_log" >&2
+    cat "$focus_next_b_client_log" >&2
+    exit 1
+  fi
+
+  if ! "$client" "$display" --fake-key 0xff09 "$x11_mod_super" >"$focus_next_press_log" 2>&1; then
+    cat "$manager_log" >&2
+    cat "$focus_next_press_log" >&2
+    exit 1
+  fi
+
+  focus_next_dispatched=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q 'backend_event KeyBinding binding="Super+Tab"' "$manager_log" &&
+        grep -q 'xlibre_key_binding_reply .*"binding":"Super+Tab"' "$manager_log" &&
+        grep -q 'xlibre_key_binding_reply .*"command":"focus-next"' "$manager_log" &&
+        grep -q "xlibre_ipc_xcb applied focus window=$focus_next_a_window_id" "$manager_log"; then
+      focus_next_dispatched=1
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ "$focus_next_dispatched" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: fake Super+Tab did not focus next managed client" >&2
+    cat "$manager_log" >&2
+    cat "$focus_next_a_client_log" >&2
+    cat "$focus_next_b_client_log" >&2
+    cat "$focus_next_press_log" >&2
+    exit 1
+  fi
 fi
 
 stop_payload='{"triad":{"version":1,"request":"xlibre-stop"}}'

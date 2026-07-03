@@ -61,6 +61,12 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "Tab",
+          modifiers: 64'u32,
+          command: "focus-next",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "Return",
           modifiers: 64'u32,
           command: "spawn kitty",
@@ -215,6 +221,19 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "close-window"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdCloseWindow
+
+  test "binding dispatch resolves focus-next key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Tab"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "focus-next"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusNext
 
   test "binding dispatch expands axis ticks into repeated supported commands":
     let parsed = xlibreWritableRequestFor(
