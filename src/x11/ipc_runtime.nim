@@ -49,6 +49,19 @@ proc xlibreCloseWindowReply(windowId: uint32, run: X11RequestRunResult): string 
     )
   errReply("xlibre close-window failed: " & run.logs.join("; "))
 
+proc xlibreFocusWindowReply(windowId: uint32, run: X11RequestRunResult): string =
+  if run.code == 0:
+    return okReply(
+      %*{
+        "version": TriadIpcVersion,
+        "type": "xlibre-focus-window",
+        "window": windowId,
+        "applied": true,
+        "logs": run.logs,
+      }
+    )
+  errReply("xlibre focus-window failed: " & run.logs.join("; "))
+
 proc xlibreWritableRequestFor*(
     line: string, snapshot: ShellSnapshot
 ): X11WritableIpcRequest =
@@ -72,7 +85,7 @@ proc xlibreWritableRequestFor*(
     )
 
   let request = payload.stringFromField("request")
-  if request != "xlibre-close-window":
+  if request != "xlibre-close-window" and request != "xlibre-focus-window":
     return
 
   result.handled = true
@@ -83,15 +96,20 @@ proc xlibreWritableRequestFor*(
 
   let windowId = payload.uintFromField("id")
   if windowId.isNone:
-    result.reply = errReply("xlibre-close-window requires positive id")
+    result.reply = errReply(request & " requires positive id")
     return
   if not snapshot.snapshotHasWindow(windowId.get()):
     result.reply = errReply("unknown xlibre window id: " & $windowId.get())
     return
 
-  result.requests.add(
-    X11Request(kind: X11RequestKind.XrqSendCloseWindow, windowId: windowId.get())
-  )
+  if request == "xlibre-close-window":
+    result.requests.add(
+      X11Request(kind: X11RequestKind.XrqSendCloseWindow, windowId: windowId.get())
+    )
+  else:
+    result.requests.add(
+      X11Request(kind: X11RequestKind.XrqSetInputFocus, windowId: windowId.get())
+    )
 
 proc replyForExecutedXlibreWritableRequest*(
     request: X11WritableIpcRequest, run: X11RequestRunResult
@@ -103,4 +121,7 @@ proc replyForExecutedXlibreWritableRequest*(
   if request.requests.len == 1 and
       request.requests[0].kind == X11RequestKind.XrqSendCloseWindow:
     return xlibreCloseWindowReply(request.requests[0].windowId, run)
+  if request.requests.len == 1 and
+      request.requests[0].kind == X11RequestKind.XrqSetInputFocus:
+    return xlibreFocusWindowReply(request.requests[0].windowId, run)
   errReply("unsupported xlibre writable request")

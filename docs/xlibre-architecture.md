@@ -193,11 +193,11 @@ window/output counts. The XCB event loop pumps this socket from a single
 threaded tick so IPC snapshots read the live X11 model without introducing
 cross-thread state access. `triad msg --socket PATH ...` can target this socket
 for the supported read-only requests.
-The first writable exception is an explicit XLibre-only request,
-`xlibre-close-window`, which accepts a live X11 window id, verifies it against
-the current shell snapshot, and lowers it directly to the existing polite
-close-window XCB request record. General Triad command IPC remains disabled on
-the XLibre socket.
+The initial writable exceptions are explicit XLibre-only requests:
+`xlibre-close-window` and `xlibre-focus-window`. Each accepts a live X11 window
+id, verifies it against the current shell snapshot, and lowers directly to one
+existing XCB request record. General Triad command IPC remains disabled on the
+XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. This is discovery only:
 the XLibre branch does not grab keys/buttons or dispatch configured bindings

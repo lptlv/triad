@@ -55,10 +55,11 @@ executor_log="$root/tests/tx11-probe-smoke-executor.log"
 ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
 ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
 ipc_status_log="$root/tests/tx11-probe-smoke-ipc-status.json"
+ipc_focus_log="$root/tests/tx11-probe-smoke-ipc-focus.json"
 ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_close_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_close_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -85,7 +86,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -300,6 +301,23 @@ if [ -z "$managed_window_id" ]; then
   exit 1
 fi
 managed_window_dec="$(printf '%d' "$managed_window_id")"
+focus_payload='{"triad":{"version":1,"request":"xlibre-focus-window","id":'"$managed_window_dec"'}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$focus_payload" >"$ipc_focus_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_focus_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"xlibre-focus-window"' \
+  '"applied":true'; do
+  if ! grep -q "$pattern" "$ipc_focus_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc focus pattern: $pattern" >&2
+    cat "$ipc_focus_log" >&2
+    exit 1
+  fi
+done
+
 close_payload='{"triad":{"version":1,"request":"xlibre-close-window","id":'"$managed_window_dec"'}}'
 if ! "$triad" msg --socket "$ipc_socket" request "$close_payload" >"$ipc_close_log" 2>&1; then
   cat "$manager_log" >&2
