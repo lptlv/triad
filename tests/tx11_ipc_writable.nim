@@ -85,6 +85,15 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "c", modifiers: 64'u32, command: "scroller", mode: BindingMode.BindAlways
+        ),
+        KeyBindingConfig(
+          key: "v",
+          modifiers: 64'u32,
+          command: "vertical-scroller",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "x",
           modifiers: 64'u32,
           command: "spawn touch /tmp/triad-xlibre-spawn-test",
@@ -304,6 +313,34 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "maximize-column"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdMaximizeColumn
+
+  test "binding dispatch resolves core scroller layout key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+c"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "scroller"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSetLayout
+    check parsed.messages[0].newLayout == LayoutMode.Scroller
+
+  test "binding dispatch resolves core vertical scroller layout key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+v"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "vertical-scroller"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSetLayout
+    check parsed.messages[0].newLayout == LayoutMode.VerticalScroller
 
   test "binding dispatch resolves configured spawn key binding":
     let parsed = xlibreWritableRequestFor(

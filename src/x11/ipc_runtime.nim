@@ -206,6 +206,8 @@ proc gestureBindingActive(model: Model, binding: GestureBindingConfig): bool =
 
 proc xlibreCommandSupported(msg: Msg): bool =
   case msg.kind
+  of MsgKind.CmdSetLayout:
+    msg.newLayout in {LayoutMode.Scroller, LayoutMode.VerticalScroller}
   of MsgKind.CmdCloseWindow, MsgKind.CmdCloseWindowById, MsgKind.CmdFocusNext,
       MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection, MsgKind.CmdFocusLast,
       MsgKind.CmdFocusColumnFirst, MsgKind.CmdFocusColumnLast,
