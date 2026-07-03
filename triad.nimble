@@ -115,6 +115,7 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tx11-probe-smoke-shifted-key-press.log",
     "tests/tx11-probe-smoke-close-key-press.log",
     "tests/tx11-probe-smoke-focus-next-press.log",
+    "tests/tx11-probe-smoke-spawn-press.log", "tests/tx11-probe-smoke-spawn-marker",
     "tests/tx11-probe-smoke-button-press.log",
     "tests/tx11-probe-smoke-back-button-press.log",
     "tests/tx11-probe-smoke-device-button-press.log",

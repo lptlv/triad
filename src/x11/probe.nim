@@ -9,7 +9,7 @@ import ../ipc/socket
 import ../state/snapshot
 import ../systems/[binding_profiles, runtime_facade]
 import ../types/[model, runtime_values, shell_snapshot]
-import atoms, events, ipc_runtime, pipeline, request_executor, xcb_ffi
+import atoms, events, ipc_runtime, pipeline, request_executor, spawn_runner, xcb_ffi
 
 const X11IpcListenReadyTimeoutMs = 1000
 const
@@ -496,6 +496,12 @@ proc executeXlibreWritableRequest(
         for line in step.xcbRun.logs:
           stdout.writeLine("xlibre_ipc_xcb " & line)
         run = step.xcbRun
+        let spawnRun = context.model.executeXlibreSpawnEffects(step.effects)
+        for line in spawnRun.logs:
+          stdout.writeLine("xlibre_ipc_spawn " & line)
+        run.logs.add(spawnRun.logs)
+        if spawnRun.code != 0:
+          run.code = spawnRun.code
         if run.code != 0:
           break
       stdout.flushFile()

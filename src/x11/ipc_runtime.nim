@@ -210,7 +210,8 @@ proc xlibreCommandSupported(msg: Msg): bool =
       MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection, MsgKind.CmdFocusLast,
       MsgKind.CmdFocusColumnFirst, MsgKind.CmdFocusColumnLast,
       MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdFocusWindowById,
-      MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex:
+      MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex,
+      MsgKind.CmdSpawn:
     true
   else:
     false
