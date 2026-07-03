@@ -1402,6 +1402,7 @@ static void log_xkb_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->changed,
             ev->minKeyCode,
             ev->maxKeyCode);
+        detect_ignored_lock_modifiers(probe);
         emit_xkb_changed(
             probe,
             xkb_type,
@@ -1423,6 +1424,7 @@ static void log_xkb_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->maxKeyCode,
             ev->firstKeySym,
             ev->nKeySyms);
+        detect_ignored_lock_modifiers(probe);
         emit_xkb_changed(
             probe,
             xkb_type,
@@ -1774,6 +1776,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->request,
             ev->first_keycode,
             ev->count);
+        detect_ignored_lock_modifiers(probe);
         TriadX11Event event;
         memset(&event, 0, sizeof(event));
         event.kind = TRIAD_X11_EVENT_MAPPING_CHANGED;
