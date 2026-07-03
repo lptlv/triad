@@ -50,9 +50,10 @@ executor_log="$root/tests/tx11-probe-smoke-executor.log"
 ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
 ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
 ipc_status_log="$root/tests/tx11-probe-smoke-ipc-status.json"
+ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_close_log" "$config" "$ipc_socket"
 
 Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
 xvfb_pid="$!"
@@ -70,7 +71,7 @@ cleanup() {
   fi
   kill "$xvfb_pid" 2>/dev/null || true
   wait "$xvfb_pid" 2>/dev/null || true
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -275,7 +276,46 @@ if [ "$configured" -ne 1 ]; then
   exit 1
 fi
 
-kill "$client_pid" 2>/dev/null || true
+managed_window_id="$(sed -n 's/^window=//p' "$managed_client_log" | head -n 1)"
+if [ -z "$managed_window_id" ]; then
+  printf '%s\n' "tx11_probe_smoke: managed client did not publish a window id" >&2
+  cat "$managed_client_log" >&2
+  exit 1
+fi
+managed_window_dec="$(printf '%d' "$managed_window_id")"
+close_payload='{"triad":{"version":1,"request":"xlibre-close-window","id":'"$managed_window_dec"'}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$close_payload" >"$ipc_close_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_close_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"xlibre-close-window"' \
+  '"applied":true'; do
+  if ! grep -q "$pattern" "$ipc_close_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc close pattern: $pattern" >&2
+    cat "$ipc_close_log" >&2
+    exit 1
+  fi
+done
+
+managed_closed=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if ! kill -0 "$client_pid" 2>/dev/null; then
+    managed_closed=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$managed_closed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: managed client did not close from xlibre ipc" >&2
+  cat "$manager_log" >&2
+  cat "$managed_client_log" >&2
+  cat "$ipc_close_log" >&2
+  exit 1
+fi
 wait "$client_pid" 2>/dev/null || true
 client_pid=""
 kill "$probe_pid" 2>/dev/null || true

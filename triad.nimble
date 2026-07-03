@@ -68,6 +68,7 @@ proc runXlibreSuites() =
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_event_mapping.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_model_admission.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_ipc_runtime.nim"
+  exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_ipc_writable.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_effect_adapter.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_request_builder.nim"
   exec "nim c -r --hints:off --nimcache:tests/nimcache tests/tx11_request_executor.nim"
@@ -95,7 +96,7 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/thardening", "tests/tjanet", "tests/tlayouts", "tests/tlogging",
     "tests/tprotocol", "tests/tstress", "tests/tx11_event_mapping",
     "tests/tx11_config_loading", "tests/tx11_model_admission", "tests/tx11_effect_adapter",
-    "tests/tx11_ipc_runtime", "tests/tx11_request_builder",
+    "tests/tx11_ipc_runtime", "tests/tx11_ipc_writable", "tests/tx11_request_builder",
     "tests/tx11_request_executor", "tests/tx11_pipeline", "tests/tx11_live_executor",
     "tests/tx11_synthetic_client",
     "triad-live-smoke.events", "triad-live-smoke.log", "triad-live-smoke.out",
@@ -106,6 +107,7 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tx11-probe-smoke-ipc-windows.json",
     "tests/tx11-probe-smoke-ipc-capabilities.json",
     "tests/tx11-probe-smoke-ipc-status.json",
+    "tests/tx11-probe-smoke-ipc-close.json",
     "tests/tx11-probe-smoke.log.xvfb", "tests/tx11-probe-smoke.sock",
     "tests/tconfig", "tests/tcore", "tests/tdod",
   ]:

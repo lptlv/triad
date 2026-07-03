@@ -962,6 +962,7 @@ int triad_x11_probe_run(
 
     int xcb_fd = xcb_get_file_descriptor(probe.conn);
     probe_log(&probe, "event loop started");
+    active_probe = &probe;
     while (1) {
         xcb_generic_event_t *event = NULL;
         while ((event = xcb_poll_for_event(probe.conn)) != NULL) {
@@ -998,6 +999,8 @@ int triad_x11_probe_run(
             break;
         }
     }
+    if (active_probe == &probe)
+        active_probe = NULL;
 
     if (probe.ewmh_ready)
         xcb_ewmh_connection_wipe(&probe.ewmh);

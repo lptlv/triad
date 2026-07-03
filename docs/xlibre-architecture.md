@@ -183,11 +183,16 @@ window/output counts. The XCB event loop pumps this socket from a single
 threaded tick so IPC snapshots read the live X11 model without introducing
 cross-thread state access. `triad msg --socket PATH ...` can target this socket
 for the supported read-only requests.
+The first writable exception is an explicit XLibre-only request,
+`xlibre-close-window`, which accepts a live X11 window id, verifies it against
+the current shell snapshot, and lowers it directly to the existing polite
+close-window XCB request record. General Triad command IPC remains disabled on
+the XLibre socket.
 
 The next step is to expand runtime usability cautiously:
 
-- keep command IPC disabled until X11-side action semantics are modeled and
-  tested as request intents
+- keep general command IPC disabled until additional X11-side action semantics
+  are modeled and tested as request intents
 - add XInput/XKB discovery before attempting user bindings
 
 Only after this subset works should the branch attempt bindings, overlays, shell

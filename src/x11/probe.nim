@@ -1,4 +1,4 @@
-import std/[asyncdispatch, json, strutils, times]
+import std/[asyncdispatch, json, options, strutils, times]
 
 import ../core/msg
 import ../config/loading
@@ -7,7 +7,7 @@ import ../ipc/socket
 import ../state/snapshot
 import ../systems/runtime_facade
 import ../types/[model, shell_snapshot]
-import atoms, events, pipeline, request_executor, xcb_ffi
+import atoms, events, ipc_runtime, pipeline, request_executor, xcb_ffi
 
 const X11IpcListenReadyTimeoutMs = 1000
 
@@ -79,12 +79,28 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
         "output_count": snapshot.outputs.len,
       }
 
+  proc writableReply(line: string, snapshot: ShellSnapshot): Option[string] {.gcsafe.} =
+    {.cast(gcsafe).}:
+      let request = xlibreWritableRequestFor(line, snapshot)
+      if not request.handled:
+        return none(string)
+      if request.reply.len > 0:
+        return some(replyForExecutedXlibreWritableRequest(request, X11RequestRunResult()))
+      for x11Request in request.requests:
+        stdout.writeLine("xlibre_ipc_request " & x11Request.executeDryRun().description)
+      let run = request.requests.executeWithActiveProbe()
+      for line in run.logs:
+        stdout.writeLine("xlibre_ipc_xcb " & line)
+      stdout.flushFile()
+      some(replyForExecutedXlibreWritableRequest(request, run))
+
   let listenReady = newFuture[bool]("xlibre triad ipc listener ready")
   asyncCheck startIpcServer(
     socketPath,
     discardIpcMsg,
     snapshotModel,
     getReadOnlyRuntimeStatus = runtimeStatus,
+    handleReadOnlyWriteRequest = writableReply,
     listenReady = listenReady,
     requestTimeoutMs = IpcRequestTimeoutMs,
     readOnlyTriad = true,
