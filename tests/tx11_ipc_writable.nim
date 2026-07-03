@@ -139,6 +139,17 @@ suite "X11 writable IPC":
     check not reply["ok"].getBool()
     check reply["error"].getStr().contains("unknown xlibre window id")
 
+  test "stop request is handled without model messages or xcb requests":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-stop"}}""", x11Snapshot()
+    )
+
+    check parsed.handled
+    check parsed.requestName == "xlibre-stop"
+    check parsed.reply.len == 0
+    check parsed.messages.len == 0
+    check parsed.requests.len == 0
+
   test "read-only handler rejects xlibre close without writable callback":
     let reply = parseJson(
       handleTriadReadOnlyRequest(
@@ -224,4 +235,18 @@ suite "X11 writable IPC":
     check reply["triad"]["window"].getInt() == 42
     check reply["triad"]["workspace"].getInt() == 2
     check reply["triad"]["follow"].getBool()
+    check reply["triad"]["applied"].getBool()
+
+  test "executed reply reports successful stop":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-stop"}}""", x11Snapshot()
+    )
+    let reply = parseJson(
+      replyForExecutedXlibreWritableRequest(
+        parsed, X11RequestRunResult(code: 0, dryRun: false, logs: @["stop requested"])
+      )
+    )
+
+    check reply["ok"].getBool()
+    check reply["triad"]["type"].getStr() == "xlibre-stop"
     check reply["triad"]["applied"].getBool()

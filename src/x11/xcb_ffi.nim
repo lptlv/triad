@@ -36,3 +36,5 @@ proc triadX11ExecuteRequests*(
 proc triadX11ExecuteRequestsOnActiveProbe*(
   requests: ptr X11Request, count: cuint, logFn: X11RequestLogFn, userData: pointer
 ): cint {.importc: "triad_x11_execute_requests_on_active_probe".}
+
+proc triadX11StopActiveProbe*(): cint {.importc: "triad_x11_stop_active_probe".}

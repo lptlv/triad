@@ -59,9 +59,10 @@ ipc_focus_log="$root/tests/tx11-probe-smoke-ipc-focus.json"
 ipc_focus_workspace_log="$root/tests/tx11-probe-smoke-ipc-focus-workspace.json"
 ipc_move_workspace_log="$root/tests/tx11-probe-smoke-ipc-move-workspace.json"
 ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
+ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -88,7 +89,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -393,7 +394,39 @@ if [ "$managed_closed" -ne 1 ]; then
 fi
 wait "$client_pid" 2>/dev/null || true
 client_pid=""
-kill "$probe_pid" 2>/dev/null || true
+
+stop_payload='{"triad":{"version":1,"request":"xlibre-stop"}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$stop_payload" >"$ipc_stop_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_stop_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"xlibre-stop"' \
+  '"applied":true'; do
+  if ! grep -q "$pattern" "$ipc_stop_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc stop pattern: $pattern" >&2
+    cat "$ipc_stop_log" >&2
+    exit 1
+  fi
+done
+
+manager_stopped=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if ! kill -0 "$probe_pid" 2>/dev/null; then
+    manager_stopped=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$manager_stopped" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: manager did not stop from xlibre ipc" >&2
+  cat "$manager_log" >&2
+  cat "$ipc_stop_log" >&2
+  exit 1
+fi
 wait "$probe_pid" 2>/dev/null || true
 probe_pid=""
 sleep 0.2

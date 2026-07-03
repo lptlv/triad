@@ -106,6 +106,18 @@ proc xlibreMoveWindowToWorkspaceReply(
     )
   errReply("xlibre move-window-to-workspace failed: " & run.logs.join("; "))
 
+proc xlibreStopReply(run: X11RequestRunResult): string =
+  if run.code == 0:
+    return okReply(
+      %*{
+        "version": TriadIpcVersion,
+        "type": "xlibre-stop",
+        "applied": true,
+        "logs": run.logs,
+      }
+    )
+  errReply("xlibre stop failed: " & run.logs.join("; "))
+
 proc xlibreWritableRequestFor*(
     line: string, snapshot: ShellSnapshot
 ): X11WritableIpcRequest =
@@ -131,7 +143,7 @@ proc xlibreWritableRequestFor*(
   let request = payload.stringFromField("request")
   if request notin [
     "xlibre-close-window", "xlibre-focus-window", "xlibre-focus-workspace",
-    "xlibre-move-window-to-workspace",
+    "xlibre-move-window-to-workspace", "xlibre-stop",
   ]:
     return
 
@@ -140,6 +152,9 @@ proc xlibreWritableRequestFor*(
   let version = payload.uintFromField("version")
   if version.isNone or version.get() != TriadIpcVersion:
     result.reply = errReply("unsupported triad ipc version")
+    return
+
+  if request == "xlibre-stop":
     return
 
   if request == "xlibre-focus-workspace":
@@ -210,4 +225,6 @@ proc replyForExecutedXlibreWritableRequest*(
     return xlibreMoveWindowToWorkspaceReply(
       request.windowId, request.workspaceIndex, request.followWindow, run
     )
+  if request.requestName == "xlibre-stop":
+    return xlibreStopReply(run)
   errReply("unsupported xlibre writable request")

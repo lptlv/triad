@@ -21,6 +21,8 @@ type
     mode: X11ProbeMode
     displayName: string
     model: Model
+    stopRequested: bool
+    stopPolls: int
 
   X11ModelLoadResult* = object
     ok*: bool
@@ -38,8 +40,13 @@ proc discardIpcMsg(msg: Msg) {.gcsafe.} =
   discard msg
 
 proc probeTickCallback(userData: pointer) {.cdecl.} =
-  discard userData
   asyncdispatch.poll(0)
+  if userData != nil:
+    let context = cast[ptr X11ProbeContext](userData)
+    if context.stopRequested:
+      inc context.stopPolls
+      if context.stopPolls >= 2:
+        discard triadX11StopActiveProbe()
 
 proc waitForX11IpcReady(listener: Future[bool]): bool =
   let deadline = epochTime() + float(X11IpcListenReadyTimeoutMs) / 1000.0
@@ -84,6 +91,17 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
       if request.reply.len > 0:
         return
           some(replyForExecutedXlibreWritableRequest(request, X11RequestRunResult()))
+      if request.requestName == "xlibre-stop":
+        context.stopRequested = true
+        context.stopPolls = 0
+        stdout.writeLine("xlibre_ipc_stop requested=true")
+        stdout.flushFile()
+        return some(
+          replyForExecutedXlibreWritableRequest(
+            request,
+            X11RequestRunResult(code: 0, dryRun: false, logs: @["stop requested"]),
+          )
+        )
       if request.messages.len > 0:
         var run = X11RequestRunResult(code: 0, dryRun: false)
         for message in request.messages:

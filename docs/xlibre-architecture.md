@@ -195,12 +195,13 @@ cross-thread state access. `triad msg --socket PATH ...` can target this socket
 for the supported read-only requests.
 The initial writable exceptions are explicit XLibre-only requests:
 `xlibre-close-window`, `xlibre-focus-window`, `xlibre-focus-workspace`, and
-`xlibre-move-window-to-workspace`. Window-targeted requests accept a live X11
-window id and verify it against the current shell snapshot. Direct window
-requests lower to one existing XCB request record; workspace requests are vetted
-Triad model messages that run through `Model.update`, layout projection, and the
-X11 request executor. General Triad command IPC remains disabled on the XLibre
-socket.
+`xlibre-move-window-to-workspace`, plus the recovery request `xlibre-stop`.
+Window-targeted requests accept a live X11 window id and verify it against the
+current shell snapshot. Direct window requests lower to one existing XCB request
+record; workspace requests are vetted Triad model messages that run through
+`Model.update`, layout projection, and the X11 request executor. `xlibre-stop`
+asks the active probe loop to exit cleanly. General Triad command IPC remains
+disabled on the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. This is discovery only:
 the XLibre branch does not grab keys/buttons or dispatch configured bindings

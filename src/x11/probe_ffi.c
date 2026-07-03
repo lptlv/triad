@@ -101,6 +101,7 @@ typedef struct TriadX11Probe {
     const xcb_query_extension_reply_t *randr_ext;
     const xcb_query_extension_reply_t *xinput_ext;
     const xcb_query_extension_reply_t *xkb_ext;
+    int stop_requested;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -1130,6 +1131,10 @@ int triad_x11_probe_run(
 
         if (tick_fn != NULL)
             tick_fn(user_data);
+        if (probe.stop_requested) {
+            probe_log(&probe, "event loop stopped stop_requested=1");
+            break;
+        }
 
         struct pollfd pfd;
         memset(&pfd, 0, sizeof(pfd));
@@ -1156,6 +1161,15 @@ int triad_x11_probe_run(
     if (probe.ewmh_ready)
         xcb_ewmh_connection_wipe(&probe.ewmh);
     xcb_disconnect(probe.conn);
+    return 0;
+}
+
+int triad_x11_stop_active_probe(void)
+{
+    if (active_probe == NULL)
+        return 1;
+    active_probe->stop_requested = 1;
+    probe_log(active_probe, "stop requested");
     return 0;
 }
 
