@@ -77,6 +77,7 @@ shifted_key_press_log="$root/tests/tx11-probe-smoke-shifted-key-press.log"
 button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 back_button_press_log="$root/tests/tx11-probe-smoke-back-button-press.log"
 device_button_press_log="$root/tests/tx11-probe-smoke-device-button-press.log"
+mapping_notify_log="$root/tests/tx11-probe-smoke-mapping-notify.log"
 axis_press_log="$root/tests/tx11-probe-smoke-axis-press.log"
 pointer_drag_log="$root/tests/tx11-probe-smoke-pointer-drag.log"
 pointer_resize_log="$root/tests/tx11-probe-smoke-pointer-resize.log"
@@ -85,7 +86,7 @@ ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -112,7 +113,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -255,6 +256,29 @@ if [ "$managed_observed" -ne 1 ]; then
   printf '%s\n' "tx11_probe_smoke: manager did not map managed client" >&2
   cat "$manager_log" >&2
   cat "$managed_client_log" >&2
+  exit 1
+fi
+
+if ! "$client" "$display" --send-mapping-notify >"$mapping_notify_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$mapping_notify_log" >&2
+  exit 1
+fi
+
+mapping_refresh_observed=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q 'backend_event MappingChanged' "$manager_log" &&
+      grep -q 'xlibre_input_grabs invalidated reason=mapping-changed' "$manager_log"; then
+    mapping_refresh_observed=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$mapping_refresh_observed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: mapping notify did not invalidate input grabs" >&2
+  cat "$manager_log" >&2
+  cat "$mapping_notify_log" >&2
   exit 1
 fi
 

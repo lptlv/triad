@@ -28,6 +28,7 @@ type
     XpeAxisBinding = 12
     XpePointerMotion = 13
     XpePointerRelease = 14
+    XpeMappingChanged = 15
 
   X11ProbeEvent* {.bycopy.} = object
     kind*: X11ProbeEventKind
@@ -62,6 +63,7 @@ type
     AxisBinding
     PointerMotion
     PointerRelease
+    MappingChanged
 
   X11WindowSnapshot* = object
     id*: uint32
@@ -132,6 +134,10 @@ type
       pointerReleaseTargetWindowId*: uint32
       pointerReleaseRootX*, pointerReleaseRootY*: int32
       pointerReleaseModifiers*: uint32
+    of X11BackendEventKind.MappingChanged:
+      mappingRequest*: uint32
+      mappingFirstKeycode*: uint32
+      mappingCount*: uint32
 
 proc x11WindowIdentifier*(id: uint32): string =
   "x11:0x" & toHex(id, 8).toLowerAscii()
@@ -291,6 +297,13 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       pointerReleaseRootY: event.y,
       pointerReleaseModifiers: event.valueMask,
     )
+  of X11ProbeEventKind.XpeMappingChanged:
+    X11BackendEvent(
+      kind: X11BackendEventKind.MappingChanged,
+      mappingRequest: event.id,
+      mappingFirstKeycode: (event.valueMask shr 8) and 0xff'u32,
+      mappingCount: event.valueMask and 0xff'u32,
+    )
 
 proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   case event.kind
@@ -419,5 +432,5 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   of X11BackendEventKind.PointerEntered, X11BackendEventKind.RandrChanged,
       X11BackendEventKind.KeyBinding, X11BackendEventKind.PointerBinding,
       X11BackendEventKind.AxisBinding, X11BackendEventKind.PointerMotion,
-      X11BackendEventKind.PointerRelease:
+      X11BackendEventKind.PointerRelease, X11BackendEventKind.MappingChanged:
     discard

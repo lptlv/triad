@@ -199,6 +199,19 @@ suite "X11 event mapping":
     check release.pointerReleaseModifiers == 64'u32
     check release.messagesFor().len == 0
 
+  test "raw mapping notify event requests input grab refresh":
+    let event = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeMappingChanged,
+      id: 1,
+      valueMask: (uint32(8) shl 8) or 4'u32,
+    ).backendEventFromProbe()
+
+    check event.kind == X11BackendEventKind.MappingChanged
+    check event.mappingRequest == 1'u32
+    check event.mappingFirstKeycode == 8'u32
+    check event.mappingCount == 4'u32
+    check event.messagesFor().len == 0
+
   test "window discovery maps to creation, dimensions, and pid messages":
     let messages = X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,

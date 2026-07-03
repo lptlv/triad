@@ -47,6 +47,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_AXIS_BINDING = 12,
     TRIAD_X11_EVENT_POINTER_MOTION = 13,
     TRIAD_X11_EVENT_POINTER_RELEASE = 14,
+    TRIAD_X11_EVENT_MAPPING_CHANGED = 15,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -1442,6 +1443,23 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         memset(&event, 0, sizeof(event));
         event.kind = TRIAD_X11_EVENT_POINTER_ENTERED;
         event.id = ev->event;
+        probe_event(probe, &event);
+        break;
+    }
+    case XCB_MAPPING_NOTIFY: {
+        xcb_mapping_notify_event_t *ev = (xcb_mapping_notify_event_t *)event;
+        probe_log(
+            probe,
+            "event %s request=%u first_keycode=%u count=%u",
+            event_name(type),
+            ev->request,
+            ev->first_keycode,
+            ev->count);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_MAPPING_CHANGED;
+        event.id = ev->request;
+        event.value_mask = ((uint32_t)ev->first_keycode << 8) | ev->count;
         probe_event(probe, &event);
         break;
     }

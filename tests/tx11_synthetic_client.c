@@ -331,6 +331,7 @@ int main(int argc, char **argv)
     int fake_key = argc > 2 && strcmp(argv[2], "--fake-key") == 0;
     int fake_button = argc > 2 && strcmp(argv[2], "--fake-button") == 0;
     int fake_drag_requested = argc > 2 && strcmp(argv[2], "--fake-drag") == 0;
+    int send_mapping_notify = argc > 2 && strcmp(argv[2], "--send-mapping-notify") == 0;
     int hold = argc > 2 &&
         (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
     int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
@@ -348,6 +349,38 @@ int main(int argc, char **argv)
         fprintf(stderr, "tx11_synthetic_client: failed to resolve screen\n");
         xcb_disconnect(conn);
         return 1;
+    }
+    if (send_mapping_notify) {
+        xcb_mapping_notify_event_t event;
+        memset(&event, 0, sizeof(event));
+        event.response_type = XCB_MAPPING_NOTIFY;
+        event.request = XCB_MAPPING_KEYBOARD;
+        event.first_keycode = 8;
+        event.count = 1;
+        xcb_void_cookie_t cookie = xcb_send_event_checked(
+            conn,
+            0,
+            screen->root,
+            XCB_EVENT_MASK_STRUCTURE_NOTIFY,
+            (const char *)&event);
+        xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+        if (error != NULL) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: mapping notify send error=%u\n",
+                error->error_code);
+            free(error);
+            xcb_disconnect(conn);
+            return 1;
+        }
+        xcb_flush(conn);
+        printf(
+            "send-mapping-notify request=%u first_keycode=%u count=%u\n",
+            event.request,
+            event.first_keycode,
+            event.count);
+        xcb_disconnect(conn);
+        return 0;
     }
     if (fake_key) {
         if (argc < 5) {

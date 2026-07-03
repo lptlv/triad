@@ -232,9 +232,11 @@ test uses XTEST, when available, to fake `Super+h`, `Super+Shift+/`,
 `Super+middle`, `Super+button10`, `Super+wheel-up`, plus `Super+left` move and
 `Super+right` resize drags of a floating synthetic client. Resize chooses
 top/bottom and left/right edges from the pointer's initial position in the
-floating window. This first input path is intentionally narrow: gesture
-bindings, high-resolution wheel deltas, and full XKB group/layout-change
-handling still need follow-up work.
+floating window. Core `MappingNotify` events invalidate the configured key,
+button, and axis grab signatures so the next manage tick rebuilds grabs against
+the server's current keyboard and button mapping. This first input path is
+intentionally narrow: gesture bindings, high-resolution wheel deltas, and full
+XKB group/layout-specific handling still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 

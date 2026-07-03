@@ -638,6 +638,9 @@ proc eventLabel(event: X11BackendEvent): string =
       $event.pointerReleaseTargetWindowId & " root_xy=" & $event.pointerReleaseRootX &
       "," & $event.pointerReleaseRootY & " modifiers=0x" &
       toHex(event.pointerReleaseModifiers, 4).toLowerAscii()
+  of X11BackendEventKind.MappingChanged:
+    "MappingChanged request=" & $event.mappingRequest & " first_keycode=" &
+      $event.mappingFirstKeycode & " count=" & $event.mappingCount
 
 proc x11ConfigPath*(configPath = ""): string =
   if configPath.len > 0:
@@ -663,6 +666,15 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
     return
   let event = backendEventFromProbe(raw[])
   stdout.writeLine("backend_event " & event.eventLabel())
+  if event.kind == X11BackendEventKind.MappingChanged:
+    if userData != nil:
+      let context = cast[ptr X11ProbeContext](userData)
+      context.keyGrabSignature = ""
+      context.buttonGrabSignature = ""
+      context.axisGrabSignature = ""
+      stdout.writeLine("xlibre_input_grabs invalidated reason=mapping-changed")
+    stdout.flushFile()
+    return
   if event.kind == X11BackendEventKind.KeyBinding:
     if userData == nil:
       stdout.writeLine("dry_run_msg X11KeyBinding binding=\"" & event.keyBinding & "\"")
