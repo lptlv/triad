@@ -41,7 +41,8 @@ manager_log="$root/tests/tx11-probe-smoke-manager.log"
 client_log="$root/tests/tx11-probe-smoke-client.log"
 managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log"
+config="$root/tests/tx11-probe-smoke-config.kdl"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$config"
 
 Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
 xvfb_pid="$!"
@@ -59,7 +60,7 @@ cleanup() {
   fi
   kill "$xvfb_pid" 2>/dev/null || true
   wait "$xvfb_pid" 2>/dev/null || true
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$log.xvfb" "$client"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$log.xvfb" "$client" "$config"
 }
 
 trap cleanup EXIT INT TERM
@@ -149,7 +150,17 @@ wait "$probe_pid" 2>/dev/null || true
 probe_pid=""
 sleep 0.2
 
-"$probe" --display "$display" --mode manage >"$manager_log" 2>&1 &
+cat >"$config" <<'EOF'
+layout {
+  gaps 10
+}
+
+workspaces {
+  default-count 3
+}
+EOF
+
+"$probe" --display "$display" --mode manage --config "$config" >"$manager_log" 2>&1 &
 probe_pid="$!"
 
 started=0
@@ -187,6 +198,7 @@ if [ "$managed_observed" -ne 1 ]; then
 fi
 
 for pattern in \
+  "config loaded path=\"$config\"" \
   "backend_event MapRequested" \
   "model_msg WlWindowCreated" \
   "layout_x11_request configure window=" \

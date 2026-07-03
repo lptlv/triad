@@ -3,13 +3,14 @@ import std/[os, strutils]
 import x11/probe
 
 const Usage = """
-usage: triad_xlibre [--display DISPLAY] [--mode observe|admit|manage] [--once] [--help]
+usage: triad_xlibre [--display DISPLAY] [--mode observe|admit|manage] [--config PATH] [--once] [--help]
 
 Experimental XLibre/X11 event probe and manager loop.
 
 Options:
   --display DISPLAY  Connect to DISPLAY instead of $DISPLAY.
   --mode MODE        observe logs events, admit updates a dry-run model, manage applies XCB requests.
+  --config PATH      Load Triad config for admit/manage mode.
   --once             Claim WM ownership, dump initial state, then exit.
   --help             Show this help.
 """
@@ -32,6 +33,7 @@ proc parseMode(value: string): X11ProbeMode =
 
 when isMainModule:
   var displayName = ""
+  var configPath = ""
   var once = false
   var mode = X11ProbeMode.Observe
   let args = commandLineParams()
@@ -53,12 +55,21 @@ when isMainModule:
       if i >= args.len:
         fail("--mode requires a value")
       mode = parseMode(args[i])
+    elif arg == "--config" or arg == "-c":
+      inc i
+      if i >= args.len:
+        fail(arg & " requires a value")
+      configPath = args[i]
     elif arg.startsWith("--display="):
       displayName = arg.substr("--display=".len)
       if displayName.len == 0:
         fail("--display requires a value")
     elif arg.startsWith("--mode="):
       mode = parseMode(arg.substr("--mode=".len))
+    elif arg.startsWith("--config="):
+      configPath = arg.substr("--config=".len)
+      if configPath.len == 0:
+        fail("--config requires a value")
     else:
       fail("unknown argument: " & arg)
     inc i
@@ -66,4 +77,4 @@ when isMainModule:
   if once and mode == X11ProbeMode.Manage:
     fail("--once cannot be used with --mode manage")
 
-  quit runX11Probe(displayName, once, mode)
+  quit runX11Probe(displayName, once, mode, configPath)

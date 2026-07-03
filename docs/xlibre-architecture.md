@@ -93,15 +93,15 @@ Use:
 triad_xlibre --once
 triad_xlibre --display :1
 triad_xlibre --display :1 --mode admit
-triad_xlibre --display :1 --mode manage
+triad_xlibre --display :1 --mode manage --config ~/.config/triad/config.kdl
 ```
 
 Default `observe` mode deliberately does not call `Model.update`, publish Triad
 IPC, move windows, focus windows, map windows, or apply layout projection.
-`admit` mode keeps a live in-memory model and runs generated XCB requests
-through the dry-run executor. `manage` mode is opt-in and executes whitelisted
-requests on the active WM-owned XCB connection, including layout configure
-requests generated from Triad's layout projection.
+`admit` mode loads Triad config, keeps a live in-memory model, and runs
+generated XCB requests through the dry-run executor. `manage` mode is opt-in
+and executes whitelisted requests on the active WM-owned XCB connection,
+including layout configure requests generated from Triad's layout projection.
 
 Status: implemented. `nimble testXlibre` runs the pure X11 event mapping tests,
 builds the probe, runs the `triad_xlibre --once` startup smoke harness, and
@@ -166,16 +166,17 @@ requests. Layout projection now lowers `RenderInstruction` geometry into XCB
 configure-window requests after layout-affecting X11 events. The controlled
 admission-to-executor loop is available through `src/x11/pipeline.nim`;
 `triad_xlibre --mode admit` runs it dry, and `triad_xlibre --mode manage`
-executes whitelisted requests on the active probe connection. Configure
-requests, metadata notifications, and `_NET_WM_STATE` changes for fullscreen,
-maximized, minimized, and urgent windows now update isolated model state through
-existing Triad messages. Per-window urgency is also aggregated into
-workspace-level shell snapshot urgency.
+executes whitelisted requests on the active probe connection. Admit and manage
+mode load real Triad config through the strict config loader and fail explicitly
+on invalid config. Configure requests, metadata notifications, and
+`_NET_WM_STATE` changes for fullscreen, maximized, minimized, and urgent windows
+now update isolated model state through existing Triad messages. Per-window
+urgency is also aggregated into workspace-level shell snapshot urgency.
 
 The next step is to expand runtime usability cautiously:
 
-- load real Triad config in XLibre mode instead of the minimal default model
-- expose native IPC/snapshot reads only after managed geometry remains stable
+- expose native IPC/snapshot reads for state inspection
+- keep command IPC disabled until read-only state is stable under Xvfb
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

@@ -1,9 +1,10 @@
 import std/strutils
 
 import ../core/msg
+import ../config/loading
 import ../config/parser
 import ../systems/runtime_facade
-import ../types/[model, runtime_values]
+import ../types/model
 import atoms, events, pipeline, request_executor, xcb_ffi
 
 type
@@ -16,6 +17,12 @@ type
     mode: X11ProbeMode
     displayName: string
     model: Model
+
+  X11ModelLoadResult* = object
+    ok*: bool
+    path*: string
+    error*: string
+    model*: Model
 
 proc probeLogCallback(userData: pointer, message: cstring) {.cdecl.} =
   discard userData
@@ -87,18 +94,21 @@ proc eventLabel(event: X11BackendEvent): string =
     "RandrChanged root=" & $event.randrRoot & " size=" & $event.randrW & "x" &
       $event.randrH
 
-proc x11DefaultModel(): Model =
-  initRuntimeStateFromConfig(
-    Config(
-      layout: LayoutConfig(
-        gaps: 10,
-        defaultColumnWidth: 0.7,
-        defaultWindowWidth: 0.8,
-        defaultWindowHeight: 0.6,
-      ),
-      workspaces: WorkspaceConfig(defaultCount: 3),
-    )
-  ).model
+proc x11ConfigPath*(configPath = ""): string =
+  if configPath.len > 0:
+    configPath.absoluteConfigPath()
+  else:
+    defaultConfigPath().absoluteConfigPath()
+
+proc loadX11Model*(configPath = ""): X11ModelLoadResult =
+  result.path = x11ConfigPath(configPath)
+  let loaded = loadConfigStrict(result.path)
+  if not loaded.ok:
+    result.ok = false
+    result.error = loaded.error
+    return
+  result.ok = true
+  result.model = initRuntimeStateFromConfig(loaded.config).model
 
 proc executorPrefix(mode: X11ProbeMode): string =
   if mode == X11ProbeMode.Manage:
@@ -135,7 +145,7 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
   stdout.flushFile()
 
 proc runX11Probe*(
-    displayName = "", once = false, mode = X11ProbeMode.Observe
+    displayName = "", once = false, mode = X11ProbeMode.Observe, configPath = ""
 ): int =
   let display =
     if displayName.len == 0:
@@ -150,8 +160,16 @@ proc runX11Probe*(
       )
     )
 
-  var context =
-    X11ProbeContext(mode: mode, displayName: displayName, model: x11DefaultModel())
+  let loaded = loadX11Model(configPath)
+  if not loaded.ok:
+    stderr.writeLine(
+      "triad_xlibre: config invalid: " & loaded.error & " path=" & loaded.path
+    )
+    return 1
+  stdout.writeLine("config loaded path=\"" & loaded.path & "\"")
+  stdout.flushFile()
+
+  var context = X11ProbeContext(mode: mode, displayName: displayName, model: loaded.model)
   int(
     triadX11ProbeRun(
       display, cint(ord(once)), probeLogCallback, probeEventCallback, addr context
