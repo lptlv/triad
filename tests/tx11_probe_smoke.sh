@@ -2,9 +2,9 @@
 set -eu
 
 root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+triad="$root/src/triad"
 probe="$root/src/triad_xlibre"
 executor="$root/tests/tx11_live_executor"
-ipc_query="$root/tests/tx11_ipc_query"
 client_src="$root/tests/tx11_synthetic_client.c"
 client="$root/tests/tx11_synthetic_client"
 
@@ -23,8 +23,8 @@ if [ ! -x "$executor" ]; then
   exit 1
 fi
 
-if [ ! -x "$ipc_query" ]; then
-  printf '%s\n' "tx11_probe_smoke: ipc query binary missing: $ipc_query" >&2
+if [ ! -x "$triad" ]; then
+  printf '%s\n' "tx11_probe_smoke: triad binary missing: $triad" >&2
   exit 1
 fi
 
@@ -223,7 +223,7 @@ for pattern in \
   fi
 done
 
-if ! "$ipc_query" "$ipc_socket" windows >"$ipc_windows_log" 2>&1; then
+if ! "$triad" msg --socket "$ipc_socket" windows >"$ipc_windows_log" 2>&1; then
   cat "$manager_log" >&2
   cat "$ipc_windows_log" >&2
   exit 1
@@ -239,7 +239,7 @@ for pattern in \
   fi
 done
 
-if ! "$ipc_query" "$ipc_socket" capabilities >"$ipc_capabilities_log" 2>&1; then
+if ! "$triad" msg --socket "$ipc_socket" capabilities >"$ipc_capabilities_log" 2>&1; then
   cat "$manager_log" >&2
   cat "$ipc_capabilities_log" >&2
   exit 1

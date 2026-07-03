@@ -423,7 +423,8 @@ suite "Shell compatibility contracts":
 
   test "Triad msg help and catalog are generated from command registry":
     let help = renderMsgHelp()
-    check help.contains("triad msg validate <command...>")
+    check help.contains("triad msg [--socket PATH] <command> [arguments]")
+    check help.contains("triad msg [--socket PATH] validate <command...>")
     check help.contains("focus-next")
     check help.contains("triad msg state")
     check help.contains("triad msg capabilities")

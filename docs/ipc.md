@@ -7,6 +7,10 @@ Triad talks to the world through a Unix Domain Socket. Look for it at `$XDG_RUNT
 Use the CLI to bark orders:
 `triad msg <command> [arguments]`
 
+Use `triad msg --socket PATH <command> [arguments]` to target a non-default
+Triad-compatible socket, including the read-only socket exposed by
+`triad_xlibre --mode manage --socket PATH`.
+
 ### The Basics
 
 Ask Triad about its world. `commands` lists your options. `state` dumps everything. If you want specific pieces, use `workspaces`, `outputs`, or `windows`. 

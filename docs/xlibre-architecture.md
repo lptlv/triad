@@ -179,12 +179,11 @@ Manage mode can also expose opt-in read-only native Triad IPC with
 `capabilities` while rejecting command, binding-dispatch, text-command, and
 event-stream requests. The XCB event loop pumps this socket from a single
 threaded tick so IPC snapshots read the live X11 model without introducing
-cross-thread state access.
+cross-thread state access. `triad msg --socket PATH ...` can target this socket
+for the supported read-only requests.
 
 The next step is to expand runtime usability cautiously:
 
-- add a small `triad msg`/client compatibility path for explicit XLibre socket
-  selection
 - keep command IPC disabled until X11-side action semantics are modeled and
   tested as request intents
 - add XInput/XKB discovery before attempting user bindings

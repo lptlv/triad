@@ -30,6 +30,10 @@ import fsnotify, chronicles
 var daemon = initTriadDaemon()
 var lastRuntimeLoopSampleIpcCounters: IpcPerfCounters
 
+type ParsedMsgArgs = object
+  socketPath: string
+  args: seq[string]
+
 const
   IdleWakeIntervalMs = 250
   RecentFocusTickIntervalMs = 50
@@ -43,6 +47,25 @@ const
 proc failCli(message: string) =
   stderr.writeLine("triad: " & message)
   quit 1
+
+proc parseMsgArgs(args: seq[string]): ParsedMsgArgs =
+  result.socketPath = triadSocketPath()
+  var i = 1
+  while i < args.len:
+    let arg = args[i]
+    if arg == "--socket":
+      inc i
+      if i >= args.len:
+        failCli("--socket requires a value")
+      result.socketPath = args[i]
+    elif arg.startsWith("--socket="):
+      result.socketPath = arg.substr("--socket=".len)
+      if result.socketPath.len == 0:
+        failCli("--socket requires a value")
+    else:
+      result.args = args[i ..^ 1]
+      break
+    inc i
 
 proc validateRiverProtocolCompatibility(daemon: TriadDaemon) =
   let diagnostics = riverProtocolDiagnostics(daemon.advertisedProtocolVersions)
@@ -852,35 +875,38 @@ proc main*() =
     return
 
   if args.len >= 1 and args[0] == "msg":
-    if args.len < 2:
+    let msgParsed = parseMsgArgs(args)
+    let msgArgs = msgParsed.args
+    let socketPath = msgParsed.socketPath
+    if msgArgs.len < 1:
       failCli("missing msg command")
-    let cmdPart = args[1]
+    let cmdPart = msgArgs[0]
     if cmdPart in ["--help", "-h", "help"]:
       let topic =
-        if args.len > 2:
-          args[2]
+        if msgArgs.len > 1:
+          msgArgs[1]
         else:
           ""
       stdout.writeLine(renderMsgHelp(topic))
       return
 
     if cmdPart == "commands":
-      if args.len > 3 or (args.len == 3 and args[2] != "--json"):
+      if msgArgs.len > 2 or (msgArgs.len == 2 and msgArgs[1] != "--json"):
         failCli("usage: triad msg commands [--json]")
-      if args.len == 3:
+      if msgArgs.len == 2:
         stdout.writeLine($commandCatalogJson())
       else:
         stdout.writeLine(renderCommandList())
       return
 
     if cmdPart == "validate":
-      if args.len < 3:
+      if msgArgs.len < 2:
         failCli("usage: triad msg validate <command...>")
       var validateCmd = ""
-      for i in 2 ..< args.len:
-        if i > 2:
+      for i in 1 ..< msgArgs.len:
+        if i > 1:
           validateCmd.add(" ")
-        validateCmd.add(args[i])
+        validateCmd.add(msgArgs[i])
       if parseTextCommand(validateCmd).isNone and
           triadMsgRequestPayload(validateCmd).isNone and
           not validateCmd.specialMsgCommand():
@@ -889,15 +915,15 @@ proc main*() =
       return
 
     if cmdPart == "request":
-      if args.len < 3:
+      if msgArgs.len < 2:
         failCli("usage: triad msg request <json>")
       var request = ""
-      for i in 2 ..< args.len:
-        if i > 2:
+      for i in 1 ..< msgArgs.len:
+        if i > 1:
           request.add(" ")
-        request.add(args[i])
+        request.add(msgArgs[i])
       try:
-        let reply = waitFor sendIpcRequest(triadSocketPath(), request)
+        let reply = waitFor sendIpcRequest(socketPath, request)
         stdout.writeLine(reply)
       except CatchableError as e:
         failCli("socket request failed: " & e.msg)
@@ -905,14 +931,14 @@ proc main*() =
 
     if cmdPart == "event-stream":
       var events: seq[string]
-      if args.len > 2:
-        if args.len > 3:
+      if msgArgs.len > 1:
+        if msgArgs.len > 2:
           failCli("usage: triad msg event-stream [layout,state,window]")
-        events = args[2].split(',')
+        events = msgArgs[1].split(',')
       # Subscription client
       let client = newAsyncSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
       try:
-        waitFor client.connectUnix(triadSocketPath())
+        waitFor client.connectUnix(socketPath)
         let payload = nativeEventStreamPayload(events)
         waitFor client.send(payload & "\L")
         while not client.isClosed:
@@ -926,22 +952,22 @@ proc main*() =
       return
 
     var cmd = ""
-    for i in 1 ..< args.len:
-      if i > 1:
+    for i in 0 ..< msgArgs.len:
+      if i > 0:
         cmd.add(" ")
-      cmd.add(args[i])
+      cmd.add(msgArgs[i])
     try:
       let requestPayload = triadMsgRequestPayload(cmd)
       if requestPayload.isSome:
-        let reply = waitFor sendIpcRequest(triadSocketPath(), requestPayload.get())
+        let reply = waitFor sendIpcRequest(socketPath, requestPayload.get())
         stdout.writeLine(reply)
       elif cmd.specialMsgCommand():
-        let reply = waitFor sendIpcRequest(triadSocketPath(), cmd)
+        let reply = waitFor sendIpcRequest(socketPath, cmd)
         stdout.writeLine(reply)
       else:
         if parseTextCommand(cmd).isNone:
           failCli("invalid msg command: " & cmd)
-        waitFor sendIpcMsg(triadSocketPath(), cmd)
+        waitFor sendIpcMsg(socketPath, cmd)
     except CatchableError as e:
       failCli("socket request failed: " & e.msg)
     return

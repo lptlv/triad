@@ -273,21 +273,21 @@ proc renderMsgHelp*(name = ""): string =
 
   result = """
 Usage:
-  triad msg <command> [arguments]
-  triad msg help [command]
-  triad msg commands [--json]
-  triad msg validate <command...>
-  triad msg request <json>
-  triad msg dispatch-binding key|pointer|axis|gesture <chord> [ticks|fingers]
+  triad msg [--socket PATH] <command> [arguments]
+  triad msg [--socket PATH] help [command]
+  triad msg [--socket PATH] commands [--json]
+  triad msg [--socket PATH] validate <command...>
+  triad msg [--socket PATH] request <json>
+  triad msg [--socket PATH] dispatch-binding key|pointer|axis|gesture <chord> [ticks|fingers]
 
 Useful request commands:
-  triad msg state
-  triad msg capabilities
-  triad msg layout-state
-  triad msg perf-status
-  triad msg mem-status
-  triad msg dev-mode [on|off|toggle|status]
-  triad msg event-stream [layout,state,window]
+  triad msg [--socket PATH] state
+  triad msg [--socket PATH] capabilities
+  triad msg [--socket PATH] layout-state
+  triad msg [--socket PATH] perf-status
+  triad msg [--socket PATH] mem-status
+  triad msg [--socket PATH] dev-mode [on|off|toggle|status]
+  triad msg [--socket PATH] event-stream [layout,state,window]
 
 """
   result.add(renderCommandList())
