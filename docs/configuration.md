@@ -204,8 +204,13 @@ bindings {
 
   pointer-bind "Super+left" "move"
   pointer-bind "Super+right" "resize"
+  pointer-bind "Super+button10" "focus-last"
 }
 ```
+
+Pointer buttons accept common names such as `left`, `right`, `middle`, `back`,
+and `forward`. Exact device/core button numbers can be written as `buttonN` or
+`btnN`.
 
 ## Native Features
 

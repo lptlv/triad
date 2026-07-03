@@ -217,8 +217,10 @@ key resolver derives any required Shift modifier from the server keyboard map
 level for shifted keysyms before installing the passive grab. It also installs
 passive core button grabs for supported command-style pointer bindings after
 translating Triad's evdev button codes to core X11 button details, including
-left, middle, right, and common extra mouse buttons such as back/forward. Core
-X11 wheel buttons 4, 5, 6, and 7 are also
+left, middle, right, and common extra mouse buttons such as back/forward.
+Bindings can also use exact `buttonN`/`btnN` core button details for
+device-specific buttons that do not have a semantic name. Core X11 wheel buttons
+4, 5, 6, and 7 are also
 translated into one-tick axis dispatch for supported `axis-bind` commands.
 Matching `KeyPress` and `ButtonPress` events are converted back into the same
 `dispatch-binding` path used by IPC, so real input and synthetic dispatch share
@@ -227,13 +229,12 @@ the existing model pointer operation path for floating windows; motion and
 release events from the active X11 grab are translated to `WlPointerDelta` and
 `WlPointerRelease`, then executed as configure-window requests. The Xvfb smoke
 test uses XTEST, when available, to fake `Super+h`, `Super+Shift+/`,
-`Super+middle`, `Super+wheel-up`, plus `Super+left` move and `Super+right`
-resize drags of a floating synthetic client. Resize chooses top/bottom and
-left/right edges from the pointer's initial position in the floating window.
-This first input path is intentionally narrow: gesture bindings,
-device-specific extra button mappings beyond common core X11 details,
-high-resolution wheel deltas, and full XKB group/layout-change handling still
-need follow-up work.
+`Super+middle`, `Super+button10`, `Super+wheel-up`, plus `Super+left` move and
+`Super+right` resize drags of a floating synthetic client. Resize chooses
+top/bottom and left/right edges from the pointer's initial position in the
+floating window. This first input path is intentionally narrow: gesture
+bindings, high-resolution wheel deltas, and full XKB group/layout-change
+handling still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 

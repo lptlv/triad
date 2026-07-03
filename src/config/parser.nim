@@ -657,26 +657,32 @@ proc parseHotkeyOverlayPosition(name: string): HotkeyOverlayPosition =
     raise newException(ValueError, "invalid hotkey-overlay position: " & name)
 
 proc buttonValue*(name: string): uint32 =
-  case name
-  of "left", "Left", "BTN_LEFT", "btn-left", "btn_left":
+  let normalized = name.strip().normalize()
+  case normalized
+  of "left", "btnleft":
     0x110'u32
-  of "right", "Right", "BTN_RIGHT", "btn-right", "btn_right":
+  of "right", "btnright":
     0x111'u32
-  of "middle", "Middle", "BTN_MIDDLE", "btn-middle", "btn_middle":
+  of "middle", "btnmiddle":
     0x112'u32
-  of "side", "Side", "BTN_SIDE", "btn-side", "btn_side":
+  of "side", "btnside":
     0x113'u32
-  of "extra", "Extra", "BTN_EXTRA", "btn-extra", "btn_extra":
+  of "extra", "btnextra":
     0x114'u32
-  of "forward", "Forward", "BTN_FORWARD", "btn-forward", "btn_forward":
+  of "forward", "btnforward":
     0x115'u32
-  of "back", "Back", "BTN_BACK", "btn-back", "btn_back":
+  of "back", "btnback":
     0x116'u32
-  of "task", "Task", "BTN_TASK", "btn-task", "btn_task":
+  of "task", "btntask":
     0x117'u32
   else:
     try:
-      let parsed = parseInt(name)
+      var raw = name.strip()
+      if normalized.startsWith("button") and normalized.len > "button".len:
+        raw = normalized["button".len .. ^1]
+      elif normalized.startsWith("btn") and normalized.len > "btn".len:
+        raw = normalized["btn".len .. ^1]
+      let parsed = parseInt(raw)
       if parsed > 0:
         return uint32(parsed)
     except CatchableError:

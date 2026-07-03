@@ -76,6 +76,7 @@ key_press_log="$root/tests/tx11-probe-smoke-key-press.log"
 shifted_key_press_log="$root/tests/tx11-probe-smoke-shifted-key-press.log"
 button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 back_button_press_log="$root/tests/tx11-probe-smoke-back-button-press.log"
+device_button_press_log="$root/tests/tx11-probe-smoke-device-button-press.log"
 axis_press_log="$root/tests/tx11-probe-smoke-axis-press.log"
 pointer_drag_log="$root/tests/tx11-probe-smoke-pointer-drag.log"
 pointer_resize_log="$root/tests/tx11-probe-smoke-pointer-resize.log"
@@ -84,7 +85,7 @@ ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -111,7 +112,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -215,6 +216,7 @@ bindings {
   pointer-bind "Super+right" "resize"
   pointer-bind "Super+middle" "focus-workspace 2"
   pointer-bind "Super+btn_back" "focus-workspace 2"
+  pointer-bind "Super+button10" "focus-workspace 2"
   axis-bind "Super+wheel-up" "focus-workspace 3"
 }
 EOF
@@ -541,6 +543,28 @@ if [ "$xtest_available" -eq 1 ]; then
     printf '%s\n' "tx11_probe_smoke: fake Super+back did not dispatch through button grab" >&2
     cat "$manager_log" >&2
     cat "$back_button_press_log" >&2
+    exit 1
+  fi
+
+  if ! "$client" "$display" --fake-button 10 "$x11_mod_super" >"$device_button_press_log" 2>&1; then
+    cat "$manager_log" >&2
+    cat "$device_button_press_log" >&2
+    exit 1
+  fi
+
+  device_button_dispatched=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q 'backend_event PointerBinding binding="Super+button10"' "$manager_log" &&
+        grep -q 'xlibre_pointer_binding_reply .*"binding":"Super+button10"' "$manager_log"; then
+      device_button_dispatched=1
+      break
+    fi
+    sleep 0.2
+  done
+  if [ "$device_button_dispatched" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: fake Super+button10 did not dispatch through button grab" >&2
+    cat "$manager_log" >&2
+    cat "$device_button_press_log" >&2
     exit 1
   fi
 

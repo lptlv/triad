@@ -768,6 +768,7 @@ modifiers {
 bindings {
   bind "Super+h" "focus-left"
   pointer-bind "Super+left" "move"
+  pointer-bind "Super+button10" "focus-last"
   axis-bind "Alt+wheel-up" "focus-up"
 }
 """,
@@ -780,6 +781,10 @@ bindings {
     check config.pointerBindings.anyIt(
       it.button == buttonValue("left") and it.modifiers == ModifierMod3 and
         it.command == "move"
+    )
+    check buttonValue("button10") == 10'u32
+    check config.pointerBindings.anyIt(
+      it.button == 10'u32 and it.modifiers == ModifierMod3 and it.command == "focus-last"
     )
     check config.axisBindings.anyIt(
       it.direction == AxisBindingDirection.AxisUp and it.modifiers == ModifierMod5 and
