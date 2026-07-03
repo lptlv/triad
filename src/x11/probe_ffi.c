@@ -44,6 +44,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_MAP_REQUESTED = 9,
     TRIAD_X11_EVENT_KEY_BINDING = 10,
     TRIAD_X11_EVENT_POINTER_BINDING = 11,
+    TRIAD_X11_EVENT_AXIS_BINDING = 12,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -79,6 +80,12 @@ typedef struct TriadX11ButtonGrab {
     char binding[128];
 } TriadX11ButtonGrab;
 
+typedef struct TriadX11AxisGrab {
+    uint32_t button;
+    uint32_t modifiers;
+    char binding[128];
+} TriadX11AxisGrab;
+
 typedef struct TriadX11ResolvedKeyGrab {
     uint32_t keysym;
     uint32_t modifiers;
@@ -91,6 +98,12 @@ typedef struct TriadX11ResolvedButtonGrab {
     uint32_t modifiers;
     char binding[128];
 } TriadX11ResolvedButtonGrab;
+
+typedef struct TriadX11ResolvedAxisGrab {
+    uint32_t button;
+    uint32_t modifiers;
+    char binding[128];
+} TriadX11ResolvedAxisGrab;
 
 typedef void (*triad_x11_event_fn)(void *user_data, const TriadX11Event *event);
 typedef void (*triad_x11_tick_fn)(void *user_data);
@@ -133,6 +146,8 @@ typedef struct TriadX11Probe {
     uint32_t key_grab_count;
     TriadX11ResolvedButtonGrab *button_grabs;
     uint32_t button_grab_count;
+    TriadX11ResolvedAxisGrab *axis_grabs;
+    uint32_t axis_grab_count;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -592,6 +607,31 @@ static void clear_button_grabs(TriadX11Probe *probe)
     free(probe->button_grabs);
     probe->button_grabs = NULL;
     probe->button_grab_count = 0;
+}
+
+static const TriadX11ResolvedAxisGrab *axis_grab_for_event(
+    TriadX11Probe *probe,
+    uint32_t button,
+    uint32_t state)
+{
+    uint32_t modifiers = binding_modifier_mask(state);
+    for (uint32_t i = 0; i < probe->axis_grab_count; i++) {
+        TriadX11ResolvedAxisGrab *grab = &probe->axis_grabs[i];
+        if (grab->button == button && grab->modifiers == modifiers)
+            return grab;
+    }
+    return NULL;
+}
+
+static void clear_axis_grabs(TriadX11Probe *probe)
+{
+    for (uint32_t i = 0; i < probe->axis_grab_count; i++) {
+        TriadX11ResolvedAxisGrab *grab = &probe->axis_grabs[i];
+        ungrab_button_variants(probe, grab->button, grab->modifiers);
+    }
+    free(probe->axis_grabs);
+    probe->axis_grabs = NULL;
+    probe->axis_grab_count = 0;
 }
 
 static void log_window(
@@ -1159,13 +1199,15 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
         const TriadX11ResolvedButtonGrab *grab =
             button_grab_for_event(probe, ev->detail, ev->state);
+        const TriadX11ResolvedAxisGrab *axis_grab =
+            grab == NULL ? axis_grab_for_event(probe, ev->detail, ev->state) : NULL;
         probe_log(
             probe,
             "event %s button=%u state=0x%04x binding=\"%s\"",
             event_name(type),
             ev->detail,
             ev->state,
-            grab != NULL ? grab->binding : "");
+            grab != NULL ? grab->binding : axis_grab != NULL ? axis_grab->binding : "");
         if (grab != NULL) {
             TriadX11Event event;
             memset(&event, 0, sizeof(event));
@@ -1173,6 +1215,14 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             event.id = ev->detail;
             event.value_mask = binding_modifier_mask(ev->state);
             copy_text(event.name, sizeof(event.name), grab->binding);
+            probe_event(probe, &event);
+        } else if (axis_grab != NULL) {
+            TriadX11Event event;
+            memset(&event, 0, sizeof(event));
+            event.kind = TRIAD_X11_EVENT_AXIS_BINDING;
+            event.id = ev->detail;
+            event.value_mask = binding_modifier_mask(ev->state);
+            copy_text(event.name, sizeof(event.name), axis_grab->binding);
             probe_event(probe, &event);
         }
         break;
@@ -1443,6 +1493,7 @@ int triad_x11_probe_run(
     }
     clear_key_grabs(&probe);
     clear_button_grabs(&probe);
+    clear_axis_grabs(&probe);
     if (active_probe == &probe)
         active_probe = NULL;
 
@@ -1586,6 +1637,68 @@ int triad_x11_configure_active_button_grabs(
     xcb_flush(probe->conn);
     probe_log(
         probe, "button grabs configured count=%u requested=%u", resolved_count, count);
+    return 0;
+}
+
+int triad_x11_configure_active_axis_grabs(
+    const TriadX11AxisGrab *grabs,
+    uint32_t count)
+{
+    if (active_probe == NULL)
+        return 1;
+
+    TriadX11Probe *probe = active_probe;
+    clear_axis_grabs(probe);
+
+    if (count == 0 || grabs == NULL) {
+        xcb_flush(probe->conn);
+        probe_log(probe, "axis grabs configured count=0");
+        return 0;
+    }
+
+    TriadX11ResolvedAxisGrab *resolved =
+        calloc((size_t)count, sizeof(TriadX11ResolvedAxisGrab));
+    if (resolved == NULL) {
+        probe_log(probe, "axis grabs unavailable allocation_failed=1 count=%u", count);
+        return 1;
+    }
+
+    uint32_t resolved_count = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        if (grabs[i].button == 0 || grabs[i].button > UINT8_MAX) {
+            probe_log(
+                probe,
+                "axis grab unavailable binding=\"%s\" button=%u",
+                grabs[i].binding,
+                grabs[i].button);
+            continue;
+        }
+        if (!grab_button_variants(probe, grabs[i].button, grabs[i].modifiers, grabs[i].binding))
+            continue;
+
+        resolved[resolved_count].button = grabs[i].button;
+        resolved[resolved_count].modifiers = grabs[i].modifiers;
+        copy_text(
+            resolved[resolved_count].binding,
+            sizeof(resolved[resolved_count].binding),
+            grabs[i].binding);
+        probe_log(
+            probe,
+            "axis grab configured binding=\"%s\" button=%u modifiers=0x%04x",
+            resolved[resolved_count].binding,
+            resolved[resolved_count].button,
+            resolved[resolved_count].modifiers);
+        resolved_count++;
+    }
+
+    if (resolved_count == 0) {
+        free(resolved);
+        resolved = NULL;
+    }
+    probe->axis_grabs = resolved;
+    probe->axis_grab_count = resolved_count;
+    xcb_flush(probe->conn);
+    probe_log(probe, "axis grabs configured count=%u requested=%u", resolved_count, count);
     return 0;
 }
 

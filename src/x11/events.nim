@@ -25,6 +25,7 @@ type
     XpeMapRequested = 9
     XpeKeyBinding = 10
     XpePointerBinding = 11
+    XpeAxisBinding = 12
 
   X11ProbeEvent* {.bycopy.} = object
     kind*: X11ProbeEventKind
@@ -56,6 +57,7 @@ type
     RandrChanged
     KeyBinding
     PointerBinding
+    AxisBinding
 
   X11WindowSnapshot* = object
     id*: uint32
@@ -111,6 +113,10 @@ type
       pointerBinding*: string
       pointerBindingButton*: uint32
       pointerBindingModifiers*: uint32
+    of X11BackendEventKind.AxisBinding:
+      axisBinding*: string
+      axisBindingButton*: uint32
+      axisBindingModifiers*: uint32
 
 proc x11WindowIdentifier*(id: uint32): string =
   "x11:0x" & toHex(id, 8).toLowerAscii()
@@ -243,6 +249,13 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       pointerBindingButton: event.id,
       pointerBindingModifiers: event.valueMask,
     )
+  of X11ProbeEventKind.XpeAxisBinding:
+    X11BackendEvent(
+      kind: X11BackendEventKind.AxisBinding,
+      axisBinding: event.name.cArrayString(),
+      axisBindingButton: event.id,
+      axisBindingModifiers: event.valueMask,
+    )
 
 proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   case event.kind
@@ -369,5 +382,6 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     else:
       discard
   of X11BackendEventKind.PointerEntered, X11BackendEventKind.RandrChanged,
-      X11BackendEventKind.KeyBinding, X11BackendEventKind.PointerBinding:
+      X11BackendEventKind.KeyBinding, X11BackendEventKind.PointerBinding,
+      X11BackendEventKind.AxisBinding:
     discard

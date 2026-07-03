@@ -214,20 +214,23 @@ passive key grabs for configured key bindings whose commands pass the current
 XLibre allowlist. It also installs passive core button grabs for supported
 command-style pointer bindings, currently left, middle, and right button
 bindings after translating Triad's evdev button codes to core X11 button
-details. Matching `KeyPress` and `ButtonPress` events are converted back into
-the same `dispatch-binding` path used by IPC, so real input and synthetic
-dispatch share command validation and execution. The Xvfb smoke test uses XTEST,
-when available, to fake `Super+h` and `Super+middle` and verify both passive
-grab paths reach the binding dispatcher. This first input path is intentionally
-narrow: interactive pointer move/resize, wheel/axis bindings, gesture bindings,
-extra mouse buttons, and shifted-symbol normalization still need follow-up work.
+details. Core X11 wheel buttons 4, 5, 6, and 7 are also translated into
+one-tick axis dispatch for supported `axis-bind` commands. Matching `KeyPress`
+and `ButtonPress` events are converted back into the same `dispatch-binding`
+path used by IPC, so real input and synthetic dispatch share command validation
+and execution. The Xvfb smoke test uses XTEST, when available, to fake
+`Super+h`, `Super+middle`, and `Super+wheel-up` and verify the passive grab
+paths reach the binding dispatcher. This first input path is intentionally
+narrow: interactive pointer move/resize, gesture bindings, extra mouse buttons,
+high-resolution wheel deltas, and shifted-symbol normalization still need
+follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
 - expand the explicit XLibre action set only one command family at a time
-- use XInput/XKB discovery to add wheel, extra mouse button, and gesture dispatch
+- use XInput/XKB discovery to add high-resolution wheel, extra mouse button, and gesture dispatch
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

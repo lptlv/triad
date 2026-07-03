@@ -25,6 +25,11 @@ type
     modifiers*: uint32
     binding*: array[128, char]
 
+  X11AxisGrab* {.bycopy.} = object
+    button*: uint32
+    modifiers*: uint32
+    binding*: array[128, char]
+
 proc triadX11ProbeRun*(
   displayName: cstring,
   once: cint,
@@ -56,3 +61,7 @@ proc triadX11ConfigureActiveKeyGrabs*(
 proc triadX11ConfigureActiveButtonGrabs*(
   grabs: ptr X11ButtonGrab, count: cuint
 ): cint {.importc: "triad_x11_configure_active_button_grabs".}
+
+proc triadX11ConfigureActiveAxisGrabs*(
+  grabs: ptr X11AxisGrab, count: cuint
+): cint {.importc: "triad_x11_configure_active_axis_grabs".}

@@ -146,6 +146,19 @@ suite "X11 event mapping":
     check event.pointerBindingModifiers == 64'u32
     check event.messagesFor().len == 0
 
+  test "raw axis binding event preserves binding identity without model messages":
+    var raw =
+      X11ProbeEvent(kind: X11ProbeEventKind.XpeAxisBinding, id: 4, valueMask: 64'u32)
+    for idx, ch in "Super+wheel-up":
+      raw.name[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.AxisBinding
+    check event.axisBinding == "Super+wheel-up"
+    check event.axisBindingButton == 4
+    check event.axisBindingModifiers == 64'u32
+    check event.messagesFor().len == 0
+
   test "window discovery maps to creation, dimensions, and pid messages":
     let messages = X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,

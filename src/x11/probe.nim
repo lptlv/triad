@@ -27,6 +27,7 @@ type
     stopPolls: int
     keyGrabSignature: string
     buttonGrabSignature: string
+    axisGrabSignature: string
 
   X11ModelLoadResult* = object
     ok*: bool
@@ -120,6 +121,42 @@ proc bindingSpec(binding: PointerBindingConfig): string =
   parts.add(name)
   parts.join("+")
 
+proc axisName(direction: AxisBindingDirection): string =
+  case direction
+  of AxisBindingDirection.AxisUp: "wheel-up"
+  of AxisBindingDirection.AxisDown: "wheel-down"
+  of AxisBindingDirection.AxisLeft: "wheel-left"
+  of AxisBindingDirection.AxisRight: "wheel-right"
+  of AxisBindingDirection.AxisNone: ""
+
+proc x11ButtonDetail(direction: AxisBindingDirection): uint32 =
+  case direction
+  of AxisBindingDirection.AxisUp: 4'u32
+  of AxisBindingDirection.AxisDown: 5'u32
+  of AxisBindingDirection.AxisLeft: 6'u32
+  of AxisBindingDirection.AxisRight: 7'u32
+  of AxisBindingDirection.AxisNone: 0'u32
+
+proc bindingSpec(binding: AxisBindingConfig): string =
+  let name = binding.direction.axisName()
+  if name.len == 0:
+    return ""
+  var parts: seq[string]
+  if (binding.modifiers and 64'u32) != 0:
+    parts.add("Super")
+  if (binding.modifiers and 4'u32) != 0:
+    parts.add("Ctrl")
+  if (binding.modifiers and 1'u32) != 0:
+    parts.add("Shift")
+  if (binding.modifiers and 8'u32) != 0:
+    parts.add("Alt")
+  if (binding.modifiers and 32'u32) != 0:
+    parts.add("Mod3")
+  if (binding.modifiers and 128'u32) != 0:
+    parts.add("Mod5")
+  parts.add(name)
+  parts.join("+")
+
 proc bindingText(value: string): array[128, char] =
   let limit = min(value.len, result.len - 1)
   for i in 0 ..< limit:
@@ -137,6 +174,12 @@ proc grabBinding(value: X11ButtonGrab): string =
       break
     result.add(ch)
 
+proc grabBinding(value: X11AxisGrab): string =
+  for ch in value.binding:
+    if ch == '\0':
+      break
+    result.add(ch)
+
 proc keyGrabSignature(grabs: openArray[X11KeyGrab]): string =
   for grab in grabs:
     result.add($grab.keysym)
@@ -147,6 +190,15 @@ proc keyGrabSignature(grabs: openArray[X11KeyGrab]): string =
     result.add("\n")
 
 proc buttonGrabSignature(grabs: openArray[X11ButtonGrab]): string =
+  for grab in grabs:
+    result.add($grab.button)
+    result.add(":")
+    result.add($grab.modifiers)
+    result.add(":")
+    result.add(grab.grabBinding())
+    result.add("\n")
+
+proc axisGrabSignature(grabs: openArray[X11AxisGrab]): string =
   for grab in grabs:
     result.add($grab.button)
     result.add(":")
@@ -197,6 +249,27 @@ proc xlibreButtonGrabs(model: Model): seq[X11ButtonGrab] =
         )
       )
 
+proc xlibreAxisGrabs(model: Model): seq[X11AxisGrab] =
+  let snapshot = model.shellSnapshot()
+  for binding in model.axisBindings:
+    let button = binding.direction.x11ButtonDetail()
+    if button == 0:
+      continue
+    let spec = binding.bindingSpec()
+    if spec.len == 0:
+      continue
+    let request = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindAxis, binding: spec, ticks: 1'i32
+    )
+    let parsed =
+      xlibreWritableRequestFor(bindingDispatchPayload(request), model, snapshot)
+    if parsed.handled and parsed.bindingDispatch.ok:
+      result.add(
+        X11AxisGrab(
+          button: button, modifiers: binding.modifiers, binding: spec.bindingText()
+        )
+      )
+
 proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
   if context == nil or context.mode != X11ProbeMode.Manage:
     return
@@ -228,6 +301,22 @@ proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
       context.buttonGrabSignature = buttonSignature
       stdout.writeLine(
         "xlibre_button_grabs requested=" & $buttonGrabs.len & " status=" & $status
+      )
+      stdout.flushFile()
+
+    let axisGrabs = context.model.xlibreAxisGrabs()
+    let axisSignature = axisGrabs.axisGrabSignature()
+    if context.axisGrabSignature != axisSignature:
+      let status =
+        if axisGrabs.len == 0:
+          triadX11ConfigureActiveAxisGrabs(cast[ptr X11AxisGrab](nil), 0)
+        else:
+          triadX11ConfigureActiveAxisGrabs(
+            unsafeAddr axisGrabs[0], cuint(axisGrabs.len)
+          )
+      context.axisGrabSignature = axisSignature
+      stdout.writeLine(
+        "xlibre_axis_grabs requested=" & $axisGrabs.len & " status=" & $status
       )
       stdout.flushFile()
 
@@ -264,6 +353,22 @@ proc dispatchPointerBinding(context: ptr X11ProbeContext, binding: string) {.gcs
     if request.handled:
       stdout.writeLine(
         "xlibre_pointer_binding_reply " & context.executeXlibreWritableRequest(request)
+      )
+      stdout.flushFile()
+
+proc dispatchAxisBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.} =
+  if context == nil or binding.len == 0:
+    return
+  {.cast(gcsafe).}:
+    let dispatch = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindAxis, binding: binding, ticks: 1'i32
+    )
+    let request = xlibreWritableRequestFor(
+      bindingDispatchPayload(dispatch), context.model, context.model.shellSnapshot()
+    )
+    if request.handled:
+      stdout.writeLine(
+        "xlibre_axis_binding_reply " & context.executeXlibreWritableRequest(request)
       )
       stdout.flushFile()
 
@@ -425,6 +530,10 @@ proc eventLabel(event: X11BackendEvent): string =
     "PointerBinding binding=\"" & event.pointerBinding & "\" button=" &
       $event.pointerBindingButton & " modifiers=0x" &
       toHex(event.pointerBindingModifiers, 4).toLowerAscii()
+  of X11BackendEventKind.AxisBinding:
+    "AxisBinding binding=\"" & event.axisBinding & "\" button=" &
+      $event.axisBindingButton & " modifiers=0x" &
+      toHex(event.axisBindingModifiers, 4).toLowerAscii()
 
 proc x11ConfigPath*(configPath = ""): string =
   if configPath.len > 0:
@@ -464,6 +573,15 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
       )
     else:
       cast[ptr X11ProbeContext](userData).dispatchPointerBinding(event.pointerBinding)
+    stdout.flushFile()
+    return
+  if event.kind == X11BackendEventKind.AxisBinding:
+    if userData == nil:
+      stdout.writeLine(
+        "dry_run_msg X11AxisBinding binding=\"" & event.axisBinding & "\""
+      )
+    else:
+      cast[ptr X11ProbeContext](userData).dispatchAxisBinding(event.axisBinding)
     stdout.flushFile()
     return
   if userData == nil:
