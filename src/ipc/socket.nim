@@ -6,7 +6,7 @@ import chronicles
 import ../core/msg
 import ../types/shell_snapshot
 import ../utils/behavior_log
-import binding_dispatch, commands, triad_native
+import binding_dispatch, commands, triad_native, triad_readonly
 
 type
   IpcServer* = object
@@ -257,6 +257,7 @@ proc startIpcServer*(
     dispatchBinding: proc(request: BindingDispatchRequest): string {.gcsafe.} = nil,
     listenReady: Future[bool] = nil,
     requestTimeoutMs = IpcRequestTimeoutMs,
+    readOnlyTriad = false,
 ) {.async.} =
   let server = newAsyncSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
   try:
@@ -313,6 +314,29 @@ proc startIpcServer*(
               if line == "":
                 break
               inc ipcPerfCounters.requests
+
+              if readOnlyTriad:
+                if getSnapshot == nil:
+                  inc ipcPerfCounters.invalidRequests
+                  await client.send(
+                    """{"ok":false,"error":"read-only ipc snapshot unavailable"}""" &
+                      "\L"
+                  )
+                  break
+
+                let triad = handleTriadReadOnlyRequest(line, getSnapshot())
+                if triad.handled:
+                  inc ipcPerfCounters.triadRequests
+                  if triad.reply.len > 0:
+                    await client.send(triad.reply & "\L")
+                  break
+
+                inc ipcPerfCounters.invalidRequests
+                await client.send(
+                  """{"ok":false,"error":"read-only ipc requires native Triad JSON request"}""" &
+                    "\L"
+                )
+                break
 
               let devModeControl = handleDevModeControl(line)
               if devModeControl.isSome:

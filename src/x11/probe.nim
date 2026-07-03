@@ -1,11 +1,15 @@
-import std/strutils
+import std/[asyncdispatch, strutils, times]
 
 import ../core/msg
 import ../config/loading
 import ../config/parser
+import ../ipc/socket
+import ../state/snapshot
 import ../systems/runtime_facade
-import ../types/model
+import ../types/[model, shell_snapshot]
 import atoms, events, pipeline, request_executor, xcb_ffi
+
+const X11IpcListenReadyTimeoutMs = 1000
 
 type
   X11ProbeMode* {.pure.} = enum
@@ -29,6 +33,45 @@ proc probeLogCallback(userData: pointer, message: cstring) {.cdecl.} =
   if message != nil:
     stdout.writeLine($message)
     stdout.flushFile()
+
+proc discardIpcMsg(msg: Msg) {.gcsafe.} =
+  discard msg
+
+proc probeTickCallback(userData: pointer) {.cdecl.} =
+  discard userData
+  asyncdispatch.poll(0)
+
+proc waitForX11IpcReady(listener: Future[bool]): bool =
+  let deadline = epochTime() + float(X11IpcListenReadyTimeoutMs) / 1000.0
+  while not listener.finished:
+    if epochTime() >= deadline:
+      return false
+    asyncdispatch.poll(10)
+  not listener.failed and listener.read
+
+proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
+  if socketPath.len == 0:
+    return true
+
+  proc snapshotModel(): ShellSnapshot {.gcsafe.} =
+    {.cast(gcsafe).}:
+      context.model.shellSnapshot()
+
+  let listenReady = newFuture[bool]("xlibre triad ipc listener ready")
+  asyncCheck startIpcServer(
+    socketPath,
+    discardIpcMsg,
+    snapshotModel,
+    listenReady = listenReady,
+    requestTimeoutMs = IpcRequestTimeoutMs,
+    readOnlyTriad = true,
+  )
+  if not waitForX11IpcReady(listenReady):
+    stderr.writeLine("triad_xlibre: read-only ipc failed to listen path=" & socketPath)
+    return false
+  stdout.writeLine("ipc listening path=\"" & socketPath & "\" mode=read-only")
+  stdout.flushFile()
+  true
 
 proc dryRunMessageLabel(msg: Msg): string =
   case msg.kind
@@ -145,7 +188,11 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
   stdout.flushFile()
 
 proc runX11Probe*(
-    displayName = "", once = false, mode = X11ProbeMode.Observe, configPath = ""
+    displayName = "",
+    once = false,
+    mode = X11ProbeMode.Observe,
+    configPath = "",
+    socketPath = "",
 ): int =
   let display =
     if displayName.len == 0:
@@ -156,7 +203,12 @@ proc runX11Probe*(
   if mode == X11ProbeMode.Observe:
     return int(
       triadX11ProbeRun(
-        display, cint(ord(once)), probeLogCallback, probeEventCallback, nil
+        display,
+        cint(ord(once)),
+        probeLogCallback,
+        probeEventCallback,
+        probeTickCallback,
+        nil,
       )
     )
 
@@ -170,8 +222,15 @@ proc runX11Probe*(
   stdout.flushFile()
 
   var context = X11ProbeContext(mode: mode, displayName: displayName, model: loaded.model)
+  if mode == X11ProbeMode.Manage and not startReadOnlyIpc(addr context, socketPath):
+    return 1
   int(
     triadX11ProbeRun(
-      display, cint(ord(once)), probeLogCallback, probeEventCallback, addr context
+      display,
+      cint(ord(once)),
+      probeLogCallback,
+      probeEventCallback,
+      probeTickCallback,
+      addr context,
     )
   )

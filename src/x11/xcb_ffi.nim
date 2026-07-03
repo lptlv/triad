@@ -9,6 +9,7 @@ type
   X11ProbeEventFn* = proc(
     userData: pointer, event: ptr X11ProbeEvent
   ) {.cdecl.}
+  X11ProbeTickFn* = proc(userData: pointer) {.cdecl.}
   X11RequestLogFn* = proc(userData: pointer, message: cstring) {.cdecl.}
 
 proc triadX11ProbeRun*(
@@ -16,6 +17,7 @@ proc triadX11ProbeRun*(
     once: cint,
     logFn: X11ProbeLogFn,
     eventFn: X11ProbeEventFn,
+    tickFn: X11ProbeTickFn,
     userData: pointer,
 ): cint {.importc: "triad_x11_probe_run".}
 

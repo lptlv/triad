@@ -4,6 +4,7 @@ set -eu
 root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 probe="$root/src/triad_xlibre"
 executor="$root/tests/tx11_live_executor"
+ipc_query="$root/tests/tx11_ipc_query"
 client_src="$root/tests/tx11_synthetic_client.c"
 client="$root/tests/tx11_synthetic_client"
 
@@ -19,6 +20,11 @@ fi
 
 if [ ! -x "$executor" ]; then
   printf '%s\n' "tx11_probe_smoke: live executor binary missing: $executor" >&2
+  exit 1
+fi
+
+if [ ! -x "$ipc_query" ]; then
+  printf '%s\n' "tx11_probe_smoke: ipc query binary missing: $ipc_query" >&2
   exit 1
 fi
 
@@ -41,8 +47,11 @@ manager_log="$root/tests/tx11-probe-smoke-manager.log"
 client_log="$root/tests/tx11-probe-smoke-client.log"
 managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
+ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
+ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$config"
+ipc_socket="$root/tests/tx11-probe-smoke.sock"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$config" "$ipc_socket"
 
 Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
 xvfb_pid="$!"
@@ -60,7 +69,7 @@ cleanup() {
   fi
   kill "$xvfb_pid" 2>/dev/null || true
   wait "$xvfb_pid" 2>/dev/null || true
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$log.xvfb" "$client" "$config"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -160,7 +169,7 @@ workspaces {
 }
 EOF
 
-"$probe" --display "$display" --mode manage --config "$config" >"$manager_log" 2>&1 &
+"$probe" --display "$display" --mode manage --config "$config" --socket "$ipc_socket" >"$manager_log" 2>&1 &
 probe_pid="$!"
 
 started=0
@@ -199,6 +208,7 @@ fi
 
 for pattern in \
   "config loaded path=\"$config\"" \
+  "ipc listening path=\"$ipc_socket\" mode=read-only" \
   "backend_event MapRequested" \
   "model_msg WlWindowCreated" \
   "layout_x11_request configure window=" \
@@ -212,6 +222,34 @@ for pattern in \
     exit 1
   fi
 done
+
+if ! "$ipc_query" "$ipc_socket" windows >"$ipc_windows_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_windows_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"windows"' \
+  '"app_id":"triad-smoke/triad-smoke"'; do
+  if ! grep -q "$pattern" "$ipc_windows_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc windows pattern: $pattern" >&2
+    cat "$ipc_windows_log" >&2
+    exit 1
+  fi
+done
+
+if ! "$ipc_query" "$ipc_socket" capabilities >"$ipc_capabilities_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_capabilities_log" >&2
+  exit 1
+fi
+
+if ! grep -q '"type":"capabilities"' "$ipc_capabilities_log"; then
+  printf '%s\n' "tx11_probe_smoke: capabilities ipc reply missing type" >&2
+  cat "$ipc_capabilities_log" >&2
+  exit 1
+fi
 
 configured=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do

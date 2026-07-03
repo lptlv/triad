@@ -94,6 +94,7 @@ triad_xlibre --once
 triad_xlibre --display :1
 triad_xlibre --display :1 --mode admit
 triad_xlibre --display :1 --mode manage --config ~/.config/triad/config.kdl
+triad_xlibre --display :1 --mode manage --config ~/.config/triad/config.kdl --socket /tmp/triad-xlibre.sock
 ```
 
 Default `observe` mode deliberately does not call `Model.update`, publish Triad
@@ -172,11 +173,21 @@ on invalid config. Configure requests, metadata notifications, and
 `_NET_WM_STATE` changes for fullscreen, maximized, minimized, and urgent windows
 now update isolated model state through existing Triad messages. Per-window
 urgency is also aggregated into workspace-level shell snapshot urgency.
+Manage mode can also expose opt-in read-only native Triad IPC with
+`--socket PATH`. That socket reuses the existing Triad JSON request schema for
+`state`, `workspaces`, `outputs`, `windows`, `focused-window`, and
+`capabilities` while rejecting command, binding-dispatch, text-command, and
+event-stream requests. The XCB event loop pumps this socket from a single
+threaded tick so IPC snapshots read the live X11 model without introducing
+cross-thread state access.
 
 The next step is to expand runtime usability cautiously:
 
-- expose native IPC/snapshot reads for state inspection
-- keep command IPC disabled until read-only state is stable under Xvfb
+- add a small `triad msg`/client compatibility path for explicit XLibre socket
+  selection
+- keep command IPC disabled until X11-side action semantics are modeled and
+  tested as request intents
+- add XInput/XKB discovery before attempting user bindings
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

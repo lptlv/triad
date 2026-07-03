@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <xcb/randr.h>
 #include <xcb/xcb.h>
@@ -61,6 +62,7 @@ typedef struct TriadX11Event {
 } TriadX11Event;
 
 typedef void (*triad_x11_event_fn)(void *user_data, const TriadX11Event *event);
+typedef void (*triad_x11_tick_fn)(void *user_data);
 
 typedef struct TriadX11Atoms {
     xcb_atom_t wm_protocols;
@@ -902,6 +904,7 @@ int triad_x11_probe_run(
     int once,
     triad_x11_log_fn log_fn,
     triad_x11_event_fn event_fn,
+    triad_x11_tick_fn tick_fn,
     void *user_data)
 {
     TriadX11Probe probe;
@@ -957,15 +960,23 @@ int triad_x11_probe_run(
 
     probe_log(&probe, "event loop started");
     while (1) {
-        xcb_generic_event_t *event = xcb_wait_for_event(probe.conn);
+        xcb_generic_event_t *event = xcb_poll_for_event(probe.conn);
         if (event == NULL) {
             int err = xcb_connection_has_error(probe.conn);
-            probe_log(&probe, "event loop stopped connection_error=%d", err);
-            break;
+            if (err != 0) {
+                probe_log(&probe, "event loop stopped connection_error=%d", err);
+                break;
+            }
+            if (tick_fn != NULL)
+                tick_fn(user_data);
+            usleep(10000);
+            continue;
         }
         log_event(&probe, event);
         free(event);
         xcb_flush(probe.conn);
+        if (tick_fn != NULL)
+            tick_fn(user_data);
     }
 
     if (probe.ewmh_ready)
