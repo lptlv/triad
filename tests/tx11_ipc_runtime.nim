@@ -70,3 +70,35 @@ suite "X11 read-only native IPC":
     check action["error"].getStr().contains("read-only")
     check not stream["ok"].getBool()
     check stream["error"].getStr().contains("read-only")
+
+  test "serves runtime status when provided":
+    let reply = parseJson(
+      handleTriadReadOnlyRequest(
+        """{"triad":{"version":1,"request":"runtime-status"}}""",
+        x11Snapshot(),
+        %*{
+          "backend": "xlibre",
+          "mode": "manage",
+          "socket_path": "/tmp/triad-xlibre.sock",
+          "read_only": true,
+          "writable_ipc": false,
+          "window_count": 1,
+          "output_count": 1,
+        },
+      ).reply
+    )
+
+    check reply["ok"].getBool()
+    check reply["triad"]["type"].getStr() == "runtime-status"
+    check reply["triad"]["status"]["backend"].getStr() == "xlibre"
+    check not reply["triad"]["status"]["writable_ipc"].getBool()
+
+  test "runtime status reports unavailable without provider":
+    let reply = parseJson(
+      handleTriadReadOnlyRequest(
+        """{"triad":{"version":1,"request":"runtime-status"}}""", x11Snapshot()
+      ).reply
+    )
+
+    check not reply["ok"].getBool()
+    check reply["error"].getStr().contains("runtime status unavailable")

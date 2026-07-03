@@ -49,9 +49,10 @@ managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
 ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
 ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
+ipc_status_log="$root/tests/tx11-probe-smoke-ipc-status.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$config" "$ipc_socket"
 
 Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
 xvfb_pid="$!"
@@ -69,7 +70,7 @@ cleanup() {
   fi
   kill "$xvfb_pid" 2>/dev/null || true
   wait "$xvfb_pid" 2>/dev/null || true
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -236,6 +237,27 @@ if ! grep -q '"type":"capabilities"' "$ipc_capabilities_log"; then
   cat "$ipc_capabilities_log" >&2
   exit 1
 fi
+
+if ! "$triad" msg --socket "$ipc_socket" request '{"triad":{"version":1,"request":"runtime-status"}}' >"$ipc_status_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_status_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"runtime-status"' \
+  '"backend":"xlibre"' \
+  '"mode":"manage"' \
+  '"socket_path":"'"$ipc_socket"'"' \
+  '"writable_ipc":false' \
+  '"window_count":1' \
+  '"output_count":1'; do
+  if ! grep -q "$pattern" "$ipc_status_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing runtime status pattern: $pattern" >&2
+    cat "$ipc_status_log" >&2
+    exit 1
+  fi
+done
 
 configured=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do

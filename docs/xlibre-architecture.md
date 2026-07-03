@@ -177,7 +177,9 @@ Manage mode can also expose opt-in read-only native Triad IPC with
 `--socket PATH`. That socket reuses the existing Triad JSON request schema for
 `state`, `workspaces`, `outputs`, `windows`, `focused-window`, and
 `capabilities` while rejecting command, binding-dispatch, text-command, and
-event-stream requests. The XCB event loop pumps this socket from a single
+event-stream requests. It also exposes an XLibre-specific `runtime-status`
+request with backend, mode, socket path, read-only/writable flags, and live
+window/output counts. The XCB event loop pumps this socket from a single
 threaded tick so IPC snapshots read the live X11 model without introducing
 cross-thread state access. `triad msg --socket PATH ...` can target this socket
 for the supported read-only requests.

@@ -1,4 +1,4 @@
-import std/[asyncdispatch, strutils, times]
+import std/[asyncdispatch, json, strutils, times]
 
 import ../core/msg
 import ../config/loading
@@ -49,6 +49,15 @@ proc waitForX11IpcReady(listener: Future[bool]): bool =
     asyncdispatch.poll(10)
   not listener.failed and listener.read
 
+proc modeLabel(mode: X11ProbeMode): string =
+  case mode
+  of X11ProbeMode.Observe:
+    "observe"
+  of X11ProbeMode.Admit:
+    "admit"
+  of X11ProbeMode.Manage:
+    "manage"
+
 proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
   if socketPath.len == 0:
     return true
@@ -57,11 +66,25 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
     {.cast(gcsafe).}:
       context.model.shellSnapshot()
 
+  proc runtimeStatus(snapshot: ShellSnapshot): JsonNode {.gcsafe.} =
+    {.cast(gcsafe).}:
+      %*{
+        "backend": "xlibre",
+        "mode": context.mode.modeLabel(),
+        "display": context.displayName,
+        "socket_path": socketPath,
+        "read_only": true,
+        "writable_ipc": false,
+        "window_count": snapshot.windows.len,
+        "output_count": snapshot.outputs.len,
+      }
+
   let listenReady = newFuture[bool]("xlibre triad ipc listener ready")
   asyncCheck startIpcServer(
     socketPath,
     discardIpcMsg,
     snapshotModel,
+    getReadOnlyRuntimeStatus = runtimeStatus,
     listenReady = listenReady,
     requestTimeoutMs = IpcRequestTimeoutMs,
     readOnlyTriad = true,

@@ -255,6 +255,7 @@ proc startIpcServer*(
     getPerfStatusJson: proc(): string {.gcsafe.} = nil,
     getMemStatusJson: proc(): string {.gcsafe.} = nil,
     dispatchBinding: proc(request: BindingDispatchRequest): string {.gcsafe.} = nil,
+    getReadOnlyRuntimeStatus: proc(snapshot: ShellSnapshot): JsonNode {.gcsafe.} = nil,
     listenReady: Future[bool] = nil,
     requestTimeoutMs = IpcRequestTimeoutMs,
     readOnlyTriad = false,
@@ -324,7 +325,13 @@ proc startIpcServer*(
                   )
                   break
 
-                let triad = handleTriadReadOnlyRequest(line, getSnapshot())
+                let snapshot = getSnapshot()
+                let runtimeStatus =
+                  if getReadOnlyRuntimeStatus == nil:
+                    nil
+                  else:
+                    getReadOnlyRuntimeStatus(snapshot)
+                let triad = handleTriadReadOnlyRequest(line, snapshot, runtimeStatus)
                 if triad.handled:
                   inc ipcPerfCounters.triadRequests
                   if triad.reply.len > 0:

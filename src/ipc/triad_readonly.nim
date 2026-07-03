@@ -4,11 +4,15 @@ import ../types/shell_snapshot
 import triad_native
 
 const ReadOnlyTriadRequests = [
-  "state", "workspaces", "outputs", "windows", "focused-window", "capabilities"
+  "state", "workspaces", "outputs", "windows", "focused-window", "capabilities",
+  "runtime-status",
 ]
 
 proc errReply(message: string): string =
   $(%*{"ok": false, "error": message})
+
+proc statusReply(status: JsonNode): string =
+  $(%*{"ok": true, "triad": {"version": TriadIpcVersion, "type": "runtime-status", "status": status}})
 
 proc triadRequestName(line: string): Option[string] =
   let stripped = line.strip()
@@ -30,7 +34,7 @@ proc triadRequestName(line: string): Option[string] =
   some(payload["request"].getStr())
 
 proc handleTriadReadOnlyRequest*(
-    line: string, snapshot: ShellSnapshot
+    line: string, snapshot: ShellSnapshot, runtimeStatus: JsonNode = nil
 ): TriadIpcResult =
   let requestName = triadRequestName(line)
   if requestName.isSome and requestName.get() notin ReadOnlyTriadRequests:
@@ -41,6 +45,12 @@ proc handleTriadReadOnlyRequest*(
           "triad request is unavailable in read-only ipc: " & requestName.get()
         ),
     )
+  if requestName.isSome and requestName.get() == "runtime-status":
+    if runtimeStatus == nil:
+      return TriadIpcResult(
+        handled: true, reply: errReply("runtime status unavailable")
+      )
+    return TriadIpcResult(handled: true, reply: statusReply(runtimeStatus))
 
   result = handleTriadRequest(line, snapshot)
   if result.handled and (

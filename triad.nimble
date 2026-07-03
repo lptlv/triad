@@ -105,6 +105,7 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tx11-probe-smoke-executor.log", "tests/tx11-probe-smoke-config.kdl",
     "tests/tx11-probe-smoke-ipc-windows.json",
     "tests/tx11-probe-smoke-ipc-capabilities.json",
+    "tests/tx11-probe-smoke-ipc-status.json",
     "tests/tx11-probe-smoke.log.xvfb", "tests/tx11-probe-smoke.sock",
     "tests/tconfig", "tests/tcore", "tests/tdod",
   ]:
