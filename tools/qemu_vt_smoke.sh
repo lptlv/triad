@@ -165,7 +165,7 @@ INIT
 chmod 755 /tmp/triad-river-init.sh
 
 rm -f /tmp/triad.pid /tmp/triad-vt.log /tmp/triad-tty.log /tmp/triad-outputs.json \
-  /tmp/triad-post-vt-msg-*.log /tmp/triad-toggle-*.log /tmp/triad-niri-outputs-*.log
+  /tmp/triad-post-vt-msg-*.log /tmp/triad-toggle-*.log /tmp/triad-outputs-*.log
 run_root chvt 1 || true
 run_root openvt -c 1 -f -- runuser -u "$guest_user" -- \
   env XDG_RUNTIME_DIR="$runtime" dbus-run-session river -c /tmp/triad-river-init.sh
@@ -263,8 +263,8 @@ while [ "$cycle" -le "$vt_cycles" ]; do
 
   run_root chvt 1
   sleep 1
-  if ! env XDG_RUNTIME_DIR="$runtime" "$work/triad_niri" msg -j outputs >/tmp/triad-outputs.json 2>"/tmp/triad-niri-outputs-$cycle.log"; then
-    cat "/tmp/triad-niri-outputs-$cycle.log" >&2 || true
+  if ! env XDG_RUNTIME_DIR="$runtime" "$work/triad" msg outputs >/tmp/triad-outputs.json 2>"/tmp/triad-outputs-$cycle.log"; then
+    cat "/tmp/triad-outputs-$cycle.log" >&2 || true
     cat /tmp/triad-session.env >&2 || true
     cat /tmp/triad-vt.log >&2 || true
     ps -fp "$triad_pid" >&2 || true
@@ -278,7 +278,7 @@ kill "$triad_pid" 2>/dev/null || true
 printf '%s\n' "guest-vt-smoke: ok"
 GUEST
 
-ssh_guest 'tar -C /tmp -czf - triad-vt.log triad-tty.log triad-session.env triad-outputs.json triad-workflow-commands.log triad-post-vt-msg-*.log triad-toggle-*.log triad-niri-outputs-*.log 2>/dev/null' \
+ssh_guest 'tar -C /tmp -czf - triad-vt.log triad-tty.log triad-session.env triad-outputs.json triad-workflow-commands.log triad-post-vt-msg-*.log triad-toggle-*.log triad-outputs-*.log 2>/dev/null' \
   >"$out_dir/guest-artifacts.tgz" || true
 
 printf '%s\n' "qemu-vt-smoke: ok"

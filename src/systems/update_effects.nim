@@ -1,5 +1,5 @@
-import std/[json, options]
-import ../core/[effects, msg, niri_state, shell_focus, triad_state]
+import std/options
+import ../core/[effects, msg, shell_focus, triad_state]
 import ../state/engine
 import ../types/shell_snapshot
 import ../types/system_views
@@ -36,94 +36,6 @@ proc hasEffect*(effects: seq[Effect], kind: EffectKind): bool =
       return true
   false
 
-proc broadcastWorkspaceActivated*(snapshot: ShellSnapshot): Effect =
-  let workspace = snapshot.activeWorkspace()
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload: $(%*{"WorkspaceActivated": {"id": workspace.tagId, "focused": true}}),
-  )
-
-proc broadcastWorkspaceActiveWindowChanged*(workspace: ShellWorkspace): Effect =
-  let activeWindow =
-    if workspace.focusedWindow == 0:
-      newJNull()
-    else:
-      %workspace.focusedWindow
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload:
-      $(
-        %*{
-          "WorkspaceActiveWindowChanged":
-            {"workspace_id": workspace.tagId, "active_window_id": activeWindow}
-        }
-      ),
-  )
-
-proc broadcastWindowFocusChanged*(winId: uint32): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload: $(%*{"WindowFocusChanged": {"id": winId}}),
-  )
-
-proc broadcastWindowOpened*(snapshot: ShellSnapshot, winId: uint32): Effect =
-  for win in snapshot.windows:
-    if win.id == winId:
-      return Effect(
-        kind: EffectKind.EffBroadcastJson,
-        jsonPayload:
-          $(%*{"WindowOpenedOrChanged": {"window": niriWindowJson(snapshot, win)}}),
-      )
-  Effect(kind: EffectKind.EffNone)
-
-proc broadcastWindowClosed*(winId: uint32): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson, jsonPayload: $(%*{"WindowClosed": {"id": winId}})
-  )
-
-proc broadcastWindowsChanged*(snapshot: ShellSnapshot): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload: $(%*{"WindowsChanged": {"windows": niriWindowsJson(snapshot)}}),
-  )
-
-proc broadcastWorkspacesChanged*(snapshot: ShellSnapshot): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload:
-      $(%*{"WorkspacesChanged": {"workspaces": niriWorkspacesJson(snapshot)}}),
-  )
-
-proc broadcastOutputsChanged*(snapshot: ShellSnapshot): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload: $(%*{"OutputsChanged": {"outputs": niriOutputsJson(snapshot)}}),
-  )
-
-proc broadcastKeyboardLayoutsChanged*(snapshot: ShellSnapshot): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload:
-      $(
-        %*{
-          "KeyboardLayoutsChanged":
-            {"keyboard_layouts": niriKeyboardLayoutsJson(snapshot)}
-        }
-      ),
-  )
-
-proc broadcastKeyboardLayoutSwitched*(index: uint32): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload: $(%*{"KeyboardLayoutSwitched": {"idx": index}}),
-  )
-
-proc broadcastOverview*(open: bool): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastJson,
-    jsonPayload: $(%*{"OverviewOpenedOrClosed": {"is_open": open}}),
-  )
-
 proc broadcastTriadLayoutStateChanged*(snapshot: ShellSnapshot): Effect =
   Effect(
     kind: EffectKind.EffBroadcastTriadJson,
@@ -148,12 +60,8 @@ proc broadcastTriadWindowChanged*(snapshot: ShellSnapshot, winId: uint32): Effec
     triadEventName: "window",
   )
 
-proc broadcastWindowChanged*(winId: uint32, niri = true): Effect =
-  Effect(
-    kind: EffectKind.EffBroadcastWindowChanged,
-    broadcastWindowId: winId,
-    broadcastNiriWindowChanged: niri,
-  )
+proc broadcastWindowChanged*(winId: uint32): Effect =
+  Effect(kind: EffectKind.EffBroadcastWindowChanged, broadcastWindowId: winId)
 
 proc renderDirty*(reason: string): Effect =
   Effect(kind: EffectKind.EffRenderDirty, renderDirtyReason: reason)
@@ -190,33 +98,6 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
       MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdSelectWindow,
       MsgKind.CmdRecentWindowConfirm, MsgKind.CmdFocusTag, MsgKind.CmdFocusWindowById:
-    true
-  else:
-    false
-
-proc shouldBroadcastNiriWindowsChanged*(kind: MsgKind): bool =
-  case kind
-  of MsgKind.WlWindowDestroyed, MsgKind.WlWindowParent,
-      MsgKind.WlWindowFullscreenRequested, MsgKind.WlWindowExitFullscreenRequested,
-      MsgKind.WlWindowMaximizeRequested, MsgKind.WlWindowUnmaximizeRequested,
-      MsgKind.WlWindowMinimizeRequested, MsgKind.WlWindowStateChanged,
-      MsgKind.CmdMoveToTagLeft,
-      MsgKind.CmdMoveToTagRight, MsgKind.CmdMoveToWorkspaceIndex,
-      MsgKind.CmdMoveWindowToWorkspaceIndex, MsgKind.CmdMoveWindow,
-      MsgKind.CmdMoveWindowLeft, MsgKind.CmdMoveWindowRight, MsgKind.CmdMoveWindowUp,
-      MsgKind.CmdMoveWindowDown, MsgKind.CmdMoveWindowUpOrToWorkspaceUp,
-      MsgKind.CmdMoveWindowDownOrToWorkspaceDown, MsgKind.CmdMoveColumnLeft,
-      MsgKind.CmdMoveColumnRight, MsgKind.CmdMoveColumnToFirst,
-      MsgKind.CmdMoveColumnToLast, MsgKind.CmdSwapWindowUp, MsgKind.CmdSwapWindowDown,
-      MsgKind.CmdConsumeWindow, MsgKind.CmdExpelWindow, MsgKind.CmdMoveToTag,
-      MsgKind.CmdMoveWindowToTag, MsgKind.CmdSwapWindowToTag,
-      MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToScratchpad,
-      MsgKind.CmdMoveToNamedScratchpad, MsgKind.CmdToggleScratchpad,
-      MsgKind.CmdToggleNamedScratchpad, MsgKind.CmdRestoreScratchpad,
-      MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
-      MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleFullscreen,
-      MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
-      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize:
     true
   else:
     false
@@ -527,23 +408,12 @@ proc addPostUpdateEffects*(
       )
     )
 
-  if before.overviewActive != after.overviewActive:
-    effects.add(broadcastOverview(after.overviewActive))
-  if before.activeTag != after.activeTag and after.activeTag != 0:
-    effects.add(broadcastWorkspaceActivated(after))
-  for workspace in after.workspaces:
-    let beforeWorkspace = before.workspaceByTag(workspace.tagId)
-    if beforeWorkspace.isSome and
-        beforeWorkspace.get().focusedWindow != workspace.focusedWindow:
-      effects.add(broadcastWorkspaceActiveWindowChanged(workspace))
   if beforeFocus != afterFocus:
-    effects.add(broadcastWindowFocusChanged(afterFocus))
     if afterFocus != 0 and after.overviewActive:
       effects.add(Effect(kind: EffectKind.EffFocusShellUi))
     elif afterFocus != 0:
       effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: afterFocus))
   elif overviewClosed and afterFocus != 0:
-    effects.add(broadcastWindowFocusChanged(afterFocus))
     effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: afterFocus))
   elif dirty and afterFocus != 0 and not after.overviewActive and
       msg.kind.isFocusPreservingLayoutCommand():
@@ -580,14 +450,7 @@ proc addPostUpdateEffects*(
       of MsgKind.WlWindowDimensions: msg.dimensionsWindowId
       of MsgKind.WlWindowStateChanged: msg.stateWindowId
       else: 0'u32
-    if msg.kind in {MsgKind.WlWindowTitle, MsgKind.WlWindowDimensions}:
-      effects.add(
-        broadcastWindowChanged(openedId, niri = msg.kind != MsgKind.WlWindowTitle)
-      )
-    else:
-      let effect = after.broadcastWindowOpened(openedId)
-      if effect.kind != EffectKind.EffNone:
-        effects.add(effect)
+    effects.add(broadcastWindowChanged(openedId))
 
   if dirty and msg.kind.shouldRequestManageDirty() and
       not effects.hasEffect(EffectKind.EffManageDirty):
@@ -600,18 +463,6 @@ proc addPostUpdateEffects*(
     if overviewPreview and not overviewWorkspaceChanged:
       effects.add(after.broadcastTriadStateChanged())
     else:
-      if msg.kind.shouldBroadcastOutputsChanged():
-        effects.add(after.broadcastOutputsChanged())
-        effects.add(after.broadcastWorkspacesChanged())
-        if msg.kind.shouldBroadcastNiriWindowsChanged():
-          effects.add(after.broadcastWindowsChanged())
-      elif workspaceSnapshotChanged:
-        effects.add(after.broadcastWorkspacesChanged())
-        if msg.kind.shouldBroadcastNiriWindowsChanged():
-          effects.add(after.broadcastWindowsChanged())
-      elif msg.kind.shouldBroadcastNiriWindowsChanged():
-        effects.add(after.broadcastWindowsChanged())
-
       if msg.kind.shouldBroadcastTriadLayoutChanged() or overviewWorkspaceChanged or
           collapsed or pruned:
         effects.add(after.broadcastTriadLayoutStateChanged())

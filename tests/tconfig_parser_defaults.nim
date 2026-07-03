@@ -138,12 +138,10 @@ shells {
   profile "noctalia" {
     launch "qs" "-c" "noctalia"
     stop "qs" "kill" "-c" "noctalia" "--any-display"
-    niri-compat #true
   }
   profile "waybar" {
     launch "waybar"
     stop "pkill" "-x" "waybar"
-    niri-compat #true
   }
 }
 janet {
@@ -467,7 +465,6 @@ switch-events {
     check config.shells.profiles.len == 2
     check config.shells.profiles[0].launch == @["qs", "-c", "noctalia"]
     check config.shells.profiles[1].stop == @["pkill", "-x", "waybar"]
-    check config.shells.profiles[1].niriCompat
     check config.janet.enabled
     check config.janet.automationDir == "~/triad-automation"
     check config.janet.layoutDir == "~/triad-layouts"
@@ -829,6 +826,25 @@ cursor {
     check config.janet.fuelLimit == DefaultJanetFuelLimit
     check config.msgKindForBinding("Question", Super) == MsgKind.CmdToggleHotkeyOverlay
 
+  test "Strict config rejects removed niri-compat shell field":
+    let path = getCurrentDir() / "test_removed_niri_compat.kdl"
+    writeFile(
+      path,
+      """
+shells {
+  profile "legacy" {
+    launch "waybar"
+    niri-compat #true
+  }
+}
+""",
+    )
+    let result = loadConfigStrict(path)
+    removeFile(path)
+
+    check not result.ok
+    check result.error.contains("niri-compat")
+
   test "Janet script-dir remains a compatibility alias for automation-dir":
     let legacy = loadConfigNodes(
       parseKdl(
@@ -860,7 +876,7 @@ janet {
     check explicit.janet.automationDir == "~/automation"
     check explicit.janet.layoutDir == "~/layouts"
 
-  test "Default bindings follow Niri-style movement and scratchpad chords":
+  test "Default bindings preserve movement and scratchpad chords":
     let config = loadConfig(getCurrentDir() / "config.default.kdl")
 
     for i, binding in config.keyBindings:

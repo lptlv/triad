@@ -1,8 +1,7 @@
 # ext-workspace-v1
 
-Triad already has native IPC. It also has a Niri-compatible path for shells that
-expect Niri's workspace stream. `ext-workspace-v1` is the better path for
-workspace buttons.
+Triad already has native IPC. `ext-workspace-v1` is a possible standard
+Wayland-facing path for workspace buttons.
 
 The protocol is narrow. It gives shells a list of workspaces, their state, their
 grouping, and a few requests: activate, remove, maybe rename. That is the slice
@@ -31,13 +30,13 @@ Waybar already understands.
 This table starts from the shell list in `README.md`. The last column records
 what matters for an `ext-workspace-v1` integration.
 
-| Shell or bar | Current README path | ext-workspace-v1 status | Triad note |
+| Shell or bar | Current path | ext-workspace-v1 status | Triad note |
 | :--- | :--- | :--- | :--- |
-| [Noctalia v5](https://github.com/noctalia-dev/noctalia-shell/tree/v5) | Native IPC and Niri IPC | Not confirmed in public docs | Keep the current path until Noctalia exposes or documents an `ext-workspace-v1` workspace source. |
-| [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) | Niri IPC; native IPC fork/PR pending | Documented for workspace integration | Good target for the standard workspace path. |
-| [Waybar](https://github.com/Alexays/Waybar) | Niri IPC; native IPC fork/PR pending | Documented through `ext/workspaces` | Best first bar target. It may require an experimental Waybar build. |
-| [Wayle](https://github.com/wayle-rs/wayle) | Niri IPC; native IPC fork/PR pending | Not confirmed in public docs | Track as a later shell target. Current public docs describe compositor-specific workspace modules. |
-| [Ironbar](https://github.com/JakeStanger/ironbar) | Niri IPC; native IPC fork/PR pending | Not confirmed in current docs | Track as a later bar target. Prior discussion asked for the standard workspace protocol, but current support needs verification. |
+| [Noctalia v5](https://github.com/noctalia-dev/noctalia-shell/tree/v5) | Native IPC | Not confirmed in public docs | Keep the native path until Noctalia exposes or documents an `ext-workspace-v1` workspace source. |
+| [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) | Native IPC fork/PR pending | Documented for workspace integration | Good target for the standard workspace path. |
+| [Waybar](https://github.com/Alexays/Waybar) | Native IPC fork/PR pending | Documented through `ext/workspaces` | Best first bar target. It may require an experimental Waybar build. |
+| [Wayle](https://github.com/wayle-rs/wayle) | Native IPC fork/PR pending | Not confirmed in public docs | Track as a later shell target. Current public docs describe compositor-specific workspace modules. |
+| [Ironbar](https://github.com/JakeStanger/ironbar) | Native IPC fork/PR pending | Not confirmed in current docs | Track as a later bar target. Prior discussion asked for the standard workspace protocol, but current support needs verification. |
 
 ## Triad Mapping
 

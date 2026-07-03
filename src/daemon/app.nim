@@ -9,7 +9,6 @@ import ../types/[model, shell_snapshot]
 import ../types/layout_projection
 import ../types/projection_values
 import ../config/[parser, reload_policy]
-from ../ipc/niri_shell_compat import chooseNiriCompatSocketPath
 import ../ipc/[binding_dispatch, command_help, commands, socket]
 import ../janet/runtime as janet_runtime
 import ../types/janet_layouts
@@ -340,48 +339,29 @@ proc ipcCounterDeltasJson(before, after: IpcPerfCounters): JsonNode =
     "perf_status_requests": after.perfStatusRequests - before.perfStatusRequests,
     "mem_status_requests": after.memStatusRequests - before.memStatusRequests,
     "triad_requests": after.triadRequests - before.triadRequests,
-    "niri_requests": after.niriRequests - before.niriRequests,
     "text_commands": after.textCommands - before.textCommands,
     "binding_dispatch_requests":
       after.bindingDispatchRequests - before.bindingDispatchRequests,
     "invalid_requests": after.invalidRequests - before.invalidRequests,
     "dispatched_messages": after.dispatchedMessages - before.dispatchedMessages,
-    "niri_subscriptions": after.niriSubscriptions - before.niriSubscriptions,
     "triad_subscriptions": after.triadSubscriptions - before.triadSubscriptions,
-    "niri_broadcasts": after.niriBroadcasts - before.niriBroadcasts,
     "triad_broadcasts": after.triadBroadcasts - before.triadBroadcasts,
-    "niri_broadcast_sends": after.niriBroadcastSends - before.niriBroadcastSends,
     "triad_broadcast_sends": after.triadBroadcastSends - before.triadBroadcastSends,
-    "niri_broadcast_queued": after.niriBroadcastQueued - before.niriBroadcastQueued,
     "triad_broadcast_queued": after.triadBroadcastQueued - before.triadBroadcastQueued,
-    "niri_broadcast_coalesced":
-      after.niriBroadcastCoalesced - before.niriBroadcastCoalesced,
     "triad_broadcast_coalesced":
       after.triadBroadcastCoalesced - before.triadBroadcastCoalesced,
-    "niri_broadcast_skipped_no_subscribers":
-      after.niriBroadcastSkippedNoSubscribers - before.niriBroadcastSkippedNoSubscribers,
     "triad_broadcast_skipped_no_subscribers":
       after.triadBroadcastSkippedNoSubscribers -
       before.triadBroadcastSkippedNoSubscribers,
-    "niri_broadcast_skipped_duplicate":
-      after.niriBroadcastSkippedDuplicate - before.niriBroadcastSkippedDuplicate,
     "triad_broadcast_skipped_duplicate":
       after.triadBroadcastSkippedDuplicate - before.triadBroadcastSkippedDuplicate,
     "triad_broadcast_skipped_duplicate_by_event":
       after.triadBroadcastSkippedDuplicateByEvent -
       before.triadBroadcastSkippedDuplicateByEvent,
-    "niri_broadcast_skipped_filtered":
-      after.niriBroadcastSkippedFiltered - before.niriBroadcastSkippedFiltered,
-    "niri_broadcast_queued_bytes":
-      after.niriBroadcastQueuedBytes - before.niriBroadcastQueuedBytes,
     "triad_broadcast_queued_bytes":
       after.triadBroadcastQueuedBytes - before.triadBroadcastQueuedBytes,
-    "niri_broadcast_sent_bytes":
-      after.niriBroadcastSentBytes - before.niriBroadcastSentBytes,
     "triad_broadcast_sent_bytes":
       after.triadBroadcastSentBytes - before.triadBroadcastSentBytes,
-    "niri_broadcast_skipped_bytes":
-      after.niriBroadcastSkippedBytes - before.niriBroadcastSkippedBytes,
     "triad_broadcast_skipped_bytes":
       after.triadBroadcastSkippedBytes - before.triadBroadcastSkippedBytes,
     "dropped_subscribers": after.droppedSubscribers - before.droppedSubscribers,
@@ -395,34 +375,22 @@ proc ipcCountersJson(counters: IpcPerfCounters): JsonNode =
     "perf_status_requests": counters.perfStatusRequests,
     "mem_status_requests": counters.memStatusRequests,
     "triad_requests": counters.triadRequests,
-    "niri_requests": counters.niriRequests,
     "text_commands": counters.textCommands,
     "binding_dispatch_requests": counters.bindingDispatchRequests,
     "invalid_requests": counters.invalidRequests,
     "dispatched_messages": counters.dispatchedMessages,
-    "niri_subscriptions": counters.niriSubscriptions,
     "triad_subscriptions": counters.triadSubscriptions,
-    "niri_broadcasts": counters.niriBroadcasts,
     "triad_broadcasts": counters.triadBroadcasts,
-    "niri_broadcast_sends": counters.niriBroadcastSends,
     "triad_broadcast_sends": counters.triadBroadcastSends,
-    "niri_broadcast_queued": counters.niriBroadcastQueued,
     "triad_broadcast_queued": counters.triadBroadcastQueued,
-    "niri_broadcast_coalesced": counters.niriBroadcastCoalesced,
     "triad_broadcast_coalesced": counters.triadBroadcastCoalesced,
-    "niri_broadcast_skipped_no_subscribers": counters.niriBroadcastSkippedNoSubscribers,
     "triad_broadcast_skipped_no_subscribers":
       counters.triadBroadcastSkippedNoSubscribers,
-    "niri_broadcast_skipped_duplicate": counters.niriBroadcastSkippedDuplicate,
     "triad_broadcast_skipped_duplicate": counters.triadBroadcastSkippedDuplicate,
     "triad_broadcast_skipped_duplicate_by_event":
       counters.triadBroadcastSkippedDuplicateByEvent,
-    "niri_broadcast_skipped_filtered": counters.niriBroadcastSkippedFiltered,
-    "niri_broadcast_queued_bytes": counters.niriBroadcastQueuedBytes,
     "triad_broadcast_queued_bytes": counters.triadBroadcastQueuedBytes,
-    "niri_broadcast_sent_bytes": counters.niriBroadcastSentBytes,
     "triad_broadcast_sent_bytes": counters.triadBroadcastSentBytes,
-    "niri_broadcast_skipped_bytes": counters.niriBroadcastSkippedBytes,
     "triad_broadcast_skipped_bytes": counters.triadBroadcastSkippedBytes,
     "dropped_subscribers": counters.droppedSubscribers,
   }
@@ -552,13 +520,12 @@ proc perfStatusJson(daemon: TriadDaemon): string =
         "ipc_counters":
           lastRuntimeLoopSampleIpcCounters.ipcCounterDeltasJson(ipcPerfCounters),
         "subscribers": {
-          "niri": subscribers.len,
           "triad": triadSubscribers.len,
           "triad_layout_only": triadScopes.layoutOnly,
           "triad_state_only": triadScopes.stateOnly,
           "triad_layout_and_state": triadScopes.layoutAndState,
           "triad_window": triadScopes.window,
-          "total": subscribers.len + triadSubscribers.len,
+          "total": triadSubscribers.len,
         },
       }
     else:
@@ -595,13 +562,12 @@ proc perfStatusJson(daemon: TriadDaemon): string =
       "loop_counters": daemon.loopCounters.loopCountersJson(),
       "ipc_counters": ipcPerfCounters.ipcCountersJson(),
       "subscribers": {
-        "niri": subscribers.len,
         "triad": triadSubscribers.len,
         "triad_layout_only": triadScopes.layoutOnly,
         "triad_state_only": triadScopes.stateOnly,
         "triad_layout_and_state": triadScopes.layoutAndState,
         "triad_window": triadScopes.window,
-        "total": subscribers.len + triadSubscribers.len,
+        "total": triadSubscribers.len,
       },
       "recent_delta": recentDelta,
       "frame_tick_reason_counts": daemon.frameTickReasonCounts.reasonCountsJson(),
@@ -618,7 +584,7 @@ proc startStartupWindowRulesExpiry() {.async.} =
   {.cast(gcsafe).}:
     daemon.enqueue(Msg(kind: MsgKind.CmdExpireStartupWindowRules))
 
-proc processQueuedMessages(configPath, niriSocketPath: string): bool =
+proc processQueuedMessages(configPath: string): bool =
   while daemon.hasQueuedMessages():
     let queued = daemon.popQueuedMessageWithOrigin()
     let msg = queued.msg
@@ -640,7 +606,7 @@ proc processQueuedMessages(configPath, niriSocketPath: string): bool =
       continue
 
     if msg.kind == MsgKind.CmdConfigReload:
-      if daemon.applyConfigReload(configPath, niriSocketPath):
+      if daemon.applyConfigReload(configPath):
         daemon.janetRuntime.configure(daemon.runtimeState.model.janet)
         daemon.configureSwitchEventRuntime("config reload")
         result = true
@@ -729,7 +695,6 @@ proc processQueuedMessages(configPath, niriSocketPath: string): bool =
       daemon.shellRunner.switchShell(
         previousModelForShell.get(),
         daemon.runtimeState.model,
-        niriSocketPath,
         "command " & $msg.kind,
       )
     if msg.kind == MsgKind.WlWindowDestroyed:
@@ -810,10 +775,9 @@ proc processQueuedMessages(configPath, niriSocketPath: string): bool =
         daemon.postManageBroadcastReason = ""
         let snapshot = daemon.readModelSnapshot()
         writeBehaviorEvent(
-          "niri_compat_post_manage_broadcast",
+          "post_manage_broadcast",
           %*{"reason": reason, "snapshot": snapshot.snapshotBehaviorPayload()},
         )
-        broadcastNiriSnapshot(snapshot)
       daemon.flushIpcBroadcasts()
       continue
 
@@ -940,25 +904,16 @@ proc main*() =
       return
 
     if cmdPart == "event-stream":
-      var native = false
-      var nativeEvents: seq[string]
+      var events: seq[string]
       if args.len > 2:
-        if args[2] != "--native":
-          failCli("usage: triad msg event-stream [--native [layout,state,window]]")
-        native = true
-        if args.len > 4:
-          failCli("usage: triad msg event-stream [--native [layout,state,window]]")
-        if args.len == 4:
-          nativeEvents = args[3].split(',')
+        if args.len > 3:
+          failCli("usage: triad msg event-stream [layout,state,window]")
+        events = args[2].split(',')
       # Subscription client
       let client = newAsyncSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
       try:
         waitFor client.connectUnix(triadSocketPath())
-        let payload =
-          if native:
-            nativeEventStreamPayload(nativeEvents)
-          else:
-            "event-stream"
+        let payload = nativeEventStreamPayload(events)
         waitFor client.send(payload & "\L")
         while not client.isClosed:
           let line = waitFor client.recvLine()
@@ -1134,7 +1089,6 @@ proc main*() =
       daemon.dispatchBindingRequest(request).bindingDispatchReply()
 
   let triadSocket = triadSocketPath()
-  let niriSocketPath = chooseNiriCompatSocketPath(triadSocket)
   var ipcStarted = false
   var ipcStartupGateOpen = false
 
@@ -1179,23 +1133,6 @@ proc main*() =
       dispatchBindingJson,
       listenReady = triadListenReady,
     )
-
-    if niriSocketPath.len > 0 and niriSocketPath != triadSocket:
-      let niriListenReady = newFuture[bool]("niri compat ipc listener ready")
-      listeners.add(niriListenReady)
-      info "Starting Niri-compatible IPC server", path = niriSocketPath
-      writeBehaviorEvent("niri_compat_ipc_server_starting", %*{"path": niriSocketPath})
-      asyncCheck startIpcServer(
-        niriSocketPath,
-        queueMsg,
-        snapshotModel,
-        snapshotLiveRestoreJson,
-        snapshotPerfStatusJson,
-        snapshotMemStatusJson,
-        dispatchBindingJson,
-        listenReady = niriListenReady,
-        requestTimeoutMs = IpcNoRequestTimeoutMs,
-      )
 
     let ready = waitForIpcListenersReady(listeners)
     ipcStartupGateOpen = true
@@ -1258,7 +1195,7 @@ proc main*() =
       daemon.enqueue(Msg(kind: MsgKind.CmdConfigReload))
 
     # Process Message Queue
-    if processQueuedMessages(daemon.configPath, niriSocketPath):
+    if processQueuedMessages(daemon.configPath):
       configureConfigWatcher()
     if daemon.shouldExit:
       running = false
@@ -1270,7 +1207,7 @@ proc main*() =
           daemon.runtimeState.model, "initial manage ipc ready"
         )
         daemon.shellRunner.spawnPendingShell(
-          daemon.runtimeState.model, niriSocketPath, "initial manage ipc ready"
+          daemon.runtimeState.model, "initial manage ipc ready"
         )
       let shellPollMs = nowMs
       let recoveryMs = daemon.nextShellRecoveryMs()
@@ -1289,7 +1226,7 @@ proc main*() =
         else:
           inc daemon.loopCounters.shellRecoveryPolls
           discard daemon.shellRunner.pollShellRecovery(
-            daemon.runtimeState.model, niriSocketPath, shellPollMs
+            daemon.runtimeState.model, shellPollMs
           )
 
     if daemon.manageRequestPending:

@@ -1,15 +1,12 @@
-import std/[json, options, os, sequtils, strtabs, strutils, unittest]
-import ../src/core/app_identity
+import std/[json, options, os, sequtils, strutils, unittest]
 import ../src/core/[layout_selection_codec, native_layout_codec]
 import ../src/core/msg
 import ../src/daemon/shell_runner
 import
   ../src/ipc/[
-    binding_dispatch, command_help, command_registry, commands, niri_cli, niri_compat,
-    niri_shell_compat, shell_overlay, triad_native,
+    binding_dispatch, command_help, command_registry, commands, triad_native,
   ]
 import ../src/types/[model, runtime_values, shell_snapshot]
-import ../src/utils/behavior_log
 
 proc installAppIdentityFixture() =
   let apps =
@@ -107,9 +104,6 @@ proc snapshotForShell(): ShellSnapshot =
         )
       ],
   )
-
-proc handleNiriRequest(line: string, snapshot: ShellSnapshot): NiriIpcResult =
-  niri_compat.handleNiriRequest(line, snapshot)
 
 proc handleTriadRequest(line: string, snapshot: ShellSnapshot): TriadIpcResult =
   triad_native.handleTriadRequest(line, snapshot)
@@ -271,273 +265,6 @@ proc singleShellModel(
 suite "Shell compatibility contracts":
   setup:
     installAppIdentityFixture()
-
-  test "Niri workspace, window, and output reads use shell snapshots":
-    let snapshot = snapshotForShell()
-    let workspaces =
-      parseJson(handleNiriRequest("\"Workspaces\"", snapshot).reply)["Ok"]["Workspaces"]
-    check workspaces.len == 1
-    check workspaces[0]["id"].getInt() == 1
-    check workspaces[0]["idx"].getInt() == 1
-    check workspaces[0]["name"].getStr() == "main"
-    check workspaces[0]["output"].getStr() == "triad-0"
-    check workspaces[0]["active_window_id"].getInt() == 10
-    check not workspaces.getElems().anyIt(it["id"].getInt() == 2)
-    check not workspaces.getElems().anyIt(it["id"].getInt() == 3)
-
-    let windows =
-      parseJson(handleNiriRequest("\"Windows\"", snapshot).reply)["Ok"]["Windows"]
-    check windows.len == 1
-    check windows[0]["id"].getInt() == 10
-    check windows[0]["app_id"].getStr() == "triad-alacritty"
-    check windows[0]["raw_app_id"].getStr() == "Alacritty"
-    check windows[0]["layout"]["window_size"][0].getInt() == 777
-    check windows[0]["layout"]["window_size"][1].getInt() == 555
-
-    let outputs =
-      parseJson(handleNiriRequest("\"Outputs\"", snapshot).reply)["Ok"]["Outputs"]
-    check outputs.hasKey("triad-0")
-    check outputs["triad-0"]["physical_size"].kind == JArray
-    check outputs["triad-0"]["physical_size"].len == 2
-    check outputs["triad-0"]["logical"]["width"].getInt() == 1920
-    check outputs["triad-0"]["logical"]["height"].getInt() == 1080
-    check outputs["triad-0"]["refresh_rate"].getInt() == 144000
-
-    let keyboardLayouts = parseJson(
-      handleNiriRequest("\"KeyboardLayouts\"", snapshot).reply
-    )["Ok"]["KeyboardLayouts"]
-    check keyboardLayouts["names"].len == 2
-    check keyboardLayouts["names"][0].getStr() == "us"
-    check keyboardLayouts["current_idx"].getInt() == 0
-
-    let casts = parseJson(handleNiriRequest("\"Casts\"", snapshot).reply)["Ok"]["Casts"]
-    check casts.len == 0
-
-  test "Niri focused window prefers active workspace focus":
-    var snapshot = snapshotForShell()
-    snapshot.workspaces[0].isActive = false
-    snapshot.workspaces[1].isActive = true
-    snapshot.activeTag = 2
-    snapshot.activeWorkspaceIdx = 2
-    snapshot.workspaces[0].focusedWindow = 10
-    snapshot.workspaces[1].focusedWindow = 20
-    snapshot.windows[0].isFocused = false
-    snapshot.windows.add(
-      ShellWindow(
-        id: 20,
-        title: "Browser",
-        appId: "brave-browser",
-        tagId: some(2'u32),
-        workspaceIdx: 2,
-        outputName: "triad-0",
-        colIdx: 1,
-        winIdx: 1,
-        widthProportion: 0.5,
-        heightProportion: 1.0,
-        actualW: 800,
-        actualH: 600,
-      )
-    )
-
-    let focused = parseJson(handleNiriRequest("\"FocusedWindow\"", snapshot).reply)[
-      "Ok"
-    ]["FocusedWindow"]
-    check focused["id"].getInt() == 20
-    check focused["workspace_id"].getInt() == 2
-
-  test "Niri event stream exposes one global focused window":
-    var snapshot = snapshotForShell()
-    snapshot.workspaces[0].isActive = false
-    snapshot.workspaces[1].isActive = true
-    snapshot.activeTag = 2
-    snapshot.activeWorkspaceIdx = 2
-    snapshot.workspaces[0].focusedWindow = 10
-    snapshot.workspaces[1].focusedWindow = 20
-    snapshot.windows[0].isFocused = true
-    snapshot.windows.add(
-      ShellWindow(
-        id: 20,
-        title: "Browser",
-        appId: "brave-browser",
-        tagId: some(2'u32),
-        workspaceIdx: 2,
-        outputName: "triad-0",
-        colIdx: 1,
-        winIdx: 1,
-        widthProportion: 0.5,
-        heightProportion: 1.0,
-        actualW: 800,
-        actualH: 600,
-      )
-    )
-
-    let niri = handleNiriRequest("\"Windows\"", snapshot)
-    let windows = parseJson(niri.reply)["Ok"]["Windows"]
-    check windows.filterIt(it["is_focused"].getBool()).len == 1
-    check windows[1]["id"].getInt() == 20
-    check windows[1]["workspace_id"].getInt() == 2
-
-  test "Niri actions map to Triad messages":
-    let snapshot = snapshotForShell()
-    let focusWs = handleNiriRequest(
-      """{"Action":{"FocusWorkspace":{"reference":{"Index":2}}}}""", snapshot
-    )
-    check focusWs.messages.len == 1
-    check focusWs.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
-    check focusWs.messages[0].workspaceIndex == 2
-    check focusWs.reply == """{"Ok":"Handled"}"""
-    check focusWs.requestKind == "action"
-    check focusWs.actionName == "FocusWorkspace"
-    check focusWs.workspaceIndex == 2
-
-    let focusWsId = handleNiriRequest(
-      """{"Action":{"FocusWorkspace":{"reference":{"Id":2}}}}""", snapshot
-    )
-    check focusWsId.messages.len == 1
-    check focusWsId.messages[0].kind == MsgKind.CmdFocusTag
-    check focusWsId.messages[0].focusTag == 2
-    check focusWsId.reply == """{"Ok":"Handled"}"""
-    check focusWsId.requestKind == "action"
-    check focusWsId.actionName == "FocusWorkspace"
-    check focusWsId.workspaceId == 2
-
-    let focusNext =
-      handleNiriRequest("""{"Action":{"FocusWorkspaceDown":{}}}""", snapshot)
-    check focusNext.messages.len == 1
-    check focusNext.messages[0].kind == MsgKind.CmdFocusTagRight
-
-    let focusPrevious =
-      handleNiriRequest("""{"Action":{"FocusWorkspaceUp":{}}}""", snapshot)
-    check focusPrevious.messages.len == 1
-    check focusPrevious.messages[0].kind == MsgKind.CmdFocusTagLeft
-
-    var overviewSnapshot = snapshot
-    overviewSnapshot.overviewActive = true
-    overviewSnapshot.overviewSelectedWindow = 10
-
-    let overviewFocusNext =
-      handleNiriRequest("""{"Action":{"FocusWorkspaceDown":{}}}""", overviewSnapshot)
-    check overviewFocusNext.messages.len == 1
-    check overviewFocusNext.messages[0].kind == MsgKind.CmdFocusTagRight
-
-    let overviewFocusPrevious =
-      handleNiriRequest("""{"Action":{"FocusWorkspaceUp":{}}}""", overviewSnapshot)
-    check overviewFocusPrevious.messages.len == 1
-    check overviewFocusPrevious.messages[0].kind == MsgKind.CmdFocusTagLeft
-
-    let overviewFocusWorkspace = handleNiriRequest(
-      """{"Action":{"FocusWorkspace":{"reference":{"Index":2}}}}""", overviewSnapshot
-    )
-    check overviewFocusWorkspace.messages.len == 1
-    check overviewFocusWorkspace.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
-    check overviewFocusWorkspace.messages[0].workspaceIndex == 2
-
-    let closeWin =
-      handleNiriRequest("""{"Action":{"CloseWindow":{"id":10}}}""", snapshot)
-    check closeWin.messages.len == 1
-    check closeWin.messages[0].kind == MsgKind.CmdCloseWindowById
-    check closeWin.messages[0].closeWindowId == 10
-
-    let spawn = handleNiriRequest(
-      """{"Action":{"Spawn":{"command":["foot","-e","htop"]}}}""", snapshot
-    )
-    check spawn.messages.len == 1
-    check spawn.messages[0].kind == MsgKind.CmdSpawn
-    check spawn.messages[0].spawnCommand == @["foot", "-e", "htop"]
-
-    let spawnSh = handleNiriRequest(
-      """{"Action":{"SpawnSh":{"command":"notify-send triad"}}}""", snapshot
-    )
-    check spawnSh.messages.len == 1
-    check spawnSh.messages[0].kind == MsgKind.CmdSpawn
-    check spawnSh.messages[0].spawnCommand == @["sh", "-c", "notify-send triad"]
-
-    let switchKeyboardLayout =
-      handleNiriRequest("""{"Action":{"SwitchLayout":{"layout":"Next"}}}""", snapshot)
-    check switchKeyboardLayout.messages.len == 1
-    check switchKeyboardLayout.messages[0].kind == MsgKind.CmdSwitchKeyboardLayout
-    check switchKeyboardLayout.messages[0].keyboardLayoutDelta == 1
-    check switchKeyboardLayout.messages[0].keyboardLayoutIndex == -1
-    check parseJson(switchKeyboardLayout.reply).hasKey("Ok")
-
-    let powerOffMonitors =
-      handleNiriRequest("""{"Action":{"PowerOffMonitors":{}}}""", snapshot)
-    check powerOffMonitors.messages.len == 1
-    check powerOffMonitors.messages[0].kind == MsgKind.CmdPowerOffMonitors
-    check parseJson(powerOffMonitors.reply).hasKey("Ok")
-
-    let powerOnMonitors =
-      handleNiriRequest("""{"Action":{"PowerOnMonitors":{}}}""", snapshot)
-    check powerOnMonitors.messages.len == 1
-    check powerOnMonitors.messages[0].kind == MsgKind.CmdPowerOnMonitors
-    check parseJson(powerOnMonitors.reply).hasKey("Ok")
-
-    let reorderWorkspace = handleNiriRequest(
-      """{"Action":{"MoveWorkspaceToIndex":{"index":2,"reference":{"Index":1}}}}""",
-      snapshot,
-    )
-    check reorderWorkspace.messages.len == 1
-    check reorderWorkspace.messages[0].kind == MsgKind.CmdReorderWorkspaceIndex
-    check reorderWorkspace.messages[0].reorderWorkspaceIndex == 1
-    check reorderWorkspace.messages[0].reorderTargetIndex == 2
-
-    let maximizeColumn =
-      handleNiriRequest("""{"Action":{"MaximizeColumn":{}}}""", snapshot)
-    check maximizeColumn.messages.len == 1
-    check maximizeColumn.messages[0].kind == MsgKind.CmdMaximizeColumn
-
-    let maximizeToEdges =
-      handleNiriRequest("""{"Action":{"MaximizeWindowToEdges":{}}}""", snapshot)
-    check maximizeToEdges.messages.len == 1
-    check maximizeToEdges.messages[0].kind == MsgKind.WlWindowMaximizeRequested
-    check maximizeToEdges.messages[0].maximizeRequestId == 10
-
-    var maximizedSnapshot = snapshot
-    maximizedSnapshot.windows[0].isMaximized = true
-    let unmaximizeToEdges = handleNiriRequest(
-      """{"Action":{"MaximizeWindowToEdges":{}}}""", maximizedSnapshot
-    )
-    check unmaximizeToEdges.messages.len == 1
-    check unmaximizeToEdges.messages[0].kind == MsgKind.WlWindowUnmaximizeRequested
-    check unmaximizeToEdges.messages[0].unmaximizeRequestId == 10
-
-    let screenshot = handleNiriRequest(
-      """{"Action":{"Screenshot":{"path":"/tmp/triad-shot.png"}}}""", snapshot
-    )
-    check screenshot.messages.len == 1
-    check screenshot.messages[0].kind == MsgKind.CmdScreenshot
-    check screenshot.messages[0].screenshotKind == ScreenshotKind.ShotRegion
-    check screenshot.messages[0].screenshotPath == "/tmp/triad-shot.png"
-    check screenshot.messages[0].screenshotPointerMode ==
-      ScreenshotPointerMode.PointerShow
-    check screenshot.messages[0].screenshotWriteToDisk
-    check screenshot.messages[0].screenshotCopyToClipboard
-
-    let screenshotClipboardOnly = handleNiriRequest(
-      """{"Action":{"ScreenshotScreen":{"write-to-disk":false}}}""", snapshot
-    )
-    check screenshotClipboardOnly.messages.len == 1
-    check screenshotClipboardOnly.messages[0].screenshotKind == ScreenshotKind.ShotScreen
-    check not screenshotClipboardOnly.messages[0].screenshotWriteToDisk
-    check screenshotClipboardOnly.messages[0].screenshotCopyToClipboard
-    check screenshotClipboardOnly.messages[0].screenshotPointerMode ==
-      ScreenshotPointerMode.PointerShow
-
-    let screenshotWindow =
-      handleNiriRequest("""{"Action":{"ScreenshotWindow":{}}}""", snapshot)
-    check screenshotWindow.messages.len == 1
-    check screenshotWindow.messages[0].screenshotKind == ScreenshotKind.ShotWindow
-    check screenshotWindow.messages[0].screenshotPointerMode ==
-      ScreenshotPointerMode.PointerHide
-
-    let quitConfirm = handleNiriRequest("""{"Action":{"Quit":{}}}""", snapshot)
-    check quitConfirm.messages.len == 1
-    check quitConfirm.messages[0].kind == MsgKind.CmdExitSession
-
-    let quitImmediate =
-      handleNiriRequest("""{"Action":{"Quit":{"skip_confirmation":true}}}""", snapshot)
-    check quitImmediate.messages.len == 1
-    check quitImmediate.messages[0].kind == MsgKind.CmdExitSessionImmediate
 
   test "Triad native reads and layout commands use shell snapshots":
     var snapshot = snapshotForShell()
@@ -811,15 +538,6 @@ suite "Shell compatibility contracts":
     check badScreenshot.messages.len == 0
 
   test "event streams start with current snapshot state":
-    let niri = handleNiriRequest("\"EventStream\"", snapshotForShell())
-    check niri.handled
-    check niri.subscribe
-    check niri.reply == """{"Ok":"Handled"}"""
-    check niri.initialEvents.len > 0
-    let niriWorkspaces = parseJson(niri.initialEvents[0])
-    check niriWorkspaces.hasKey("WorkspacesChanged")
-    check niriWorkspaces["WorkspacesChanged"]["workspaces"].len > 0
-
     let triad = handleTriadRequest(
       """{"triad":{"version":1,"request":"event-stream","events":["layout","state"]}}""",
       snapshotForShell(),
@@ -847,10 +565,6 @@ suite "Shell compatibility contracts":
     var snapshot = snapshotForShell()
     snapshot.workspaces[0].isUrgent = true
 
-    let niriReply = handleNiriRequest("\"Workspaces\"", snapshot)
-    let niriWorkspaces = parseJson(niriReply.reply)["Ok"]["Workspaces"]
-    check niriWorkspaces[0]["is_urgent"].getBool()
-
     let stateReply = handleTriadRequest(
       """{"triad":{"version":1,"request":"state"}}""", snapshot
     )
@@ -863,128 +577,11 @@ suite "Shell compatibility contracts":
     var snapshot = snapshotForShell()
     snapshot.windows[0].isUrgent = true
 
-    let niriReply = handleNiriRequest("\"Windows\"", snapshot)
-    let niriWindows = parseJson(niriReply.reply)["Ok"]["Windows"]
-    check niriWindows[0]["is_urgent"].getBool()
-
     let triadReply = handleTriadRequest(
       """{"triad":{"version":1,"request":"state"}}""", snapshot
     )
     let triadWindows = parseJson(triadReply.reply)["triad"]["state"]["windows"]
     check triadWindows[0]["is_urgent"].getBool()
-
-  test "triad_niri shim parses shell commands":
-    let action = buildNiriCliRequest(@["msg", "action", "focus-workspace", "2"])
-    check action.kind == NiriCliKind.NckRequest
-    let forwarded = handleNiriRequest(action.socketPayload, snapshotForShell())
-    check forwarded.messages.len == 1
-    check forwarded.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
-    check forwarded.messages[0].workspaceIndex == 2
-
-    let maximizeColumn = buildNiriCliRequest(@["msg", "action", "maximize-column"])
-    check maximizeColumn.kind == NiriCliKind.NckRequest
-    check handleNiriRequest(maximizeColumn.socketPayload, snapshotForShell()).messages[
-      0
-    ].kind == MsgKind.CmdMaximizeColumn
-
-    let screenshotScreen = buildNiriCliRequest(
-      @[
-        "msg", "action", "screenshot-screen", "--path", "/tmp/triad-screen.png",
-        "--show-pointer",
-      ]
-    )
-    check screenshotScreen.kind == NiriCliKind.NckRequest
-    let screenshotForwarded =
-      handleNiriRequest(screenshotScreen.socketPayload, snapshotForShell())
-    check screenshotForwarded.messages[0].kind == MsgKind.CmdScreenshot
-    check screenshotForwarded.messages[0].screenshotKind == ScreenshotKind.ShotScreen
-    check screenshotForwarded.messages[0].screenshotPointerMode ==
-      ScreenshotPointerMode.PointerShow
-    check screenshotForwarded.messages[0].screenshotWriteToDisk
-
-    let quit = buildNiriCliRequest(@["msg", "action", "quit", "--skip-confirmation"])
-    check quit.kind == NiriCliKind.NckRequest
-    let quitForwarded = handleNiriRequest(quit.socketPayload, snapshotForShell())
-    check quitForwarded.messages.len == 1
-    check quitForwarded.messages[0].kind == MsgKind.CmdExitSessionImmediate
-
-    let spawn =
-      buildNiriCliRequest(@["msg", "action", "spawn", "--", "foot", "-e", "htop"])
-    check spawn.kind == NiriCliKind.NckRequest
-    let spawnForwarded = handleNiriRequest(spawn.socketPayload, snapshotForShell())
-    check spawnForwarded.messages.len == 1
-    check spawnForwarded.messages[0].kind == MsgKind.CmdSpawn
-    check spawnForwarded.messages[0].spawnCommand == @["foot", "-e", "htop"]
-
-    let casts = buildNiriCliRequest(@["msg", "-j", "casts"])
-    check casts.kind == NiriCliKind.NckRequest
-    let castsForwarded = handleNiriRequest(casts.socketPayload, snapshotForShell())
-    check parseJson(castsForwarded.reply)["Ok"]["Casts"].len == 0
-
-    let eventStream = buildNiriCliRequest(@["msg", "--json", "event-stream"])
-    check eventStream.kind == NiriCliKind.NckRequest
-    check eventStream.stream
-    check eventStream.socketPayload == "\"EventStream\""
-
-    let outputMutation =
-      buildNiriCliRequest(@["msg", "output", "DP-1", "scale", "1.25"])
-    check outputMutation.kind == NiriCliKind.NckInvalid
-    check outputMutation.error.contains("output mutation")
-
-  test "Niri shell compatibility environment is private":
-    let tmp = getTempDir() / ("triad-compat-" & $getCurrentProcessId())
-    if dirExists(tmp):
-      removeDir(tmp)
-    createDir(tmp)
-    defer:
-      if dirExists(tmp):
-        removeDir(tmp)
-
-    let fakeTriadNiri = tmp / "triad_niri"
-    writeFile(fakeTriadNiri, "#!/bin/sh\nexit 0\n")
-    setFilePermissions(fakeTriadNiri, {fpUserRead, fpUserWrite, fpUserExec})
-
-    let oldDataDirs = getEnv("XDG_DATA_DIRS", "")
-    putEnv("XDG_DATA_DIRS", "/custom/share:/usr/share")
-    defer:
-      putEnv("XDG_DATA_DIRS", oldDataDirs)
-
-    let compat = prepareNiriShellCompatEnv(tmp / "niri.sock", tmp, fakeTriadNiri)
-    check compat.env["NIRI_SOCKET"] == tmp / "niri.sock"
-    check compat.env["TRIAD_SOCKET"] == tmp / "triad.sock"
-    check compat.env["XDG_CURRENT_DESKTOP"] == "triad"
-    check compat.shimReady
-    check compat.overlayReady
-    check compat.env["PATH"].startsWith(tmp / "triad-compat-bin")
-    check compat.env["XDG_DATA_DIRS"].contains("/custom/share")
-
-  test "Niri shell compatibility environment starts from configured env":
-    let tmp = getTempDir() / ("triad-compat-config-env-" & $getCurrentProcessId())
-    if dirExists(tmp):
-      removeDir(tmp)
-    createDir(tmp)
-    defer:
-      if dirExists(tmp):
-        removeDir(tmp)
-
-    let fakeTriadNiri = tmp / "triad_niri"
-    writeFile(fakeTriadNiri, "#!/bin/sh\nexit 0\n")
-    setFilePermissions(fakeTriadNiri, {fpUserRead, fpUserWrite, fpUserExec})
-
-    let base = newStringTable(modeCaseSensitive)
-    base["PATH"] = "/configured/bin"
-    base["XDG_DATA_DIRS"] = "/configured/share"
-    base["XDG_CURRENT_DESKTOP"] = "wrong"
-    base["CUSTOM_TRIAD_ENV"] = "kept"
-
-    let compat =
-      prepareNiriShellCompatEnv(tmp / "niri.sock", tmp, fakeTriadNiri, baseEnv = base)
-    check compat.env["CUSTOM_TRIAD_ENV"] == "kept"
-    check compat.env["XDG_CURRENT_DESKTOP"] == "triad"
-    check compat.env["PATH"].startsWith(tmp / "triad-compat-bin")
-    check compat.env["PATH"].contains("/configured/bin")
-    check compat.env["XDG_DATA_DIRS"].startsWith(compat.xdgSharePath)
-    check compat.env["XDG_DATA_DIRS"].contains("/configured/share")
 
   test "Shell switching stops old profile before launching new profile":
     let tmp = getTempDir() / ("triad-shell-switch-" & $getCurrentProcessId())
@@ -1038,7 +635,7 @@ exit 0
     )
 
     var runner = ShellRunner()
-    runner.switchShell(previous, current, tmp / "niri.sock", "test switch")
+    runner.switchShell(previous, current, "test switch")
     let calls = readFile(logPath).splitLines().filterIt(it.len > 0)
     check calls == @["stop-old", "launch-new"]
 
@@ -1057,7 +654,7 @@ exit 0
       fake,
       """
 #!/bin/sh
-printf '%s|%s|%s|%s|%s\n' "$TRIAD_SOCKET" "$NIRI_SOCKET" "$XDG_CURRENT_DESKTOP" "$XDG_SESSION_DESKTOP" "$DESKTOP_SESSION" > "$TRIAD_FAKE_SHELL_LOG"
+printf '%s|%s|%s|%s\n' "$TRIAD_SOCKET" "$XDG_CURRENT_DESKTOP" "$XDG_SESSION_DESKTOP" "$DESKTOP_SESSION" > "$TRIAD_FAKE_SHELL_LOG"
 exit 0
 """,
     )
@@ -1081,80 +678,8 @@ exit 0
     )
     var runner = ShellRunner()
 
-    runner.switchShell(Model(), model, tmp / "niri.sock", "test native env")
-    check readFile(logPath).strip() == tmp / "triad.sock" & "||triad|triad|triad"
-
-  test "Shell profile Niri compatibility logs shim readiness":
-    let tmp = getTempDir() / ("triad-shell-niri-log-" & $getCurrentProcessId())
-    if dirExists(tmp):
-      removeDir(tmp)
-    createDir(tmp)
-    defer:
-      if dirExists(tmp):
-        removeDir(tmp)
-
-    let fakeShell = tmp / "fake-shell"
-    let envLogPath = tmp / "env.log"
-    writeFile(
-      fakeShell,
-      """
-#!/bin/sh
-printf '%s|%s|%s|%s|%s\n' "$TRIAD_SOCKET" "$NIRI_SOCKET" "$XDG_CURRENT_DESKTOP" "$XDG_SESSION_DESKTOP" "$DESKTOP_SESSION" > "$TRIAD_FAKE_SHELL_LOG"
-sleep 5
-""",
-    )
-    setFilePermissions(fakeShell, {fpUserRead, fpUserWrite, fpUserExec})
-
-    let fakeTriadNiri = tmp / "triad_niri"
-    writeFile(fakeTriadNiri, "#!/bin/sh\nexit 0\n")
-    setFilePermissions(fakeTriadNiri, {fpUserRead, fpUserWrite, fpUserExec})
-
-    let oldEnabled = getEnv("TRIAD_BEHAVIOR_LOG", "")
-    let oldDir = getEnv("TRIAD_BEHAVIOR_LOG_DIR", "")
-    let oldPath = getEnv("PATH", "")
-    let oldRuntimeDir = getEnv("XDG_RUNTIME_DIR", "")
-    let oldShellLog = getEnv("TRIAD_FAKE_SHELL_LOG", "")
-    putEnv("TRIAD_BEHAVIOR_LOG", "1")
-    putEnv("TRIAD_BEHAVIOR_LOG_DIR", tmp / "behavior")
-    putEnv("PATH", tmp & $PathSep & oldPath)
-    putEnv("XDG_RUNTIME_DIR", tmp)
-    putEnv("TRIAD_FAKE_SHELL_LOG", envLogPath)
-    defer:
-      putEnv("TRIAD_BEHAVIOR_LOG", oldEnabled)
-      putEnv("TRIAD_BEHAVIOR_LOG_DIR", oldDir)
-      putEnv("PATH", oldPath)
-      putEnv("XDG_RUNTIME_DIR", oldRuntimeDir)
-      putEnv("TRIAD_FAKE_SHELL_LOG", oldShellLog)
-
-    let model = Model(
-      shells: ShellsConfig(
-        configured: true,
-        enabled: true,
-        active: "noctalia",
-        profiles:
-          @[
-            ShellProfileConfig(name: "noctalia", launch: @[fakeShell], niriCompat: true)
-          ],
-      )
-    )
-    var runner = ShellRunner()
-    defer:
-      runner.stopTrackedShell("test cleanup")
-
-    runner.switchShell(Model(), model, tmp / "niri.sock", "test spawn")
-
-    let lines = readFile(behaviorLogPath()).strip().splitLines()
-    let spawned =
-      lines.mapIt(parseJson(it)).filterIt(it["event"].getStr() == "shell_spawned")
-    check spawned.len == 1
-    check spawned[0]["profile"].getStr() == "noctalia"
-    check spawned[0]["niri_socket"].getStr() == tmp / "niri.sock"
-    check spawned[0]["shim_ready"].getBool()
-    check spawned[0]["overlay_ready"].getBool()
-    check spawned[0]["compat_bin"].getStr() == tmp / "triad-compat-bin"
-    check spawned[0]["niri_shim"].getStr() == tmp / "triad-compat-bin" / "niri"
-    check readFile(envLogPath).strip() ==
-      tmp / "triad.sock" & "|" & tmp / "niri.sock" & "|triad|triad|triad"
+    runner.switchShell(Model(), model, "test native env")
+    check readFile(logPath).strip() == tmp / "triad.sock" & "|triad|triad|triad"
 
   test "Shell watchdog falls back when active tracked shell exits":
     let tmp = getTempDir() / ("triad-shell-watchdog-exit-" & $getCurrentProcessId())
@@ -1198,7 +723,7 @@ sleep 5
       )
     )
     var runner = ShellRunner()
-    runner.switchShell(Model(), model, tmp / "niri.sock", "test spawn")
+    runner.switchShell(Model(), model, "test spawn")
     check runner.trackedShellRunning()
 
     sleep(1200)
@@ -1284,7 +809,7 @@ exit 0
     defer:
       runner.stopTrackedShell("test cleanup")
 
-    runner.spawnPendingShell(model, tmp / "niri.sock", "initial manage")
+    runner.spawnPendingShell(model, "initial manage")
 
     let calls = readFile(logPath).splitLines().filterIt(it.len > 0)
     check calls == @["stop-noctalia", "stop-waybar", "stop-dank", "launch-noctalia"]
@@ -1328,7 +853,7 @@ exit "${TRIAD_FAKE_SHELL_EXIT:-0}"
     var runner = ShellRunner(spawnPending: true)
     let model = singleShellModel(@[fakeShell, "launch"], @[fakeShell, "stop"])
 
-    runner.spawnPendingShell(model, tmp / "niri.sock", "test")
+    runner.spawnPendingShell(model, "test")
 
     let calls = readFile(logPath)
     check calls.count("launch") >= 2
@@ -1361,14 +886,14 @@ exit "${TRIAD_FAKE_SHELL_EXIT:-0}"
     defer:
       runner.stopTrackedShell("test cleanup")
 
-    runner.spawnPendingShell(model, tmp / "niri.sock", "test")
+    runner.spawnPendingShell(model, "test")
 
     check runner.recoveryPending
     check runner.recoveryAttempts == 0
     check readFile(fake.statePath).strip() == "2"
 
     runner.nextRecoveryMs = 0
-    check runner.pollShellRecovery(model, tmp / "niri.sock", 0)
+    check runner.pollShellRecovery(model, 0)
     check not runner.recoveryPending
     check runner.trackedShellRunning()
     check readFile(fake.statePath).strip() == "3"
@@ -1401,12 +926,12 @@ exit "${TRIAD_FAKE_SHELL_EXIT:-0}"
     var runner = ShellRunner(spawnPending: true)
     let model = singleShellModel(@[fake.fakeShell, "launch"], @[fake.fakeShell, "stop"])
 
-    runner.spawnPendingShell(model, tmp / "niri.sock", "test")
+    runner.spawnPendingShell(model, "test")
     check runner.recoveryPending
 
     for attempt in 1 .. MaxShellRecoveryAttempts:
       runner.nextRecoveryMs = 0
-      check runner.pollShellRecovery(model, tmp / "niri.sock", 0)
+      check runner.pollShellRecovery(model, 0)
       if attempt < MaxShellRecoveryAttempts:
         check runner.recoveryPending
         check runner.recoveryAttempts == attempt
@@ -1444,11 +969,11 @@ exit "${TRIAD_FAKE_SHELL_EXIT:-0}"
     defer:
       runner.stopTrackedShell("test cleanup")
 
-    runner.switchShell(Model(), model, tmp / "niri.sock", "config reload recovery")
+    runner.switchShell(Model(), model, "config reload recovery")
     check runner.recoveryPending
 
     runner.nextRecoveryMs = 0
-    check runner.pollShellRecovery(model, tmp / "niri.sock", 0)
+    check runner.pollShellRecovery(model, 0)
     check not runner.recoveryPending
     check runner.trackedShellRunning()
     check readFile(fake.statePath).strip() == "2"
@@ -1488,56 +1013,11 @@ exit "${TRIAD_FAKE_SHELL_EXIT:-9}"
     var runner = ShellRunner(spawnPending: true)
     let model = singleShellModel(@[fakeShell, "launch"], @[fakeShell, "stop"])
 
-    runner.spawnPendingShell(model, tmp / "niri.sock", "test")
+    runner.spawnPendingShell(model, "test")
 
     let calls = readFile(logPath)
     check calls.contains("launch")
     check calls.contains("stop")
-
-  test "shell overlay is generated from terminal desktop metadata":
-    let tmp = getTempDir() / ("triad-shell-overlay-" & $getCurrentProcessId())
-    if dirExists(tmp):
-      removeDir(tmp)
-    createDir(tmp)
-    defer:
-      if dirExists(tmp):
-        removeDir(tmp)
-
-    let appRoot = tmp / "apps"
-    createDir(appRoot)
-    writeFile(
-      appRoot / "DemoTerm.desktop",
-      """
-[Desktop Entry]
-Type=Application
-Name=Demo Term
-Exec=demo-term --new-window
-Icon=demo-term
-StartupWMClass=DemoTerm
-Categories=System;TerminalEmulator;
-""",
-    )
-    let iconRoot = tmp / "iconsrc"
-    createDir(iconRoot / "icons" / "hicolor" / "scalable" / "apps")
-    writeFile(
-      iconRoot / "icons" / "hicolor" / "scalable" / "apps" / "demo-term.svg",
-      """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"/>""",
-    )
-
-    let oldDataHome = getEnv("XDG_DATA_HOME", "")
-    let oldDataDirs = getEnv("XDG_DATA_DIRS", "")
-    putEnv("XDG_DATA_HOME", iconRoot)
-    putEnv("XDG_DATA_DIRS", "")
-    defer:
-      putEnv("XDG_DATA_HOME", oldDataHome)
-      putEnv("XDG_DATA_DIRS", oldDataDirs)
-
-    let index = buildAppIdentityIndex([appRoot])
-    let overlay = installShellOverlay(tmp / "runtime", index)
-    check overlay.ok
-    let generatedApp = overlay.sharePath / "applications" / "triad-demoterm.desktop"
-    check fileExists(generatedApp)
-    check readFile(generatedApp).contains("Exec=demo-term --new-window")
 
   test "text IPC remains Triad-native":
     let msg = parseTextCommand("focus-workspace 2")

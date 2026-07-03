@@ -164,7 +164,7 @@ window-rule field would be honest.
 | Gap | Blocker | Promotion rule |
 | :--- | :--- | :--- |
 | True output serial matching | Triad stores connector name, make/model, and description, but has no real output serial source. | Promote only when River or another compositor protocol exposes serial identity. |
-| Urgent matcher: `is-urgent` | Native Triad and niri-compatible state currently report urgency as false. | Promote only after Triad receives real urgent state from compositor or activation events. |
+| Urgent matcher: `is-urgent` | Native Triad state currently reports urgency as false. | Promote only after Triad receives real urgent state from compositor or activation events. |
 | Cast-target matcher: `is-window-cast-target` | No current state or protocol source identifies cast targets. | Promote only after screencast/window-cast target state exists. |
 | Per-window `scroll-factor` | River exposes input-device scroll factor, not a per-window forwarding primitive in Triad. | Promote only after a clear input forwarding policy exists. |
 | Global keybinding policy | Mango forwards matching global keypresses to app surfaces; Triad cannot do this as only a River WM client. | Promote only with compositor-level key forwarding substrate. |

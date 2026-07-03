@@ -190,7 +190,6 @@ suite "Core Runtime Logic: window rules matchers":
     check effects.anyIt(it.kind == EffectKind.EffRenderDirty)
     check not effects.anyIt(it.kind == EffectKind.EffManageDirty)
     check not effects.anyIt(it.kind == EffectKind.EffBroadcastTriadJson)
-    check not effects.anyIt(it.kind == EffectKind.EffBroadcastJson)
 
   test "Window rule state matchers use focused and active window state":
     var model = initRuntimeStateFromConfig(

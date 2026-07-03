@@ -313,7 +313,7 @@ Check that the IPC socket responds inside a running Triad session:
 ```bash
 triad msg state
 triad msg workspaces
-triad_niri msg -j workspaces
+triad msg event-stream layout,state,window
 ```
 
 Logs are written under:
@@ -347,7 +347,6 @@ shells {
   profile "waybar" {
     launch "waybar"
     stop "pkill" "-x" "waybar"
-    niri-compat #true
   }
 }
 ```
@@ -386,13 +385,12 @@ shells {
   profile "noctalia" {
     launch "noctalia-shell"
     stop "pkill" "-f" "noctalia-shell"
-    niri-compat #true
   }
 }
 ```
 
-`niri-compat #true` is required for shells that consume Niri-compatible
-workspace IPC.
+Triad passes `$TRIAD_SOCKET` to shell profiles so native integrations can read
+workspace and state events.
 
 See [docs/configuration.md](docs/configuration.md) for the full config surface.
 

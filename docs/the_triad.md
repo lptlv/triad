@@ -9,7 +9,7 @@ Tags are stable labels. A window can carry more than one. Each tag maintains its
 Rules match an app or title to set placement, floating state, and layout hints. They are declarative and hot-reloadable. Rules cover the known, static cases.
 
 ## IPC
-Two sockets expose the model. One carries Triad’s native snapshot; the other projects a Niri-compatible view. External code receives events and sends commands that the reducer processes as messages.
+Triad's native socket exposes the model. External code receives events and sends commands that the reducer processes as messages.
 
 ## Interaction
 1.  An event arrives.

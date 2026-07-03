@@ -19,8 +19,7 @@ suite "Core Runtime Logic: lifecycle basic":
     check snapshot.workspaces[0].focusedWindow == 100
     check effects.anyIt(it.kind == EffectKind.EffManageDirty)
     check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowOpenedOrChanged")
+      it.kind == EffectKind.EffBroadcastWindowChanged and it.broadcastWindowId == 100
     )
 
   test "New active-tag window focuses and retargets camera":

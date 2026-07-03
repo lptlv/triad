@@ -168,13 +168,12 @@ proc shellJson(runner: ShellRunner): JsonNode =
 proc ipcJson(): JsonNode =
   let triadScopes = triadSubscriberScopeCounts()
   %*{
-    "niri_subscribers": subscribers.len,
     "triad_subscribers": triadSubscribers.len,
     "triad_layout_only_subscribers": triadScopes.layoutOnly,
     "triad_state_only_subscribers": triadScopes.stateOnly,
     "triad_layout_and_state_subscribers": triadScopes.layoutAndState,
     "triad_window_subscribers": triadScopes.window,
-    "total_subscribers": subscribers.len + triadSubscribers.len,
+    "total_subscribers": triadSubscribers.len,
   }
 
 proc memoryPressureJson(daemon: TriadDaemon, nowMs: int64): JsonNode =

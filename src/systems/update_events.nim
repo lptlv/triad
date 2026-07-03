@@ -138,7 +138,6 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
       let shouldReassertFocus =
         scratchpad != NullWindowId or workspaceChanged or focusChanged
       if shouldReassertFocus:
-        result.effects.add(broadcastWindowFocusChanged(externalId))
         if not model.sessionLocked and not model.layerFocusExclusive:
           result.effects.add(
             Effect(kind: EffectKind.EffFocusWindow, focusId: externalId)
@@ -206,8 +205,6 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
     result.dirty = winId != NullWindowId
   of MsgKind.WlWindowDestroyed:
     result.dirty = model.destroyWindowForExternal(msg.destroyedId.externalWindowId())
-    if result.dirty:
-      result.effects.add(broadcastWindowClosed(msg.destroyedId))
   of MsgKind.WlWindowDimensions:
     if model.recentWindowsActive or model.overviewActive:
       result.dirty = false
@@ -308,7 +305,6 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
     let focused = model.focusedOnActiveTag()
     if focused != NullWindowId:
       let externalId = model.runtimeWindowId(focused)
-      result.effects.add(broadcastWindowFocusChanged(externalId))
       result.effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: externalId))
   of MsgKind.WlPointerMoveRequested:
     if model.beginPointerMove(msg.moveWinId.externalWindowId()):

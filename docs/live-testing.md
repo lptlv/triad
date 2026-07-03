@@ -26,7 +26,7 @@ sh tools/live_smoke.sh
 ```
 
 The script builds Triad, starts it in the current River-compatible session,
-checks startup milestones, exercises Triad IPC plus the Niri shim, sends the
+checks startup milestones, exercises native Triad IPC, sends the
 window workflow commands, reloads config, verifies `event-stream` broadcasts,
 watches for fatal log patterns, and stops Triad before exiting. To also launch
 one terminal client during the smoke window:
@@ -56,9 +56,8 @@ installs binaries and sends `triad-reload` to the live manager. The replacement
 manager rewrites that same snapshot with `restore_status: "applied"` after
 River accepts the restore manage pass, so the file remains available for
 postmortem debugging without being replayed on the next start. If that native
-snapshot cannot be captured, the reload aborts rather than falling back to the
-Niri-compatible state view, because that view cannot preserve camera offsets or
-full floating geometry.
+snapshot cannot be captured, the reload aborts rather than replaying an
+incomplete state view.
 
 If the live model is already collapsed but the retained handoff still contains
 the desired workspace state, recover with:
@@ -136,39 +135,30 @@ From another terminal in the same session:
 ./triad msg warp-pointer 100 100
 ./triad msg eat-next-key
 ./triad msg cancel-eat-next-key
-./triad_niri msg -j workspaces
-./triad_niri msg action focus-workspace 2
+./triad msg workspaces
+./triad msg event-stream layout,state,window
 ```
 
 `triad msg event-stream` writes event data to stdout. Runtime logs stay on
 stderr so they do not corrupt stream output.
 
-## Exercise Niri Shell Compatibility
+## Exercise Shell Profiles
 
 When `shells { enabled #true }` is configured, Triad starts the active shell
-profile with a private Niri-compatible environment when that profile has
-`niri-compat #true`. Startup still waits until the first River manage pass has
-restored window/output state. During live reload, the exiting manager leaves its
-tracked shell process alive for the handoff; the replacement manager then runs
-configured stop commands for shell profiles and spawns the active profile after
-initial manage. To include that in live smoke:
+profile with `$TRIAD_SOCKET` in its environment. Startup still waits until the
+first River manage pass has restored window/output state. During live reload,
+the exiting manager leaves its tracked shell process alive for the handoff; the
+replacement manager then runs configured stop commands for shell profiles and
+spawns the active profile after initial manage. To include that in live smoke:
 
 ```bash
 TRIAD_LIVE_TEST_SHELL=1 ./tools/live_smoke.sh
 ```
 
-The smoke gate verifies that a compatible shell profile was spawned, that
-`$XDG_RUNTIME_DIR/triad-compat-bin/niri` exists, and that the private shim can
-query Triad through the shell-facing `$NIRI_SOCKET`. Triad also prepends
-`$XDG_RUNTIME_DIR/triad-shell-compat/share` to the shell profile's
-`XDG_DATA_DIRS` so shells can resolve Triad-provided desktop/icon aliases
-without changing the rest of the user session.
-Use this path for Niri-aware shell profiles such as Noctalia,
-DankMaterialShell, Waylee, or Waybar configured with `niri/workspaces`.
+The smoke gate verifies that a shell profile was spawned and can query Triad
+through the native socket without changing the rest of the user session.
 
-DMS screenshot actions require `grim`, `slurp`, and `wl-copy`. `satty` or
-`swappy` are opened by DMS after Triad emits the Niri-compatible
-`ScreenshotCaptured` event for disk-backed captures.
+DMS screenshot actions require `grim`, `slurp`, and `wl-copy`.
 
 ## Exercise Windows
 

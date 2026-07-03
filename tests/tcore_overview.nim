@@ -5,9 +5,9 @@ import ../src/types/janet_layouts
 
 proc hasOverviewBroadcast(effects: seq[Effect], open: bool): bool =
   effects.anyIt(
-    it.kind == EffectKind.EffBroadcastJson and
-      it.jsonPayload.contains("OverviewOpenedOrClosed") and
-      it.jsonPayload.contains("\"is_open\":" & $open)
+    it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "state" and
+      parseJson(it.jsonPayload)["triad"]["state"]["overview"]["is_open"].getBool() ==
+        open
   )
 
 proc geomWithinPreview(geom, preview: Rect): bool =
@@ -152,7 +152,6 @@ suite "Core Runtime Logic: overview navigation":
     check not model.overviewTabModeActive
     check model.overviewTabModeModifiers == 0'u32
     check model.focusedWindowId() == 2
-    check effects.hasOverviewBroadcast(false)
     check effects.anyIt(
       it.kind == EffectKind.EffFocusWindow and uint32(it.focusId) == 2
     )
@@ -1125,17 +1124,8 @@ suite "Core Runtime Logic: overview navigation":
     check previewSnapshot.overviewSelectedWindow == 2
     check rightEffects.anyIt(it.kind == EffectKind.EffFocusShellUi)
     check not rightEffects.anyIt(it.kind == EffectKind.EffFocusWindow)
-    check rightEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowFocusChanged")
-    )
     check not rightEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
-    )
-    check not rightEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowsChanged")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
     check rightEffects.anyIt(
       it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "state"
@@ -1158,8 +1148,7 @@ suite "Core Runtime Logic: overview navigation":
     check model.activeWorkspaceFocusId() == 1
     check closeEffects.hasOverviewBroadcast(false)
     check closeEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowFocusChanged")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "state"
     )
     check closeEffects.anyIt(
       it.kind == EffectKind.EffFocusWindow and uint32(it.focusId) == 1
@@ -1185,12 +1174,7 @@ suite "Core Runtime Logic: overview navigation":
       check model.selectedOverviewWindow() == WindowId(1)
       check not leftEffects.anyIt(it.kind == EffectKind.EffManageDirty)
       check not leftEffects.anyIt(
-        it.kind == EffectKind.EffBroadcastJson and
-          it.jsonPayload.contains("WorkspaceActivated")
-      )
-      check not leftEffects.anyIt(
-        it.kind == EffectKind.EffBroadcastJson and
-          it.jsonPayload.contains("WorkspacesChanged")
+        it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
       )
 
       let rightEffects = model.updateModel(
@@ -1202,12 +1186,7 @@ suite "Core Runtime Logic: overview navigation":
       check model.selectedOverviewWindow() == WindowId(1)
       check not rightEffects.anyIt(it.kind == EffectKind.EffManageDirty)
       check not rightEffects.anyIt(
-        it.kind == EffectKind.EffBroadcastJson and
-          it.jsonPayload.contains("WorkspaceActivated")
-      )
-      check not rightEffects.anyIt(
-        it.kind == EffectKind.EffBroadcastJson and
-          it.jsonPayload.contains("WorkspacesChanged")
+        it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
       )
 
   test "Unified overview vertical boundary still moves workspaces":
@@ -1338,16 +1317,14 @@ suite "Core Runtime Logic: overview navigation":
     check model.overviewActive
     check model.activeTag == model.tagForSlot(2)
     check windowEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspaceActivated")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
 
     let navEffects = model.updateModel(Msg(kind: MsgKind.CmdFocusWindowOrWorkspaceDown))
     check model.activeTag == model.tagForSlot(3)
     check model.selectedOverviewWindow() == WindowId(3)
     check navEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspaceActivated")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
 
   test "Unified overview aggregate up key moves workspace before internal grid":

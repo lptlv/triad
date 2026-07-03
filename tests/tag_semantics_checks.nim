@@ -1,5 +1,4 @@
-import std/[json, options]
-import ../src/ipc/niri_compat
+import std/options
 import ../src/state/snapshot
 import ../src/types/[model, shell_snapshot]
 
@@ -45,103 +44,6 @@ proc workspaceByIndex(
   for workspace in snapshot.workspaces:
     if workspace.workspaceIdx == idx:
       return (true, workspace)
-
-proc okPayload(reply: string, key: string): JsonNode =
-  let parsed = parseJson(reply)
-  parsed["Ok"][key]
-
-proc niriWorkspaceVisible(workspace: ShellWorkspace): bool =
-  workspace.isConfigured or workspace.isActive or workspace.isOutputVisible or
-    workspace.occupied or workspace.focusedWindow != 0'u32
-
-proc requireNiriProjection(context: string, snapshot: ShellSnapshot) =
-  let workspacesReply = niri_compat.handleNiriRequest("\"Workspaces\"", snapshot)
-  require(context, workspacesReply.handled, "Niri workspaces not handled")
-  let workspaces = okPayload(workspacesReply.reply, "Workspaces")
-  require(
-    context,
-    workspaces.len <= snapshot.workspaces.len,
-    "Niri workspace projection cannot exceed shell snapshot",
-  )
-
-  var focusedWorkspaceCount = 0
-  for workspace in workspaces:
-    let tagId = uint32(workspace["id"].getInt())
-    let shellWorkspace = snapshot.workspaceByTag(tagId)
-    require(context, shellWorkspace.found, "Niri workspace has no shell workspace")
-    require(
-      context,
-      shellWorkspace.workspace.niriWorkspaceVisible(),
-      "Niri workspace projection exposed empty inactive workspace",
-    )
-    require(
-      context,
-      uint32(workspace["idx"].getInt()) == shellWorkspace.workspace.workspaceIdx,
-      "Niri workspace index differs from shell snapshot",
-    )
-    if workspace["is_active"].getBool():
-      require(
-        context, shellWorkspace.workspace.isOutputVisible,
-        "Niri active workspace is not output-visible",
-      )
-    if workspace["is_focused"].getBool():
-      inc focusedWorkspaceCount
-      require(
-        context,
-        uint32(workspace["idx"].getInt()) == snapshot.activeWorkspaceIdx,
-        "Niri focused workspace index differs from snapshot",
-      )
-      require(
-        context,
-        uint32(workspace["id"].getInt()) == snapshot.activeTag,
-        "Niri focused workspace id differs from snapshot",
-      )
-  if snapshot.workspaces.len > 0:
-    require(
-      context,
-      focusedWorkspaceCount == 1,
-      "Niri projection must expose one focused workspace",
-    )
-
-  let windowsReply = niri_compat.handleNiriRequest("\"Windows\"", snapshot)
-  require(context, windowsReply.handled, "Niri windows not handled")
-  let windows = okPayload(windowsReply.reply, "Windows")
-  require(
-    context,
-    windows.len == snapshot.windows.len,
-    "Niri window count differs from snapshot",
-  )
-
-  var focusedCount = 0
-  var focusedId = 0'u32
-  for win in windows:
-    if win["is_focused"].getBool():
-      inc focusedCount
-      focusedId = uint32(win["id"].getInt())
-  require(
-    context, focusedCount <= 1, "Niri projection must expose at most one focused window"
-  )
-
-  let focusedReply = niri_compat.handleNiriRequest("\"FocusedWindow\"", snapshot)
-  require(context, focusedReply.handled, "Niri focused window not handled")
-  let focusedNode = okPayload(focusedReply.reply, "FocusedWindow")
-  if focusedCount == 0:
-    require(
-      context,
-      focusedNode.kind == JNull,
-      "Niri focused window should be null without global focus",
-    )
-  else:
-    require(
-      context,
-      focusedNode.kind != JNull,
-      "Niri focused window should not be null with global focus",
-    )
-    require(
-      context,
-      uint32(focusedNode["id"].getInt()) == focusedId,
-      "Niri focused window differs from focused window projection",
-    )
 
 proc requireTagShellSemantics*(model: Model, context = "tag semantics") =
   let snapshot = model.shellSnapshot()
@@ -242,5 +144,3 @@ proc requireTagShellSemantics*(model: Model, context = "tag semantics") =
           win.workspaceIdx == active.workspace.workspaceIdx,
           "inactive workspace focus exported as global focus",
         )
-
-  requireNiriProjection(context, snapshot)

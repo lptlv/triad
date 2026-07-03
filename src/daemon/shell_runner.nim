@@ -2,7 +2,7 @@ import std/[json, options, os, osproc, sequtils, strtabs, strutils, times]
 import chronicles
 import process_runner
 import ../core/shell_profiles
-import ../ipc/[niri_shell_compat, socket]
+import ../ipc/socket
 import ../types/model
 from ../types/runtime_values import ShellProfileConfig, ShellsConfig
 import ../utils/behavior_log
@@ -125,7 +125,6 @@ proc shellBehaviorPayload(
       "profile": profile.name,
       "launch": profile.launch,
       "stop": profile.stop,
-      "niri_compat": profile.niriCompat,
     }
   if extra != nil and extra.kind == JObject:
     for key, value in extra.pairs:
@@ -139,24 +138,6 @@ proc writeShellBehaviorEvent(
     extra: JsonNode = nil,
 ) =
   writeBehaviorEvent(eventName, shellBehaviorPayload(shells, profile, reason, extra))
-
-proc shellCompatBehaviorPayload(
-    profile: ShellProfileConfig, niriSocketPath: string, compat: NiriShellCompatEnv
-): JsonNode =
-  result = %*{"launch": profile.launch, "niri_socket": niriSocketPath}
-  if not profile.niriCompat:
-    return
-
-  result["niri_socket"] = %compat.niriSocketPath
-  result["shim_ready"] = %compat.shimReady
-  result["overlay_ready"] = %compat.overlayReady
-  result["compat_bin"] = %compat.compatBinPath
-  result["niri_shim"] = %compat.niriShimPath
-  result["triad_niri"] = %compat.triadNiriPath
-  result["xdg_overlay"] = %compat.xdgOverlayPath
-  result["xdg_share"] = %compat.xdgSharePath
-  if compat.warning.len > 0:
-    result["compat_warning"] = %compat.warning
 
 proc prepareNativeShellEnv(model: Model): StringTableRef =
   result = model.configuredProcessEnv()
@@ -340,7 +321,6 @@ proc spawnShellProfile(
     model: Model,
     shells: ShellsConfig,
     profile: ShellProfileConfig,
-    niriSocketPath: string,
     reason: string,
 ): ShellSpawnStatus =
   if not shells.enabled or profile.launch.len == 0:
@@ -360,32 +340,9 @@ proc spawnShellProfile(
     )
     return
 
-  var spawnInfo =
-    shellCompatBehaviorPayload(profile, niriSocketPath, NiriShellCompatEnv())
+  let spawnInfo = %*{"launch": profile.launch}
   try:
-    let baseEnv = model.prepareNativeShellEnv()
-    var compat = NiriShellCompatEnv()
-    let env =
-      if profile.niriCompat:
-        compat = prepareNiriShellCompatEnv(niriSocketPath, baseEnv = baseEnv)
-        spawnInfo = shellCompatBehaviorPayload(profile, niriSocketPath, compat)
-        let niriSocketAccepting = waitForNiriCompatSocket(compat.niriSocketPath)
-        spawnInfo["niri_socket_accepting"] = %niriSocketAccepting
-        if not niriSocketAccepting:
-          warn "Niri compatibility socket is not accepting connections before shell launch",
-            profile = profile.name, niriSocket = compat.niriSocketPath
-          writeShellBehaviorEvent(
-            "shell_compat_socket_unavailable", shells, profile, reason, spawnInfo
-          )
-        if compat.warning.len > 0:
-          warn "Shell compatibility environment is incomplete",
-            profile = profile.name, warning = compat.warning
-          writeShellBehaviorEvent(
-            "shell_compat_warning", shells, profile, reason, spawnInfo
-          )
-        compat.env
-      else:
-        baseEnv
+    let env = model.prepareNativeShellEnv()
     writeShellBehaviorEvent("shell_spawn_requested", shells, profile, reason, spawnInfo)
     let p = startProcess(
       profile.launch[0],
@@ -401,8 +358,7 @@ proc spawnShellProfile(
       info "Spawned shell",
         profile = profile.name,
         command = profile.launch[0],
-        pid = childPid,
-        niriCompat = profile.niriCompat
+        pid = childPid
       writeShellBehaviorEvent(
         "shell_spawned",
         shells,
@@ -549,7 +505,6 @@ proc switchShell*(
     runner: var ShellRunner,
     previousModel: Model,
     currentModel: Model,
-    niriSocketPath: string,
     reason: string,
 ) =
   let previous = previousModel.activeShellProfile()
@@ -563,7 +518,7 @@ proc switchShell*(
 
   if current.profile.isSome:
     let status = runner.spawnShellProfile(
-      currentModel, current.shells, current.profile.get(), niriSocketPath, reason
+      currentModel, current.shells, current.profile.get(), reason
     )
     if not status.succeeded():
       runner.scheduleShellRecovery(currentModel, reason, status)
@@ -573,7 +528,6 @@ proc switchShell*(
 proc pollShellRecovery*(
     runner: var ShellRunner,
     model: Model,
-    niriSocketPath: string,
     nowMs = currentUnixMs(),
 ): bool =
   let active = model.activeShellProfile()
@@ -617,7 +571,7 @@ proc pollShellRecovery*(
   )
   runner.stopShellProfile(model, active.shells, active.profile.get(), attemptReason)
   let status = runner.spawnShellProfile(
-    model, active.shells, active.profile.get(), niriSocketPath, attemptReason
+    model, active.shells, active.profile.get(), attemptReason
   )
   result = true
   if status.succeeded():
@@ -661,7 +615,7 @@ proc scheduleShellSpawn*(runner: var ShellRunner, model: Model) =
   runner.spawnPending = model.activeShellProfile().profile.isSome
 
 proc spawnPendingShell*(
-    runner: var ShellRunner, model: Model, niriSocketPath, reason: string
+    runner: var ShellRunner, model: Model, reason: string
 ) =
   if not runner.spawnPending:
     return
@@ -678,14 +632,14 @@ proc spawnPendingShell*(
     %*{"action": "SpawnOnly"},
   )
   let status = runner.spawnShellProfile(
-    model, active.shells, active.profile.get(), niriSocketPath, reason
+    model, active.shells, active.profile.get(), reason
   )
   if not status.succeeded():
     runner.stopShellProfile(
       model, active.shells, active.profile.get(), reason & " stale instance"
     )
     let restartStatus = runner.spawnShellProfile(
-      model, active.shells, active.profile.get(), niriSocketPath, reason & " restart"
+      model, active.shells, active.profile.get(), reason & " restart"
     )
     if not restartStatus.succeeded():
       runner.scheduleShellRecovery(model, reason & " restart", restartStatus)

@@ -52,8 +52,8 @@ The built-ins should continue to use the existing enum-driven path:
 - `TGMix`
 
 Custom layouts should be selected by a separate custom-layout id, not by adding
-unbounded user names to `LayoutMode`. This keeps restore, IPC compatibility,
-Niri-shaped shell projections, config parsing, and existing layout commands
+unbounded user names to `LayoutMode`. This keeps restore, native IPC
+projections, config parsing, and existing layout commands
 predictable.
 
 ## Additive Layout Selection
@@ -272,7 +272,7 @@ Implemented.
 - Native IPC `request:"set-layout"` accepts declared custom names and exposes
   `layout`, `layout_kind`, and `fallback_layout` in layout snapshots.
 - The active normal workspace evaluates custom Janet geometry; overview and
-  Niri-compatible projections keep using the safe built-in fallback.
+  native projections keep using the safe built-in fallback.
 - Live restore persists custom selection and clears unknown custom names on
   restore/config reload.
 

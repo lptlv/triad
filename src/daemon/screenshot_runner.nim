@@ -1,7 +1,6 @@
-import std/[asyncdispatch, json, options, os, strutils, tables]
+import std/[asyncdispatch, options, os, strutils, tables]
 import chronicles
 import ../core/msg
-import ../ipc/socket
 import ../systems/[daemon_view, layout_projection]
 from ../types/core import Rect
 import ../utils/screenshot_capture
@@ -117,12 +116,6 @@ proc runScreenshotCapture*(
       return
 
     info "Screenshot captured", path = path
-    let event =
-      if writeToDisk:
-        %*{"ScreenshotCaptured": {"path": path}}
-      else:
-        %*{"ScreenshotCaptured": {}}
-    asyncCheck broadcastJson($event)
   except CatchableError as e:
     warn "Screenshot capture failed", path = path, error = e.msg
   finally:

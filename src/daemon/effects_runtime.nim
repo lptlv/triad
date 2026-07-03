@@ -4,7 +4,7 @@ import protocols/river/client as river
 import protocols/river_layer_shell/client as riverLayer
 import protocols/river_xkb_bindings/client as riverXkb
 import protocols/river_xkb_config/client as riverXkbConfig
-import ../core/[effects, niri_state, triad_state]
+import ../core/[effects, triad_state]
 import ../ipc/socket
 import ../systems/daemon_view
 from ../types/core import OutputId
@@ -18,26 +18,17 @@ import
 
 proc executeWindowChangedBroadcast(daemon: var TriadDaemon, eff: Effect) =
   let winId = eff.broadcastWindowId
-  let niriInterested = eff.broadcastNiriWindowChanged and hasNiriSubscribers()
   let triadInterested = triadSubscriberInterested("window")
-  if eff.broadcastNiriWindowChanged and not niriInterested:
-    inc ipcPerfCounters.niriBroadcastSkippedNoSubscribers
   if not triadInterested:
     inc ipcPerfCounters.triadBroadcastSkippedNoSubscribers
-  if not niriInterested and not triadInterested:
+  if not triadInterested:
     return
 
   let snapshot = daemon.readWindowSnapshot(winId)
   for win in snapshot.windows:
     if win.id != winId:
       continue
-    if niriInterested:
-      daemon.enqueueNiriBroadcast(
-        $(%*{"WindowOpenedOrChanged": {"window": niriWindowJson(snapshot, win)}}),
-        "WindowOpenedOrChanged",
-      )
-    if triadInterested:
-      daemon.enqueueTriadBroadcast(triadWindowChangedEvent(win), "window")
+    daemon.enqueueTriadBroadcast(triadWindowChangedEvent(win), "window")
     return
 
 proc setLayerShellDefaultOutputForSpawn(daemon: var TriadDaemon, outputId: OutputId) =
@@ -184,8 +175,6 @@ proc executeEffect*(daemon: var TriadDaemon, eff: Effect) =
     daemon.markRenderDirty(eff.renderDirtyReason)
   of EffectKind.EffManageDirty:
     daemon.requestManage("effect")
-  of EffectKind.EffBroadcastJson:
-    daemon.enqueueNiriBroadcast(eff.jsonPayload)
   of EffectKind.EffBroadcastTriadJson:
     daemon.enqueueTriadBroadcast(eff.jsonPayload, eff.triadEventName)
   of EffectKind.EffBroadcastWindowChanged:

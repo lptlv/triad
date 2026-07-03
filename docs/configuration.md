@@ -59,7 +59,7 @@ spawn-at-startup "nm-applet" "--indicator"
 ```
 
 ### Shell & Bar Profiles
-Manage shells and status bars in the `shells` block. Triad sets `$TRIAD_SOCKET` for every profile. Use `niri-compat #true` if a shell needs the Niri IPC facade and `$NIRI_SOCKET`.
+Manage shells and status bars in the `shells` block. Triad sets `$TRIAD_SOCKET` for every profile.
 
 **Example Profile:**
 ```kdl
@@ -68,7 +68,6 @@ shells {
   profile "waybar" {
     launch "waybar"
     stop "pkill" "-x" "waybar"
-    niri-compat #true
   }
 }
 ```
@@ -226,7 +225,7 @@ screenshot {
 ## Integration
 
 ### Shell Compatibility
-Triad provides a compatibility layer for shells that use the Niri workspace schema. Set `niri-compat #true` in your shell profile to enable it.
+Triad shell profiles expose native IPC through `$TRIAD_SOCKET`. Use `triad msg event-stream [layout,state,window]` for long-lived native state updates.
 
 ### Janet Scripting
 Embed Janet for automation. 

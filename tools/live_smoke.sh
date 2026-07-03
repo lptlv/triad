@@ -105,30 +105,15 @@ triad_msg move-to-named-scratchpad live-smoke
 triad_msg toggle-named-scratchpad live-smoke
 triad_msg restore-scratchpad
 triad_msg config-reload
-./triad_niri msg -j workspaces >/dev/null
-./triad_niri msg -j outputs >/dev/null
-
-if [ -n "${NIRI_SOCKET:-}" ] && [ ! -e "$NIRI_SOCKET" ]; then
-  niri_socket="$NIRI_SOCKET"
-else
-  niri_socket="$XDG_RUNTIME_DIR/triad-niri.sock"
-fi
-
-env NIRI_SOCKET="$niri_socket" ./triad_niri msg -j workspaces >/dev/null
-env NIRI_SOCKET="$niri_socket" ./triad_niri msg -j outputs >/dev/null
+./triad msg workspaces >/dev/null
+./triad msg outputs >/dev/null
 
 if [ "${TRIAD_LIVE_TEST_SHELL:-0}" = "1" ]; then
   require_log "Spawned shell"
-  compat_bin="$XDG_RUNTIME_DIR/triad-compat-bin"
-  if [ ! -x "$compat_bin/niri" ]; then
-    fail "missing private niri shim at $compat_bin/niri"
-  fi
-  env NIRI_SOCKET="$niri_socket" PATH="$compat_bin:$PATH" niri msg -j workspaces >/dev/null
-  env NIRI_SOCKET="$niri_socket" PATH="$compat_bin:$PATH" niri msg -j outputs >/dev/null
 fi
 
 : >"$events"
-./triad msg event-stream >"$events" &
+./triad msg event-stream layout,state,window >"$events" &
 event_stream_pid="$!"
 sleep 1
 
@@ -139,7 +124,7 @@ fi
 triad_msg toggle-overview
 
 waited=0
-while ! grep -q "OverviewOpenedOrClosed" "$events"; do
+while ! grep -q '"event":"state-changed"' "$events"; do
   if ! kill -0 "$event_stream_pid" 2>/dev/null; then
     fail "event-stream subscriber exited before overview event"
   fi

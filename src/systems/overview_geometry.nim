@@ -10,7 +10,7 @@ import workspaces
 export system_views
 
 const OverviewDragThreshold* = 8'i32
-const NiriWorkspaceGapRatio = 0.1'f32
+const WorkspaceStackGapRatio = 0.1'f32
 
 proc activePreviewIndexForOutput*(
   model: Model, outputId: OutputId, slots: openArray[uint32]
@@ -128,7 +128,7 @@ proc previewSize*(model: Model, screen: rv.Rect): tuple[w, h: int32] =
 proc workspacePreviewGap*(model: Model, screen: rv.Rect): int32 =
   int32(
     round(
-      float32(max(1'i32, screen.h)) * NiriWorkspaceGapRatio *
+      float32(max(1'i32, screen.h)) * WorkspaceStackGapRatio *
         model.effectiveOverviewZoom()
     )
   )

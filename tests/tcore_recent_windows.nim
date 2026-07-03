@@ -210,7 +210,7 @@ suite "Core Runtime Logic: recent windows":
       let gap = previews[idx + 1].geom.x - (previews[idx].geom.x + previews[idx].geom.w)
       check gap >= requiredGap
 
-  test "recent-window previews are bounded by output-aware niri sizing":
+  test "recent-window previews are bounded by output-aware sizing":
     var model = recentModel()
     model.applyMsg(
       Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)

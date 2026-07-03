@@ -28,8 +28,8 @@ nimble liveReload
 
 The live smoke starts Triad, checks River startup milestones, sends the
 navigation/layout/scratchpad workflow commands, reloads config, verifies the
-Niri shim, subscribes to `event-stream`, and confirms `toggle-overview`
-produces an `OverviewOpenedOrClosed` event. Run `nimble liveReload` last so the
+native IPC socket, subscribes to `event-stream`, and confirms `toggle-overview`
+produces a native state event. Run `nimble liveReload` last so the
 same change is verified through the live-manager replacement path after the
 smoke workflow has passed.
 

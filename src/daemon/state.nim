@@ -31,7 +31,6 @@ type
     origin*: QueuedMsgOrigin
 
   IpcBroadcastKind* {.pure.} = enum
-    Niri
     Triad
 
   PendingIpcBroadcast* = object

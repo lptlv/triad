@@ -934,8 +934,7 @@ suite "Runtime state primitives":
 
     check effects.anyIt(it.kind == EffectKind.EffManageDirty)
     check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowOpenedOrChanged")
+      it.kind == EffectKind.EffBroadcastWindowChanged and it.broadcastWindowId == 42
     )
     check state.model.validateInvariants().ok
     check snapshot.windows.len == 1

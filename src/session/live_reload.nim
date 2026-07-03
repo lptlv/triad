@@ -118,23 +118,19 @@ proc enableLiveReloadDevMode(paths: LivePaths) =
 proc backupLiveBinaries(paths: LivePaths): string =
   if not fileExists(paths.liveTriad):
     paths.fail("missing installed live binary: " & paths.liveTriad)
-  if not fileExists(paths.liveTriadNiri):
-    paths.fail("missing installed live binary: " & paths.liveTriadNiri)
   result = paths.liveReloadLogDir() / ("rollback-" & $getCurrentProcessId())
   createDir(result)
   copyFile(paths.liveTriad, result / "triad")
-  copyFile(paths.liveTriadNiri, result / "triad_niri")
   paths.logInfo("backed up live binaries to " & result)
 
 proc restoreLiveBinaries(paths: LivePaths, backupDir: string): bool =
   if backupDir.len == 0:
     paths.logError("no live binary backup is available for rollback")
     return false
-  if not fileExists(backupDir / "triad") or not fileExists(backupDir / "triad_niri"):
+  if not fileExists(backupDir / "triad"):
     paths.logError("live binary backup is incomplete: " & backupDir)
     return false
   atomicInstall(backupDir / "triad", paths.liveTriad)
-  atomicInstall(backupDir / "triad_niri", paths.liveTriadNiri)
   paths.logInfo("restored live binaries from " & backupDir)
   true
 
@@ -151,15 +147,10 @@ proc compareRestoreSnapshots(expectedPath, actualText: string): bool =
 proc waitRestoreReady(
     paths: LivePaths, snapshotPath: string, expectedActiveTag: int
 ): bool =
-  let triadNiri =
-    if fileExists(paths.repoDir / "triad_niri"):
-      paths.repoDir / "triad_niri"
-    else:
-      paths.liveTriadNiri
   for _ in 0 ..< 100:
     if paths.restoreSnapshotApplied():
       let workspaces =
-        runProcess(triadNiri, ["msg", "-j", "workspaces"], timeoutMs = 1000)
+        paths.runTriad(["msg", "workspaces"], timeoutMs = 1000)
       if workspaces.status == 0:
         let current =
           paths.runTriad(["msg", "dump-live-restore-state"], timeoutMs = 1000)
@@ -220,8 +211,6 @@ proc runLiveReload*(paths = livePaths()): int =
   try:
     if not fileExists(paths.repoDir / "triad"):
       paths.fail("missing built binary: " & (paths.repoDir / "triad"))
-    if not fileExists(paths.repoDir / "triad_niri"):
-      paths.fail("missing built binary: " & (paths.repoDir / "triad_niri"))
 
     if runDoctorLive(paths) != 0:
       paths.fail(
@@ -247,7 +236,6 @@ proc runLiveReload*(paths = livePaths()): int =
     createDir(paths.binDir)
     backupDir = paths.backupLiveBinaries()
     atomicInstall(paths.repoDir / "triad", paths.liveTriad)
-    atomicInstall(paths.repoDir / "triad_niri", paths.liveTriadNiri)
 
     let reloadCommand =
       if getEnv("TRIAD_LIVE_RELOAD_USE_RETAINED_RESTORE", "") == "1":

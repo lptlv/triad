@@ -299,8 +299,6 @@ proc applyCommand*(
     result.dirty = model.switchProportionPreset(msg.proportionPresetDelta)
   of MsgKind.CmdRenameTag:
     result.dirty = model.renameActiveWorkspace(msg.newName)
-    if result.dirty:
-      result.effects.add(broadcastWorkspaceActivated(shellSnapshot(model)))
   of MsgKind.CmdGroupWindows:
     result.dirty = model.groupFocusedWindow()
   of MsgKind.CmdUngroupWindow:
@@ -629,15 +627,12 @@ proc applyCommand*(
       model.switchKeyboardLayout(msg.keyboardLayoutDelta, msg.keyboardLayoutIndex)
     if switched.changed:
       result.dirty = true
-      let snapshot = shellSnapshot(model)
       result.effects.add(
         Effect(
           kind: EffectKind.EffSetKeyboardLayout,
           keyboardLayoutIndex: switched.activeIndex,
         )
       )
-      result.effects.add(broadcastKeyboardLayoutsChanged(snapshot))
-      result.effects.add(broadcastKeyboardLayoutSwitched(switched.activeIndex))
   of MsgKind.CmdStopManager:
     result.effects.add(Effect(kind: EffectKind.EffStopManager))
   of MsgKind.CmdTriadReload:

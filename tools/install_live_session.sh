@@ -89,12 +89,10 @@ printf '%s\n' "install-live-session: building optimized triad binaries"
 (cd "$repo_dir" && TRIAD_DEV_MODE=0 nimble build -d:release --opt:speed --passL:-s)
 
 [ -x "$repo_dir/triad" ] || fail "missing built binary: $repo_dir/triad"
-[ -x "$repo_dir/triad_niri" ] || fail "missing built binary: $repo_dir/triad_niri"
 
 mkdir -p "$bin_dir" "$config_dir"
 
 atomic_install "$repo_dir/triad" "$bin_dir/triad" 755
-atomic_install "$repo_dir/triad_niri" "$bin_dir/triad_niri" 755
 atomic_install "$repo_dir/tools/triad-manager-loop.sh" "$bin_dir/triad-manager-loop" 755
 atomic_install "$repo_dir/tools/river-triad-session.sh" "$bin_dir/river-triad-session" 755
 

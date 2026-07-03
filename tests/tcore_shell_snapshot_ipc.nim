@@ -1,7 +1,5 @@
 import tcore_support
 import ../src/core/native_layout_codec
-import ../src/core/niri_state
-import ../src/ipc/niri_compat
 
 suite "Core Runtime Logic: shell snapshot ipc":
   test "Shell snapshot exposes active workspace focus globally":
@@ -37,7 +35,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     check activeFocused[0].tagId.get() == 2
     model.requireTagShellSemantics("active workspace focus scenario")
 
-  test "Window focus broadcasts active window change":
+  test "Window focus broadcasts native state change":
     var model = configuredModel()
     model.applyMsg(
       Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
@@ -48,21 +46,15 @@ suite "Core Runtime Logic: shell snapshot ipc":
 
     let effects =
       model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
-    let activeWindowEvent = effects.filterIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspaceActiveWindowChanged")
+    let stateEvents = effects.filterIt(
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "state"
     )
-    check activeWindowEvent.len == 1
-    let payload = parseJson(activeWindowEvent[0].jsonPayload)
-    check payload["WorkspaceActiveWindowChanged"]["workspace_id"].getInt() == 1
-    check payload["WorkspaceActiveWindowChanged"]["active_window_id"].getInt() == 1
-    check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowFocusChanged")
-    )
+    check stateEvents.len == 1
+    let payload = parseJson(stateEvents[0].jsonPayload)
+    let windows = payload["triad"]["state"]["windows"].getElems()
+    check windows.anyIt(it["id"].getInt() == 1 and it["is_focused"].getBool())
     check not effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
+      it.kind == EffectKind.EffBroadcastWindowChanged
     )
 
   test "Shell snapshot exposes output refresh rate":
@@ -130,7 +122,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     check state["keyboard_layouts"][1].getStr() == "de"
     check state["current_keyboard_layout_idx"].getInt() == 0
 
-  test "Workspace focus broadcasts activation with workspace snapshot":
+  test "Workspace focus broadcasts native workspace snapshot":
     var model = configuredModel()
     model.applyMsg(
       Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
@@ -142,34 +134,23 @@ suite "Core Runtime Logic: shell snapshot ipc":
 
     let effects =
       model.updateModel(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
-    let activationEvents = effects.filterIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspaceActivated")
-    )
-    check activationEvents.len == 1
-    let activation = parseJson(activationEvents[0].jsonPayload)["WorkspaceActivated"]
-    check activation["id"].getInt() == 1
-    check activation["focused"].getBool()
     let workspaceEvents = effects.filterIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
     check workspaceEvents.len == 1
     let workspaces =
-      parseJson(workspaceEvents[0].jsonPayload)["WorkspacesChanged"]["workspaces"]
-    check workspaces[0]["id"].getInt() == 1
+      parseJson(workspaceEvents[0].jsonPayload)["triad"]["state"]["workspaces"]
+    check workspaces[0]["tag_id"].getInt() == 1
     check workspaces[0]["is_active"].getBool()
-    check workspaces[0]["is_focused"].getBool()
-    check workspaces[1]["id"].getInt() == 2
+    check workspaces[0]["focused_window_id"].getInt() == 1
+    check workspaces[1]["tag_id"].getInt() == 2
     check not workspaces[1]["is_active"].getBool()
-    check not workspaces[1]["is_focused"].getBool()
     check not effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowsChanged")
+      it.kind == EffectKind.EffBroadcastWindowChanged
     )
     model.requireTagShellSemantics("workspace focus broadcast scenario")
 
-  test "Niri workspace JSON separates output-visible from globally focused":
+  test "Native workspace JSON separates output-visible from globally focused":
     var model = initRuntimeStateFromConfig(
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
@@ -189,13 +170,13 @@ suite "Core Runtime Logic: shell snapshot ipc":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
 
-    let workspaces = niriWorkspacesJson(model.shellSnapshot())
-    let visible = workspaces.getElems().filterIt(it["is_active"].getBool())
-    let focused = workspaces.getElems().filterIt(it["is_focused"].getBool())
+    let workspaces = triadWorkspacesJson(model.shellSnapshot())
+    let visible = workspaces.getElems().filterIt(it["is_output_visible"].getBool())
+    let focused = workspaces.getElems().filterIt(it["is_active"].getBool())
 
     check visible.len == 2
     check focused.len == 1
-    check focused[0]["idx"].getInt() == 2
+    check focused[0]["workspace_idx"].getInt() == 2
     check visible.anyIt(it["output"].getStr() == "DP-1")
     check visible.anyIt(it["output"].getStr() == "DP-2")
 
@@ -223,30 +204,22 @@ suite "Core Runtime Logic: shell snapshot ipc":
     )
 
     check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
-    )
-    check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowsChanged")
-    )
-    check effects.anyIt(
       it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
     check effects.anyIt(
       it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "state"
     )
 
-    let workspaces = niriWorkspacesJson(model.shellSnapshot()).getElems()
+    let workspaces = triadWorkspacesJson(model.shellSnapshot()).getElems()
     check workspaces.anyIt(
-      it["id"].getInt() == 1 and it["output"].getStr() == "DP-2" and
+      it["tag_id"].getInt() == 1 and it["output"].getStr() == "DP-2" and
         it["is_active"].getBool()
     )
     check workspaces.anyIt(
-      it["output"].getStr() == "DP-3" and it["is_active"].getBool()
+      it["output"].getStr() == "DP-3" and it["is_output_visible"].getBool()
     )
 
-  test "Niri workspace JSON keeps empty configured workspaces visible":
+  test "Native workspace JSON keeps empty configured workspaces visible":
     var model = initRuntimeStateFromConfig(
       Config(
         workspaces: WorkspaceConfig(defaultCount: 3),
@@ -254,14 +227,14 @@ suite "Core Runtime Logic: shell snapshot ipc":
       )
     ).model
 
-    let workspaces = niriWorkspacesJson(model.shellSnapshot()).getElems()
+    let workspaces = triadWorkspacesJson(model.shellSnapshot()).getElems()
 
     check workspaces.anyIt(
-      it["id"].getInt() == 4 and it["name"].getStr() == "chat" and
+      it["tag_id"].getInt() == 4 and it["name"].getStr() == "chat" and
         it["is_configured"].getBool()
     )
     check workspaces.anyIt(
-      it["id"].getInt() == 5 and it["name"].getStr() == "media" and
+      it["tag_id"].getInt() == 5 and it["name"].getStr() == "media" and
         it["is_configured"].getBool()
     )
 
@@ -326,37 +299,20 @@ suite "Core Runtime Logic: shell snapshot ipc":
     check snapshot.activeTag == 2
     check not snapshot.workspaces.anyIt(it.tagId == 4)
     check pruneEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
     model.requireTagShellSemantics("empty dynamic pruned scenario")
 
-  test "Niri workspace down action opens dynamic workspace":
+  test "Native workspace down command opens dynamic workspace":
     var model = configuredModel()
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
 
-    let action = handleNiriRequest(
-      """{"Action":{"FocusWorkspaceDown":null}}""", model.shellSnapshot()
-    )
-    check action.handled
-    check action.messages.len == 1
-    check action.messages[0].kind == MsgKind.CmdFocusTagRight
-
-    let effects = model.updateModel(action.messages[0])
+    let effects = model.updateModel(Msg(kind: MsgKind.CmdFocusTagRight))
     let snapshot = model.shellSnapshot()
     check snapshot.activeTag == 4
     check snapshot.workspaces.anyIt(it.tagId == 4 and it.isActive)
-    let workspaceEvents = effects.filterIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
-    )
-    check workspaceEvents.len == 1
-    let workspaces =
-      parseJson(workspaceEvents[0].jsonPayload)["WorkspacesChanged"]["workspaces"]
-    check workspaces.getElems().anyIt(
-      it["id"].getInt() == 4 and it["is_active"].getBool()
-    )
-    model.requireTagShellSemantics("niri dynamic workspace action scenario")
+    check not effects.anyIt(it.kind == EffectKind.EffBroadcastWindowChanged)
+    model.requireTagShellSemantics("native dynamic workspace command scenario")
 
   test "Scratchpad restore returns window to previous workspace":
     var model = configuredModel()
@@ -912,9 +868,9 @@ suite "Core Runtime Logic: shell snapshot ipc":
     check workspace["split_nodes"].len == 3
     check workspace["split_nodes"].getElems().anyIt(it["mode"].getStr() == "split-v")
 
-  test "Niri window event includes focused workspace state":
+  test "Native window creation emits focused workspace state":
     var model = configuredModel()
-    let (_, effects) = model.update(
+    let (nextModel, effects) = model.update(
       Msg(
         kind: MsgKind.WlWindowCreated,
         windowId: 120,
@@ -922,17 +878,16 @@ suite "Core Runtime Logic: shell snapshot ipc":
         title: "Alacritty",
       )
     )
-    let event = effects.filterIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowOpenedOrChanged")
-    )[0]
-    let win = parseJson(event.jsonPayload)["WindowOpenedOrChanged"]["window"]
+    check effects.anyIt(
+      it.kind == EffectKind.EffBroadcastWindowChanged and it.broadcastWindowId == 120
+    )
+    let win = nextModel.shellSnapshot().windows.filterIt(it.id == 120)[0]
 
-    check win["id"].getInt() == 120
-    check win["workspace_id"].getInt() == 1
-    check win["is_focused"].getBool()
+    check win.id == 120
+    check win.workspaceIdx == 1
+    check win.isFocused
 
-  test "Niri window title update stays incremental":
+  test "Native window title update stays incremental":
     var model = configuredModel()
     model.applyMsg(
       Msg(kind: MsgKind.WlWindowCreated, windowId: 120, appId: "alacritty", title: "A")
@@ -945,16 +900,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     check effects.anyIt(
       it.kind == EffectKind.EffBroadcastWindowChanged and it.broadcastWindowId == 120
     )
-    check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastWindowChanged and
-        not it.broadcastNiriWindowChanged
-    )
     check not effects.anyIt(
       it.kind == EffectKind.EffBroadcastTriadJson and
         it.jsonPayload.contains("\"event\":\"state-changed\"")
-    )
-    check not effects.anyIt(it.kind == EffectKind.EffBroadcastJson)
-    check not effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WindowsChanged")
     )

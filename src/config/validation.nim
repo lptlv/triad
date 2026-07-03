@@ -517,7 +517,7 @@ proc validateShellsNode(node: KdlNode, context: string): string =
         result = child.expectNoProps(childContext)
       if result.len == 0:
         result = child.validateNamedChildren(
-          childContext, ["launch", "stop", "niri-compat"], allowArgs = true
+          childContext, ["launch", "stop"], allowArgs = true
         )
     else:
       discard

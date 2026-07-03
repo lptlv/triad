@@ -12,7 +12,6 @@ type
     EffFocusShellSurface
     EffCloseWindow
     EffManageDirty
-    EffBroadcastJson
     EffBroadcastTriadJson
     EffBroadcastWindowChanged
     EffOpStartPointer
@@ -52,12 +51,11 @@ type
       focusShellSurfaceId*: uint32
     of EffectKind.EffCloseWindow:
       closeId*: uint32
-    of EffectKind.EffBroadcastJson, EffectKind.EffBroadcastTriadJson:
+    of EffectKind.EffBroadcastTriadJson:
       jsonPayload*: string
       triadEventName*: string
     of EffectKind.EffBroadcastWindowChanged:
       broadcastWindowId*: uint32
-      broadcastNiriWindowChanged*: bool
     of EffectKind.EffOpStartPointer:
       opSeat*: pointer
     of EffectKind.EffOpEnd:

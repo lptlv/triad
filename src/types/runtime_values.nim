@@ -335,7 +335,6 @@ type
     name*: string
     launch*: seq[string]
     stop*: seq[string]
-    niriCompat*: bool
 
   ShellWatchdogConfig* = object
     enabled*: bool

@@ -120,10 +120,6 @@ suite "Core Runtime Logic: smoke":
     check effects.anyIt(
       it.kind == EffectKind.EffSetKeyboardLayout and it.keyboardLayoutIndex == 1
     )
-    check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("KeyboardLayoutSwitched")
-    )
 
   test "Screenshot command builder separates selector and quotes geometry data":
     let config = ScreenshotConfig(

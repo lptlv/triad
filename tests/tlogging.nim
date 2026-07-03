@@ -2,7 +2,7 @@ import std/[asyncdispatch, json, options, os, strutils, times, unittest]
 import chronicles
 import ../src/config/parser
 import ../src/core/msg
-import ../src/ipc/[niri_compat, socket]
+import ../src/ipc/socket
 import ../src/session/[doctor_live, live_paths, logs as session_logs]
 import ../src/systems/[runtime_facade, update]
 import ../src/types/runtime_values
@@ -614,60 +614,6 @@ exit 1
     check unlocked["before"]["session_locked"].getBool()
     check not unlocked["after"]["session_locked"].getBool()
 
-  test "niri broadcast behavior event records compact shell events":
-    let dir = getTempDir() / ("triad-behavior-broadcast-" & $getCurrentProcessId())
-    let oldEnabled = getEnv("TRIAD_BEHAVIOR_LOG", "")
-    let oldDir = getEnv("TRIAD_BEHAVIOR_LOG_DIR", "")
-    defer:
-      restoreEnv("TRIAD_BEHAVIOR_LOG", oldEnabled)
-      restoreEnv("TRIAD_BEHAVIOR_LOG_DIR", oldDir)
-      if dirExists(dir):
-        removeDir(dir)
-
-    putEnv("TRIAD_BEHAVIOR_LOG", "1")
-    putEnv("TRIAD_BEHAVIOR_LOG_DIR", dir)
-    waitFor broadcastJson(
-      $(
-        %*{
-          "WorkspacesChanged": {
-            "workspaces": [
-              {"id": 2, "idx": 2, "is_active": false, "is_focused": true},
-              {"id": 3, "idx": 3, "is_active": true, "is_focused": false},
-            ]
-          }
-        }
-      )
-    )
-    waitFor broadcastJson($(%*{"WorkspaceActivated": {"id": 2, "focused": true}}))
-    waitFor broadcastJson(
-      $(%*{"WorkspaceActiveWindowChanged": {"workspace_id": 2, "active_window_id": 20}})
-    )
-    waitFor broadcastJson($(%*{"WindowFocusChanged": {"id": 20}}))
-    waitFor broadcastJson($(%*{"WindowFocusChanged": {"id": 20}}))
-
-    let lines = readFile(behaviorLogPath()).strip().splitLines()
-    check lines.len == 4
-    let workspacesEvent = parseJson(lines[0])
-    check workspacesEvent["event"].getStr() == "niri_compat_broadcast"
-    check workspacesEvent["niri_event"].getStr() == "WorkspacesChanged"
-    check workspacesEvent["active_tag"].getInt() == 2
-    check workspacesEvent.hasKey("workspace_distribution")
-    check workspacesEvent.hasKey("workspace_signature")
-
-    let activatedEvent = parseJson(lines[1])
-    check activatedEvent["niri_event"].getStr() == "WorkspaceActivated"
-    check activatedEvent["id"].getInt() == 2
-    check activatedEvent["focused"].getBool()
-
-    let activeWindowEvent = parseJson(lines[2])
-    check activeWindowEvent["niri_event"].getStr() == "WorkspaceActiveWindowChanged"
-    check activeWindowEvent["workspace_id"].getInt() == 2
-    check activeWindowEvent["active_window_id"].getInt() == 20
-
-    let focusEvent = parseJson(lines[3])
-    check focusEvent["niri_event"].getStr() == "WindowFocusChanged"
-    check focusEvent["window_id"].getInt() == 20
-
   test "native Triad broadcast dedupes per event stream":
     let marker = "triad-broadcast-dedupe-" & $getCurrentProcessId()
     let layoutPayload =
@@ -685,37 +631,6 @@ exit 1
       before.triadBroadcastSkippedDuplicate == 2
     check ipcPerfCounters.triadBroadcastSkippedDuplicateByEvent -
       before.triadBroadcastSkippedDuplicateByEvent == 2
-
-  test "niri broadcast send filter allows incremental live window events":
-    check shouldSendNiriBroadcast(
-      $(%*{"WindowOpenedOrChanged": {"window": {"id": 20, "title": "loading"}}})
-    )
-    check shouldSendNiriBroadcast($(%*{"WindowFocusChanged": {"id": 20}}))
-    check shouldSendNiriBroadcast(
-      $(%*{"WorkspaceActiveWindowChanged": {"workspace_id": 2, "active_window_id": 20}})
-    )
-    check not shouldSendNiriBroadcast($(%*{"WindowsChanged": {"windows": []}}))
-    check not shouldSendNiriBroadcast($(%*{"WindowLayoutsChanged": {"changes": []}}))
-
-  test "niri request behavior payload records sanitized action details":
-    let payload = niriRequestLogPayload(
-      "/run/user/1000/triad-niri.sock",
-      NiriIpcResult(
-        handled: true,
-        requestKind: "action",
-        actionName: "FocusWorkspace",
-        workspaceIndex: 3,
-        reply: """{"Ok":"Handled"}""",
-        messages: @[Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3)],
-      ),
-    )
-
-    check payload["request_kind"].getStr() == "action"
-    check payload["action"].getStr() == "FocusWorkspace"
-    check payload["workspace_idx"].getInt() == 3
-    check payload["reply_kind"].getStr() == "Handled"
-    check payload["message_kinds"][0].getStr() == "CmdFocusWorkspaceIndex"
-    check not payload.hasKey("raw")
 
   test "behavior log rotates oversized day file and cleans old logs":
     let dir = getTempDir() / ("triad-behavior-rotate-" & $getCurrentProcessId())

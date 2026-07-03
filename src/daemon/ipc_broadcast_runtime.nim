@@ -1,23 +1,6 @@
-import std/[asyncdispatch, json]
+import std/asyncdispatch
 import ../ipc/socket
 import state
-
-proc niriEventName(payload: string): string =
-  try:
-    let root = parseJson(payload)
-    if root.kind != JObject:
-      return ""
-    for eventName, _ in root.pairs:
-      return eventName
-  except CatchableError:
-    discard
-  ""
-
-proc coalescesNiriEvent(eventName: string): bool =
-  eventName in ["WorkspacesChanged", "OutputsChanged", "KeyboardLayoutsChanged"]
-
-proc shouldSendNiriEventName(eventName: string): bool =
-  eventName notin ["WindowsChanged", "WindowLayoutsChanged"]
 
 proc removePendingBroadcast(
     daemon: var TriadDaemon, kind: IpcBroadcastKind, eventName: string
@@ -30,42 +13,6 @@ proc removePendingBroadcast(
       result = true
     else:
       inc i
-
-proc enqueueNiriBroadcast*(daemon: var TriadDaemon, payload, eventName: string) =
-  if subscribers.len == 0:
-    inc ipcPerfCounters.niriBroadcastSkippedNoSubscribers
-    inc ipcPerfCounters.niriBroadcastSkippedBytes, uint64(payload.len)
-    return
-
-  let resolvedEventName =
-    if eventName.len > 0:
-      eventName
-    else:
-      payload.niriEventName()
-  if not resolvedEventName.shouldSendNiriEventName():
-    inc ipcPerfCounters.niriBroadcastSkippedFiltered
-    inc ipcPerfCounters.niriBroadcastSkippedBytes, uint64(payload.len)
-    return
-  if eventName.len == 0 and not payload.shouldSendNiriBroadcast():
-    inc ipcPerfCounters.niriBroadcastSkippedFiltered
-    inc ipcPerfCounters.niriBroadcastSkippedBytes, uint64(payload.len)
-    return
-
-  inc ipcPerfCounters.niriBroadcastQueued
-  inc ipcPerfCounters.niriBroadcastQueuedBytes, uint64(payload.len)
-  recordIpcBroadcastEvent("niri", resolvedEventName)
-  if resolvedEventName.coalescesNiriEvent() and
-      daemon.removePendingBroadcast(IpcBroadcastKind.Niri, resolvedEventName):
-    inc ipcPerfCounters.niriBroadcastCoalesced
-
-  daemon.pendingIpcBroadcasts.add(
-    PendingIpcBroadcast(
-      kind: IpcBroadcastKind.Niri, eventName: resolvedEventName, payload: payload
-    )
-  )
-
-proc enqueueNiriBroadcast*(daemon: var TriadDaemon, payload: string) =
-  daemon.enqueueNiriBroadcast(payload, "")
 
 proc enqueueTriadBroadcast*(
     daemon: var TriadDaemon, payload: string, eventName: string
@@ -95,7 +42,5 @@ proc flushIpcBroadcasts*(daemon: var TriadDaemon) =
   daemon.pendingIpcBroadcasts = @[]
   for broadcast in pending:
     case broadcast.kind
-    of IpcBroadcastKind.Niri:
-      asyncCheck broadcastJson(broadcast.payload, broadcast.eventName)
     of IpcBroadcastKind.Triad:
       asyncCheck broadcastTriadJson(broadcast.payload, broadcast.eventName)

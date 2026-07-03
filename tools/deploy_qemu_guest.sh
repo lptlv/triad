@@ -212,7 +212,6 @@ mv "$HOME/src/triad.next" "$work"
 cd "$work"
 nimble --useSystemNim build --nimcache:"$work/.nimcache"
 install -Dm755 triad "$HOME/.local/bin/triad"
-install -Dm755 triad_niri "$HOME/.local/bin/triad_niri"
 
 rm -rf "$TRIAD_REMOTE_FUZZEL"
 printf '%s\n' "guest provisioned: $work"

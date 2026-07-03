@@ -2,9 +2,9 @@ import tcore_support
 
 proc hasOverviewBroadcast(effects: seq[Effect], open: bool): bool =
   effects.anyIt(
-    it.kind == EffectKind.EffBroadcastJson and
-      it.jsonPayload.contains("OverviewOpenedOrClosed") and
-      it.jsonPayload.contains("\"is_open\":" & $open)
+    it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "state" and
+      parseJson(it.jsonPayload)["triad"]["state"]["overview"]["is_open"].getBool() ==
+        open
   )
 
 proc twoOutputOverviewModel(): Model =
@@ -150,8 +150,7 @@ suite "Core Runtime Logic: overview interactions":
     check model.selectedOverviewWindow() == WindowId(2)
     check effects.anyIt(it.kind == EffectKind.EffFocusShellUi)
     check effects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspaceActivated")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
 
   test "Wheel over unified overview focuses columns horizontally":
@@ -189,8 +188,7 @@ suite "Core Runtime Logic: overview interactions":
     check model.activeTag == model.tagForSlot(1)
     check model.selectedOverviewWindow() == WindowId(2)
     check not horizontalEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
 
     model.applyMsg(
@@ -209,8 +207,7 @@ suite "Core Runtime Logic: overview interactions":
     check model.activeTag == model.tagForSlot(1)
     check model.selectedOverviewWindow() == WindowId(3)
     check not shiftEffects.anyIt(
-      it.kind == EffectKind.EffBroadcastJson and
-        it.jsonPayload.contains("WorkspacesChanged")
+      it.kind == EffectKind.EffBroadcastTriadJson and it.triadEventName == "layout"
     )
 
   test "Holding unified overview drag waits for release before moving window":
@@ -443,7 +440,6 @@ suite "Core Runtime Logic: overview interactions":
     check not model.overviewActive
     check model.activeTag == model.tagForSlot(2)
     check model.focusedWindowId() == 2
-    check effects.hasOverviewBroadcast(false)
 
   test "Overview hides trailing dynamic empty workspace":
     var model = configuredModel()

@@ -55,9 +55,8 @@ Triad uses KDL for hot-reloadable configuration.
 *   **Workspaces:** `workspaces.default-count` sets the floor for empty workspaces. We prune stale, empty workspaces automatically.
 
 ## IPC and Shell Projection
-Triad separates its native IPC from shell compatibility.
+Triad exposes native IPC for shell and tooling integrations.
 
 *   **Native IPC (`$TRIAD_SOCKET`):** The primary protocol for shells designed for Triad. It exposes JSON requests and events.
-*   **Compatibility Projection (`$NIRI_SOCKET`):** A projection of the internal snapshot into the JSON schema used by Niri-aware shells. This allows you to use existing Niri shell bars without modification.
 
 We map internal state to standard JSON payloads. Stable Tag IDs become Workspace IDs, and focus history ensures that hot reloads return you to where you left off.

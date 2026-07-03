@@ -43,17 +43,17 @@ You can also use Janet to write custom layouts. See [docs/tiling_wm_categories.m
 
 ### Shell Support
 
-Triad exposes its own state socket for native integrations. It can also launch shell profiles with a compatibility socket for shells that consume Niri's workspace IPC.
+Triad exposes its own state socket for native integrations and launches shell profiles with `$TRIAD_SOCKET` in their environment.
 
-| Shell | Native IPC | Niri IPC |
-| :--- | :--- | :--- |
-| [Noctalia v5](https://github.com/noctalia-dev/noctalia-shell/tree/v5) | Yes | Yes |
-| [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) | No, fork/PR pending | Yes |
-| [Waybar](https://github.com/Alexays/Waybar) | No, fork/PR pending | Yes |
-| [Wayle](https://github.com/wayle-rs/wayle) | No, fork/PR pending | Yes |
-| [Ironbar](https://github.com/JakeStanger/ironbar) | No, fork/PR pending | Yes |
+| Shell | Native IPC |
+| :--- | :--- |
+| [Noctalia v5](https://github.com/noctalia-dev/noctalia-shell/tree/v5) | Yes |
+| [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) | Fork/PR pending |
+| [Waybar](https://github.com/Alexays/Waybar) | Fork/PR pending |
+| [Wayle](https://github.com/wayle-rs/wayle) | Fork/PR pending |
+| [Ironbar](https://github.com/JakeStanger/ironbar) | Fork/PR pending |
 
-Set `niri-compat #true` only for profiles using the Niri IPC path. For native IPC profiles, leave `niri-compat #false` so Triad does not start the compatibility socket.
+Shell profiles accept `launch` and `stop` commands. Removed compatibility fields are rejected by strict config validation.
 
 ### Installation
 

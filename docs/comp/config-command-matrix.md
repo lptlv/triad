@@ -45,16 +45,16 @@ protocol-dependent or tracked in the feature matrix below.
 | Config lifecycle | Default config file | `~/.config/mango/config.conf` | `$XDG_CONFIG_HOME/river/init` or `~/.config/river/init` | `$XDG_CONFIG_HOME/triad/config.kdl` | X | Triad creates a fallback config when missing. |
 | Config lifecycle | Custom config on launch | `mango -c` | `river -c` shell command | `TRIAD_CONFIG`, `triad --config`, `triad -c` | X | Triad can start from a non-default root config path. |
 | Config lifecycle | Config validation | `mango -c ... -p` | | `triad validate-config` | X | Validates KDL syntax, includes, unknown and malformed fields inside known blocks, strict output-rule shapes, unsupported output fields, strict window-rule regex checks, and configured Janet script/layout registration without starting the daemon. |
-| IPC | Native state queries | | Shell/WM IPC | `triad msg state`, `capabilities`, `workspaces`, `outputs`, `windows`, `focused-window`, `overview-state`, `keyboard-layouts` | X | Returns native Triad shell snapshot projections and feature capabilities, including workspace content-scroll, monitor-power, and workspace-urgency support flags, without going through the temporary Niri compatibility bridge. Native event streams support state, layout, and window change events. |
+| IPC | Native state queries | | Shell/WM IPC | `triad msg state`, `capabilities`, `workspaces`, `outputs`, `windows`, `focused-window`, `overview-state`, `keyboard-layouts` | X | Returns native Triad shell snapshot projections and feature capabilities, including workspace content-scroll, monitor-power, and workspace-urgency support flags. Native event streams support state, layout, and window change events. |
 | Config lifecycle | Config includes | `source`, `source-optional` | Shell script can source files | `include`, `include optional=#true` | X | Includes expand in place, resolve relative to the parent file, reject recursion, and participate in hot reload after a successful load. |
 | Config lifecycle | Hot reload | `reload_config`, `exec` | WM process policy | `config-reload`, `triad-reload` | X | Triad reloads config in-process; full Triad reload snapshots state and restarts through the session manager path. |
 | Config lifecycle | Reload notifications | | Shell/WM policy | `config-notification` | X | Optional commands run on config reload success, failure, or rollback. |
 | Config lifecycle | Theme accent | | WM policy | `theme { accent-color }` | X | Optional active chrome default for border, frame tab, layout-toast, and recent-window highlight colors. Specific color fields still win. |
 | Startup | Startup commands | `exec-once`, `exec` | Init script starts long-running programs | `spawn-at-startup` | X | Triad has startup commands, not a reload-time `exec` equivalent. |
 | Startup | Environment variables | `env` | Init script environment | `environment` | X | Applies literal set/unset entries to future Triad-spawned user-facing processes. |
-| Startup | Spawn command | `spawn`, `spawn_shell`, `spawn_on_empty` | WM policy | `spawn`, `spawn-terminal` | X | Triad spawn uses argv-style text command parsing. Niri-compatible `Spawn` and `SpawnSh` actions map to the same configured-process spawn path for shell clients. |
+| Startup | Spawn command | `spawn`, `spawn_shell`, `spawn_on_empty` | WM policy | `spawn`, `spawn-terminal` | X | Triad spawn uses argv-style text command parsing. |
 | Session | Quit manager | `quit` | `river_window_manager_v1.stop` | `stop-manager` | X | Triad also has `exit-session` behind config. |
-| Session | Exit compositor session | `quit` | `river_window_manager_v1.exit_session` | `exit-session`, `allow-exit-session` | X | Guarded by explicit config; default configs bind `Ctrl+Alt+Delete` and require Enter confirmation before exit. Niri `Quit` with `skip_confirmation` bypasses the dialog for shell session menus. |
+| Session | Exit compositor session | `quit` | `river_window_manager_v1.exit_session` | `exit-session`, `allow-exit-session` | X | Guarded by explicit config; default configs bind `Ctrl+Alt+Delete` and require Enter confirmation before exit. |
 | Session | Lock screen | External bind to `spawn` | Init/WM policy | `screen-lock`, `lock-session` | X | Triad stores a configured lock command. |
 | Bindings | Key bindings | `bind`, `bindl`, `binds`, `bindr`, `bindp` | `river_xkb_bindings_v1` | `bindings { bind ... }` | X | Triad supports mode, layout override, inhibit policy, and hotkey overlay titles. |
 | Bindings | Key modes/submaps | `keymode`, `setkeymode` | WM policy | `mode="normal"`, `mode="overview"`, or `mode="recent"` | | Triad has fixed binding modes, not arbitrary named modes. Unified overview and recent-windows add modal fallback bindings, including derived direction-key navigation, only when those key slots are free. |
@@ -69,7 +69,7 @@ protocol-dependent or tracked in the feature matrix below.
 | Pointer | Pointer warp | `warpcursor` | `river_seat_v1.pointer_warp` | `warp-pointer` | X | Triad exposes explicit IPC. |
 | Input | Keyboard repeat | `repeat_rate`, `repeat_delay` | `river_input_device_v1.set_repeat_info` | `input.keyboard.repeat-rate`, `input.keyboard.repeat-delay` | X | Applied to keyboard devices when the River input management protocol is available. |
 | Input | XKB rules/layout/options | `xkb_rules_*` | `river_xkb_config_v1` | `input.keyboard.xkb` | X | Triad builds keymaps with libxkbcommon; binds can still set per-binding layout override. |
-| Input | Keyboard layout switch | `switch_keyboard_layout` | `set_layout_by_index/name` | `switch-keyboard-layout`, `bind ... layout=<index>` | X | Triad binds may override layout, and native `switch-keyboard-layout` plus Niri-compatible `SwitchLayout` cycle configured `input.keyboard.xkb.layout` entries through River XKB config. |
+| Input | Keyboard layout switch | `switch_keyboard_layout` | `set_layout_by_index/name` | `switch-keyboard-layout`, `bind ... layout=<index>` | X | Triad binds may override layout, and native `switch-keyboard-layout` cycles configured `input.keyboard.xkb.layout` entries through River XKB config. |
 | Input | NumLock/CapsLock | `numlockon` | `numlock_enable`, `capslock_enable` | `input.keyboard.numlock`, `input.keyboard.capslock` | X | Applies requested initial lock state through River XKB config. |
 | Input | Pointer acceleration | `mouse_accel_*`, `trackpad_accel_*` | `set_accel_profile`, `set_accel_speed` | `input.mouse/touchpad/trackpoint/trackball.accel-profile`, `accel-speed` | X | Applies only when the device reports matching libinput support. |
 | Input | Natural scroll | `mouse_natural_scrolling`, `trackpad_natural_scrolling` | `set_natural_scroll` | `input.*.natural-scroll` | X | Supported for mouse, touchpad, trackpoint, and trackball sections. |
@@ -129,7 +129,7 @@ protocol-dependent or tracked in the feature matrix below.
 | Layouts | Frame and i3 tab colors | | protocol decoration surfaces | `frame-tabs { active-color; active-unfocused-color; inactive-color; active-line-color; active-unfocused-line-color; empty-background-color }` | X | Native frame-tree/notion tabs and i3 tabbed/stacking containers share configurable tab colors with current hard-coded values as defaults; empty frames use the configurable background plus native border chrome from the same frame geometry substrate. |
 | Layouts | Layout switch toast | | WM policy | `layout-switch-toast { enabled; timeout-ms; ring-color }` | X | Native centered toast shown after active-workspace layout commands; follows command bindings rather than a hard-coded key. |
 | Overview | Toggle overview | `toggleoverview` | WM policy | `toggle-overview`, `open-overview`, `close-overview` | X | |
-| Overview | Overview layout gaps and zoom | `overviewgappi`, `overviewgappo` | WM policy | `overview { inner-gap-multiplier; outer-gap; zoom }` | X | All layouts use the unified workspace-preview overview with Niri-style workspace navigation/camera behavior. See [Niri overview compatibility](./niri-overview-comp.md). |
+| Overview | Overview layout gaps and zoom | `overviewgappi`, `overviewgappo` | WM policy | `overview { inner-gap-multiplier; outer-gap; zoom }` | X | All layouts use the unified workspace-preview overview with workspace navigation and camera behavior. |
 | Overview | Scroller overflow indicators | | WM policy | `overview { scroller-indicators }` | X | Off by default. When enabled, scroller previews render subtle edge hints if hidden columns extend beyond the preview frame. |
 | Overview | Hot corner overview | `enable_hotarea`, `hotarea_size`, `hotarea_corner` | WM policy | `overview { hot-corners { size; top-left; top-right; bottom-left; bottom-right } }` | X | Triad hot corners are opt-in and open overview only. |
 | Overview | Overview tab mode | `ov_tab_mode` | WM policy | `overview { tab-mode }` | X | Off by default. Keyboard overview opener bindings with modifiers become hold-to-overview sessions: repeat the opener to cycle windows, release the opener modifier to close overview. |
@@ -159,10 +159,10 @@ protocol-dependent or tracked in the feature matrix below.
 | Window rules | Terminal swallowing | `isterm`, `noswallow` | WM policy and process ancestry | `window-rule terminal`, `window-rule allow-swallow` | X | Explicit rules only: terminal hosts must be marked with `terminal #true`; child windows swallow by default unless `allow-swallow #false`, and missing PID data disables swallowing. |
 | Window rules | Global keybinding | `globalkeybinding` | WM policy | | | Not implemented. |
 | Layer rules | Layer shell rules | `layerrule` | Layer shell protocols | | | Triad handles shell/layer focus but has no rule config. |
-| Shell | Shell integration | External bars/tools | Protocol/shell surfaces | `shells`, `switch-shell`, `cycle-shell`, native state events | X | Triad has config-driven shell profile launch/stop, native `$TRIAD_SOCKET` env for all profiles, additive Niri-compatible profile env, runtime switching, and native events. |
+| Shell | Shell integration | External bars/tools | Protocol/shell surfaces | `shells`, `switch-shell`, `cycle-shell`, native state events | X | Triad has config-driven shell profile launch/stop, native `$TRIAD_SOCKET` env for all profiles, runtime switching, and native events. |
 | Shell | Hotkey helper overlay | | WM policy and shell surface | `hotkey-overlay`, `toggle-hotkey-overlay` | X | Native popup generated from configured bindings and per-bind titles; adds a free fallback key when needed. |
 | Shell | Window menu | `show_window_menu` request policy | River window menu request | `window-menu-command` | X | Capability is advertised only when configured. |
-| Screenshot | Screenshots | External binds to `spawn` | External tools | `screenshot`, `screenshot-screen`, `screenshot-window`, `screenshot` config | X | Triad wraps configured capture tools and emits Niri-compatible events. |
+| Screenshot | Screenshots | External binds to `spawn` | External tools | `screenshot`, `screenshot-screen`, `screenshot-window`, `screenshot` config | X | Triad wraps configured capture tools. |
 | Portals | XDG portal setup | Portal config docs | External services | | | Not Triad config. |
 | Virtual output | Headless output | `create_virtual_output`, `destroy_all_virtual_output` | River compositor/output stack | | | Not exposed by Triad. |
 
@@ -343,7 +343,7 @@ KDL config nodes and fields:
 - `switch-events`: `lid-close`, `lid-open`, `tablet-mode-on`,
   `tablet-mode-off`.
 - `shells`: `enabled`, `active`, `cycle`, `watchdog`, `fallback`,
-  `exclusive-focus-timeout-ms`, `profile`, `launch`, `stop`, `niri-compat`.
+  `exclusive-focus-timeout-ms`, `profile`, `launch`, `stop`.
 - `janet`: `enabled`, `automation-dir`, `layout-dir`, `fuel-limit`,
   `layout <name> fallback=<scroller|vertical-scroller|frame-tree|bsp-tree|i3>`;
   legacy `script-dir` is accepted as an `automation-dir` alias. User layout
@@ -513,11 +513,10 @@ CLI and environment:
   daemon diagnostics mode without restarting the session.
 - `triad msg state`, `triad msg capabilities`, and `triad msg layout-state`
   print native Triad JSON snapshots for development and shell integrations.
-- `triad msg request <json>` sends one raw native or compatibility IPC request
+- `triad msg request <json>` sends one raw native IPC request
   and prints the reply.
-- `triad_niri msg --json event-stream` prints the long-lived Niri-compatible
-  event stream, including the initial workspace snapshot used by plug-and-play
-  bars.
+- `triad msg event-stream [layout,state,window]` prints the long-lived native
+  event stream, including the initial snapshots used by native shell clients.
 - `triad msg dispatch-binding key|pointer|axis|gesture <chord> [ticks|fingers]`
   dispatches configured bindings without raw input injection.
 - `triad msg perf-status` reports frame pacing, idle wake timing, wait backend,

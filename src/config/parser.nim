@@ -2264,8 +2264,6 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
                     profile.launch = profileChild.stringArgs()
                   elif profileChild.name == "stop":
                     profile.stop = profileChild.stringArgs()
-                  elif profileChild.name == "niri-compat":
-                    profile.niriCompat = profileChild.childFlagEnabled()
                 except CatchableError as e:
                   warn "Ignoring invalid shell profile field",
                     profile = profile.name, field = profileChild.name, error = e.msg

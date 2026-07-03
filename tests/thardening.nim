@@ -15,7 +15,7 @@ import
 from ../src/daemon/state import
   OutputManagementHeadRuntime, consumeMaximizedAck, expectMaximizedAck, initTriadDaemon
 from ../src/daemon/state import QueuedMsgOrigin
-import ../src/ipc/[binding_dispatch, commands, niri_compat, socket]
+import ../src/ipc/[binding_dispatch, commands, socket]
 import ../src/layouts/scroller
 import ../src/state/[invariants, snapshot]
 import ../src/systems/[daemon_view, runtime, runtime_facade, update]
@@ -44,27 +44,6 @@ proc proposedOutput(
     height: height,
   )
 
-proc baseSnapshot(): ShellSnapshot =
-  ShellSnapshot(
-    version: 1,
-    activeTag: 1,
-    activeWorkspaceIdx: 1,
-    layoutCycle: @[LayoutMode.Scroller, LayoutMode.Grid],
-    workspaces:
-      @[
-        ShellWorkspace(
-          tagId: 1,
-          workspaceIdx: 1,
-          layoutMode: LayoutMode.Scroller,
-          isActive: true,
-          outputName: "triad-0",
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        )
-      ],
-    outputs: @[ShellOutput(name: "triad-0", w: 1920, h: 1080)],
-  )
-
 proc discardIpcMsg(msg: Msg) {.gcsafe.} =
   discard msg
 
@@ -88,34 +67,6 @@ proc hardeningIpcSnapshot(): ShellSnapshot {.gcsafe.} =
       ],
     outputs: @[ShellOutput(name: "triad-0", w: 1920, h: 1080)],
   )
-
-proc persistentNiriReplies(
-    path: string, idleDelayMs = 0, requestTimeoutMs = IpcRequestTimeoutMs
-): Future[seq[string]] {.async.} =
-  asyncCheck socket.startIpcServer(
-    path, discardIpcMsg, hardeningIpcSnapshot, requestTimeoutMs = requestTimeoutMs
-  )
-
-  var ready = false
-  for _ in 0 ..< 50:
-    if await socket.unixSocketAcceptsConnections(path):
-      ready = true
-      break
-    await sleepAsync(10)
-  doAssert ready
-
-  let client = newAsyncSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
-  try:
-    await client.connectUnix(path)
-    await client.send("\"Workspaces\"\L")
-    result.add(await client.recvLine())
-    if idleDelayMs > 0:
-      await sleepAsync(idleDelayMs)
-    await client.send("""{"Action":{"FocusWorkspace":{"reference":{"Id":1}}}}""" & "\L")
-    result.add(await client.recvLine())
-  finally:
-    if not client.isClosed:
-      client.close()
 
 proc triadSubscriberCountAfterClientClose(path: string): Future[int] {.async.} =
   socket.triadSubscribers.setLen(0)
@@ -1105,7 +1056,7 @@ workspaces {
     daemon.bindingsConfigured = true
     daemon.xkbBindings[99'u32] = Msg(kind: MsgKind.CmdCloseWindow)
 
-    check daemon.applyConfigReload(configPath, "")
+    check daemon.applyConfigReload(configPath)
     check daemon.bindingsConfigured
     check daemon.bindingsReconfigurePending
     check daemon.xkbBindings.hasKey(99'u32)
@@ -1158,7 +1109,7 @@ config-notification {
 
     observedConfigNotificationEvent = ConfigNotificationEvent.ConfigNotifyNone
     observedConfigNotificationCommand = @[]
-    check daemon.applyConfigReload(configPath, "")
+    check daemon.applyConfigReload(configPath)
     check observedConfigNotificationEvent ==
       ConfigNotificationEvent.ConfigReloadSucceeded
     check observedConfigNotificationCommand == @["notify-send", "Triad", "reloaded"]
@@ -1166,7 +1117,7 @@ config-notification {
     writeFile(configPath, "layout { gaps ")
     observedConfigNotificationEvent = ConfigNotificationEvent.ConfigNotifyNone
     observedConfigNotificationCommand = @[]
-    check not daemon.applyConfigReload(configPath, "")
+    check not daemon.applyConfigReload(configPath)
     check observedConfigNotificationEvent == ConfigNotificationEvent.ConfigReloadFailed
     check observedConfigNotificationCommand == @["notify-send", "Triad", "failed"]
 
@@ -1175,7 +1126,7 @@ config-notification {
     if fileExists(restorePath):
       removeFile(restorePath)
 
-  test "Niri overview fallback keys preserve user overview bindings":
+  test "Overview fallback keys preserve user overview bindings":
     var model = initRuntimeStateFromConfig(Config()).model
     model.keyBindings =
       @[
@@ -1209,7 +1160,7 @@ config-notification {
     check fallbacks.anyIt(it.key == "Page_Up" and it.command == "focus-tag-left")
     check fallbacks.anyIt(it.key == "Page_Down" and it.command == "focus-tag-right")
 
-  test "Niri overview fallback keys derive user direction keys":
+  test "Overview fallback keys derive user direction keys":
     var model = initRuntimeStateFromConfig(Config()).model
     model.keyBindings =
       @[
@@ -1256,7 +1207,7 @@ config-notification {
         it.command == "focus-window-or-workspace-up"
     )
 
-  test "Niri recent fallback keys use held switcher modifiers":
+  test "Recent fallback keys use held switcher modifiers":
     var model = initRuntimeStateFromConfig(Config()).model
     discard model.setActiveModifiers(8'u32)
 
@@ -1277,7 +1228,7 @@ config-notification {
     check not fallbacks.anyIt(it.key == "Up")
     check not fallbacks.anyIt(it.key == "Down")
 
-  test "Niri recent fallback keys preserve user recent bindings":
+  test "Recent fallback keys preserve user recent bindings":
     var model = initRuntimeStateFromConfig(Config()).model
     discard model.setActiveModifiers(8'u32)
     model.keyBindings.add(
@@ -1298,7 +1249,7 @@ config-notification {
       it.key == "Right" and it.modifiers == 8'u32 and it.command == "recent-window-next"
     )
 
-  test "Niri recent fallback keys derive user direction keys":
+  test "Recent fallback keys derive user direction keys":
     var model = initRuntimeStateFromConfig(Config()).model
     discard model.setActiveModifiers(8'u32)
     model.keyBindings =
@@ -1507,40 +1458,6 @@ config-notification {
     check model.tiledEdgesForWindow(model.windowDataForRiverId(3'u32).get()) ==
       RiverAllEdges
     check model.tiledEdgesForWindow(model.windowDataForRiverId(4'u32).get()) == 0'u32
-
-  test "Niri compatibility rejects malformed IPC without crashing":
-    let malformed = niri_compat.handleNiriRequest("{", baseSnapshot())
-    check malformed.handled
-    check parseJson(malformed.reply)["Err"].getStr().len > 0
-
-    let unknown = niri_compat.handleNiriRequest(
-      """{"Action":{"NotARealAction":{}}}""", baseSnapshot()
-    )
-    check unknown.handled
-    check parseJson(unknown.reply)["Err"].getStr().len > 0
-
-  test "Niri command socket accepts repeated requests":
-    let path =
-      getTempDir() / ("triad-niri-persistent-" & $getCurrentProcessId() & ".sock")
-    if fileExists(path):
-      removeFile(path)
-
-    let replies = waitFor persistentNiriReplies(path)
-    check replies.len == 2
-    check parseJson(replies[0])["Ok"].hasKey("Workspaces")
-    check replies[1] == """{"Ok":"Handled"}"""
-
-  test "Niri command socket can idle between repeated requests":
-    let path = getTempDir() / ("triad-niri-idle-" & $getCurrentProcessId() & ".sock")
-    if fileExists(path):
-      removeFile(path)
-
-    let replies = waitFor persistentNiriReplies(
-      path, idleDelayMs = 60, requestTimeoutMs = IpcNoRequestTimeoutMs
-    )
-    check replies.len == 2
-    check parseJson(replies[0])["Ok"].hasKey("Workspaces")
-    check replies[1] == """{"Ok":"Handled"}"""
 
   test "native Triad event-stream subscriber is pruned after client close":
     let path = getTempDir() / ("triad-native-prune-" & $getCurrentProcessId() & ".sock")

@@ -1,8 +1,7 @@
-import std/[asyncdispatch, json, options, os, strutils, tables]
+import std/[json, options, os, strutils, tables]
 import chronicles
 import ../config/[defaults, parser]
-import ../core/[niri_state, shell_focus, shell_profiles]
-import ../ipc/socket
+import ../core/[shell_focus, shell_profiles]
 import ../systems/runtime_facade
 import ../types/[model, shell_snapshot]
 from ../types/runtime_values import ConfigNotificationEvent
@@ -63,10 +62,6 @@ proc spawnPendingStartupCommands*(
   daemon.startupCommandsPending = false
   info "Spawning startup commands", reason = reason
   daemon.trackChildProcesses(spawnStartupCommands(model))
-
-proc broadcastNiriSnapshot*(snapshot: ShellSnapshot) =
-  for event in initialNiriEvents(snapshot):
-    asyncCheck broadcastJson(event)
 
 proc windowPreservationState(win: ShellWindow): string =
   let tagId =
@@ -146,9 +141,7 @@ proc dispatchConfigNotification(
   else:
     daemon.trackChildProcess(spawnConfigNotification(model, event, command), command[0])
 
-proc applyConfigReload*(
-    daemon: var TriadDaemon, configPath, niriSocketPath: string
-): bool =
+proc applyConfigReload*(daemon: var TriadDaemon, configPath: string): bool =
   let beforeSnapshot = daemon.readModelSnapshot()
   writeBehaviorEvent(
     "config_reload_started",
@@ -250,12 +243,11 @@ proc applyConfigReload*(
         %*{"reason": "config reload", "active": daemon.runtimeState.model.shells.active},
       )
       daemon.shellRunner.switchShell(
-        previousModel, daemon.runtimeState.model, niriSocketPath,
-        "config reload recovery",
+        previousModel, daemon.runtimeState.model, "config reload recovery",
       )
   else:
     daemon.shellRunner.switchShell(
-      previousModel, daemon.runtimeState.model, niriSocketPath, "config reload"
+      previousModel, daemon.runtimeState.model, "config reload"
     )
 
   daemon.requestBindingReconfigure("config reload")
@@ -267,7 +259,6 @@ proc applyConfigReload*(
   daemon.postManageBroadcastPending = true
   daemon.postManageBroadcastReason = "config reload"
   daemon.markRenderDirty("config reload")
-  broadcastNiriSnapshot(daemon.readModelSnapshot())
   writeBehaviorEvent(
     "config_reload_broadcast",
     %*{

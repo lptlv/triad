@@ -86,9 +86,8 @@ const SpecialMsgCommands* = [
   ),
   SpecialMsgCommand(
     name: "event-stream",
-    usage: "triad msg event-stream [--native [layout,state,window]]",
-    description:
-      "Subscribe to Niri-compatible events, or native Triad events with --native.",
+    usage: "triad msg event-stream [layout,state,window]",
+    description: "Subscribe to native Triad events.",
   ),
   SpecialMsgCommand(
     name: "dev-mode",
@@ -288,7 +287,7 @@ Useful request commands:
   triad msg perf-status
   triad msg mem-status
   triad msg dev-mode [on|off|toggle|status]
-  triad msg event-stream [--native [layout,state,window]]
+  triad msg event-stream [layout,state,window]
 
 """
   result.add(renderCommandList())

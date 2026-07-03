@@ -155,11 +155,11 @@ cross-tag path instead of restructuring the workspace root.
 
 | i3 surface | Reason omitted |
 |---|---|
-| i3 IPC (13 msg types, 8 events) | Triad exposes native JSON IPC + Niri-compat socket; no i3-msg shim |
+| i3 IPC (13 msg types, 8 events) | Triad exposes native JSON IPC; no i3-msg shim |
 | Config DSL (`bindsym`, `for_window`, `assign`, `mode`, `bar`) | Triad uses KDL config; window rules serve `for_window`/`assign` semantics at admission time |
 | Marks (`mark`/`unmark`/`show_marks`) | Marks subsystem doesn't exist; needed before `move to mark` / `swap with mark` |
 | Criteria operators (`class`, `instance`, `con_id`, `con_mark`, …) | Triad `window-rule` uses `app-id` / `title` matchers (Niri-style); full i3 criteria are a separate project |
-| Bar protocol (`GET_BAR_CONFIG`, `barconfig_update` event) | Bars are external shells reading Niri-compat/native sockets |
+| Bar protocol (`GET_BAR_CONFIG`, `barconfig_update` event) | Bars are external shells reading the native socket |
 | `append_layout` | Requires parsing i3's JSON layout format |
 | `open` (empty container) | Rarely used outside scripts; not in declared compat scope |
 
