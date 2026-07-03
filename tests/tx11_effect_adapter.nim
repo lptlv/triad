@@ -5,10 +5,9 @@ import ../src/x11/effect_adapter
 
 suite "X11 effect adapter":
   test "translates set position to configure-window intent":
-    let intents =
-      Effect(
-        kind: EffectKind.EffSetPosition, windowId: 42, x: 10, y: 20, w: 640, h: 480
-      ).x11IntentsFor()
+    let intents = Effect(
+      kind: EffectKind.EffSetPosition, windowId: 42, x: 10, y: 20, w: 640, h: 480
+    ).x11IntentsFor()
 
     check intents.len == 1
     check intents[0].kind == X11EffectIntentKind.ConfigureWindow
@@ -23,10 +22,9 @@ suite "X11 effect adapter":
     check intents[0].configureH == 480
 
   test "clamps configure dimensions to X11-positive sizes":
-    let intents =
-      Effect(
-        kind: EffectKind.EffSetPosition, windowId: 7, x: -5, y: -6, w: 0, h: -10
-      ).x11IntentsFor()
+    let intents = Effect(
+      kind: EffectKind.EffSetPosition, windowId: 7, x: -5, y: -6, w: 0, h: -10
+    ).x11IntentsFor()
 
     check intents.len == 1
     check intents[0].configureWindowId == 7
@@ -36,11 +34,10 @@ suite "X11 effect adapter":
     check intents[0].configureH == 1
 
   test "translates focus and close effects":
-    let intents =
-      @[
-        Effect(kind: EffectKind.EffFocusWindow, focusId: 10),
-        Effect(kind: EffectKind.EffCloseWindow, closeId: 11),
-      ].x11IntentsFor()
+    let intents = @[
+      Effect(kind: EffectKind.EffFocusWindow, focusId: 10),
+      Effect(kind: EffectKind.EffCloseWindow, closeId: 11),
+    ].x11IntentsFor()
 
     check intents.len == 2
     check intents[0].kind == X11EffectIntentKind.FocusWindow
@@ -48,12 +45,27 @@ suite "X11 effect adapter":
     check intents[1].kind == X11EffectIntentKind.CloseWindow
     check intents[1].closeWindowId == 11
 
+  test "translates fullscreen and maximized effects":
+    let intents = @[
+      Effect(kind: EffectKind.EffSetFullscreen, fsWinId: 12, isFullscreen: true),
+      Effect(kind: EffectKind.EffSetMaximized, maxWinId: 13, isMaximized: false),
+    ].x11IntentsFor()
+
+    check intents.len == 2
+    check intents[0].kind == X11EffectIntentKind.SetFullscreenState
+    check intents[0].fullscreenWindowId == 12
+    check intents[0].fullscreenActive
+    check intents[1].kind == X11EffectIntentKind.SetMaximizedState
+    check intents[1].maximizedWindowId == 13
+    check not intents[1].maximizedActive
+
   test "ignores unsupported and zero-id effects":
-    let intents =
-      @[
-        Effect(kind: EffectKind.EffRenderDirty, renderDirtyReason: "test"),
-        Effect(kind: EffectKind.EffFocusWindow, focusId: 0),
-        Effect(kind: EffectKind.EffCloseWindow, closeId: 0),
-      ].x11IntentsFor()
+    let intents = @[
+      Effect(kind: EffectKind.EffRenderDirty, renderDirtyReason: "test"),
+      Effect(kind: EffectKind.EffFocusWindow, focusId: 0),
+      Effect(kind: EffectKind.EffCloseWindow, closeId: 0),
+      Effect(kind: EffectKind.EffSetFullscreen, fsWinId: 0, isFullscreen: true),
+      Effect(kind: EffectKind.EffSetMaximized, maxWinId: 0, isMaximized: true),
+    ].x11IntentsFor()
 
     check intents.len == 0

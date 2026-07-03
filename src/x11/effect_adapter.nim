@@ -11,6 +11,8 @@ type
     ConfigureWindow
     FocusWindow
     CloseWindow
+    SetFullscreenState
+    SetMaximizedState
 
   X11EffectIntent* = object
     case kind*: X11EffectIntentKind
@@ -22,6 +24,12 @@ type
       focusWindowId*: uint32
     of X11EffectIntentKind.CloseWindow:
       closeWindowId*: uint32
+    of X11EffectIntentKind.SetFullscreenState:
+      fullscreenWindowId*: uint32
+      fullscreenActive*: bool
+    of X11EffectIntentKind.SetMaximizedState:
+      maximizedWindowId*: uint32
+      maximizedActive*: bool
 
 proc positiveDimension(value: int32): int32 =
   max(1'i32, value)
@@ -54,6 +62,24 @@ proc x11IntentsFor*(effect: Effect): seq[X11EffectIntent] =
       result.add(
         X11EffectIntent(
           kind: X11EffectIntentKind.CloseWindow, closeWindowId: effect.closeId
+        )
+      )
+  of EffectKind.EffSetFullscreen:
+    if effect.fsWinId != 0:
+      result.add(
+        X11EffectIntent(
+          kind: X11EffectIntentKind.SetFullscreenState,
+          fullscreenWindowId: effect.fsWinId,
+          fullscreenActive: effect.isFullscreen,
+        )
+      )
+  of EffectKind.EffSetMaximized:
+    if effect.maxWinId != 0:
+      result.add(
+        X11EffectIntent(
+          kind: X11EffectIntentKind.SetMaximizedState,
+          maximizedWindowId: effect.maxWinId,
+          maximizedActive: effect.isMaximized,
         )
       )
   else:

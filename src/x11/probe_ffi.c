@@ -21,6 +21,8 @@ typedef enum TriadX11RequestKind {
     TRIAD_X11_REQUEST_SET_INPUT_FOCUS = 1,
     TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW = 2,
     TRIAD_X11_REQUEST_MAP_WINDOW = 3,
+    TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE = 4,
+    TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE = 5,
 } TriadX11RequestKind;
 
 typedef struct TriadX11Request {
@@ -2244,6 +2246,203 @@ static int execute_close_request(
     return 0;
 }
 
+static int read_wm_state(
+    xcb_connection_t *conn,
+    xcb_window_t window,
+    xcb_atom_t net_wm_state,
+    xcb_atom_t **atoms,
+    uint32_t *count)
+{
+    *atoms = NULL;
+    *count = 0;
+
+    xcb_get_property_cookie_t cookie = xcb_get_property(
+        conn,
+        0,
+        window,
+        net_wm_state,
+        XCB_ATOM_ATOM,
+        0,
+        1024);
+    xcb_generic_error_t *error = NULL;
+    xcb_get_property_reply_t *reply = xcb_get_property_reply(conn, cookie, &error);
+    if (error != NULL) {
+        free(error);
+        return 1;
+    }
+    if (reply == NULL)
+        return 1;
+
+    int length = xcb_get_property_value_length(reply) / (int)sizeof(xcb_atom_t);
+    if (length > 0) {
+        *atoms = calloc((size_t)length, sizeof(xcb_atom_t));
+        if (*atoms == NULL) {
+            free(reply);
+            return 1;
+        }
+        memcpy(*atoms, xcb_get_property_value(reply), (size_t)length * sizeof(xcb_atom_t));
+        *count = (uint32_t)length;
+    }
+    free(reply);
+    return 0;
+}
+
+static int state_contains_atom(const xcb_atom_t *atoms, uint32_t count, xcb_atom_t atom)
+{
+    for (uint32_t i = 0; i < count; i++) {
+        if (atoms[i] == atom)
+            return 1;
+    }
+    return 0;
+}
+
+static int upsert_state_atom(
+    xcb_atom_t *atoms, uint32_t *count, uint32_t capacity, xcb_atom_t atom, int active)
+{
+    for (uint32_t i = 0; i < *count; i++) {
+        if (atoms[i] == atom) {
+            if (!active) {
+                memmove(
+                    &atoms[i],
+                    &atoms[i + 1],
+                    (size_t)(*count - i - 1) * sizeof(xcb_atom_t));
+                (*count)--;
+            }
+            return 0;
+        }
+    }
+    if (active) {
+        if (*count >= capacity)
+            return 1;
+        atoms[*count] = atom;
+        (*count)++;
+    }
+    return 0;
+}
+
+static int execute_state_request(
+    xcb_connection_t *conn,
+    const TriadX11Request *request,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    if (request->value_count < 1) {
+        request_log(
+            log_fn,
+            user_data,
+            "error state window=0x%08x value_count=%u",
+            request->window_id,
+            request->value_count);
+        return 1;
+    }
+
+    xcb_atom_t net_wm_state = intern_atom_for_conn(conn, "_NET_WM_STATE", 0);
+    xcb_atom_t fullscreen = intern_atom_for_conn(conn, "_NET_WM_STATE_FULLSCREEN", 0);
+    xcb_atom_t maximized_horz =
+        intern_atom_for_conn(conn, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
+    xcb_atom_t maximized_vert =
+        intern_atom_for_conn(conn, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
+    if (net_wm_state == XCB_ATOM_NONE ||
+        (request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE &&
+         fullscreen == XCB_ATOM_NONE) ||
+        (request->kind == TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE &&
+         (maximized_horz == XCB_ATOM_NONE || maximized_vert == XCB_ATOM_NONE))) {
+        request_log(log_fn, user_data, "error state atoms unavailable");
+        return 1;
+    }
+
+    xcb_atom_t *current = NULL;
+    uint32_t current_count = 0;
+    if (read_wm_state(conn, request->window_id, net_wm_state, &current, &current_count) !=
+        0) {
+        request_log(
+            log_fn,
+            user_data,
+            "error state window=0x%08x property unavailable",
+            request->window_id);
+        return 1;
+    }
+
+    uint32_t capacity = current_count + 2;
+    xcb_atom_t *next = calloc(capacity == 0 ? 1 : capacity, sizeof(xcb_atom_t));
+    if (next == NULL) {
+        free(current);
+        request_log(log_fn, user_data, "error state allocation failed");
+        return 1;
+    }
+    if (current_count > 0)
+        memcpy(next, current, (size_t)current_count * sizeof(xcb_atom_t));
+    uint32_t next_count = current_count;
+    int active = request->values[0] != 0;
+
+    int update_error = 0;
+    if (request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE) {
+        update_error = upsert_state_atom(next, &next_count, capacity, fullscreen, active);
+    } else {
+        update_error =
+            upsert_state_atom(next, &next_count, capacity, maximized_horz, active);
+        if (update_error == 0)
+            update_error =
+                upsert_state_atom(next, &next_count, capacity, maximized_vert, active);
+    }
+    if (update_error != 0) {
+        free(current);
+        free(next);
+        request_log(log_fn, user_data, "error state atom capacity exceeded");
+        return 1;
+    }
+
+    int changed = 0;
+    if (request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE) {
+        changed = state_contains_atom(current, current_count, fullscreen) != active;
+    } else {
+        changed = state_contains_atom(current, current_count, maximized_horz) != active ||
+            state_contains_atom(current, current_count, maximized_vert) != active;
+    }
+
+    xcb_void_cookie_t cookie;
+    if (next_count == 0) {
+        cookie = xcb_delete_property_checked(conn, request->window_id, net_wm_state);
+    } else {
+        cookie = xcb_change_property_checked(
+            conn,
+            XCB_PROP_MODE_REPLACE,
+            request->window_id,
+            net_wm_state,
+            XCB_ATOM_ATOM,
+            32,
+            next_count,
+            next);
+    }
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error state window=0x%08x code=%u",
+            request->window_id,
+            error->error_code);
+        free(error);
+        free(current);
+        free(next);
+        return 1;
+    }
+
+    const char *name =
+        request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE ? "fullscreen" : "maximized";
+    request_log(
+        log_fn,
+        user_data,
+        "applied %s window=0x%08x active=%d changed=%d",
+        name,
+        request->window_id,
+        active,
+        changed);
+    free(current);
+    free(next);
+    return 0;
+}
+
 static int execute_requests_on_connection(
     xcb_connection_t *conn,
     const TriadX11Request *requests,
@@ -2267,6 +2466,10 @@ static int execute_requests_on_connection(
             break;
         case TRIAD_X11_REQUEST_MAP_WINDOW:
             request_status = execute_map_request(conn, request, log_fn, user_data);
+            break;
+        case TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE:
+        case TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE:
+            request_status = execute_state_request(conn, request, log_fn, user_data);
             break;
         default:
             request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);
@@ -2346,6 +2549,40 @@ int triad_x11_execute_requests(
                 break;
             case TRIAD_X11_REQUEST_MAP_WINDOW:
                 request_log(log_fn, user_data, "dry_run map window=0x%08x", request->window_id);
+                break;
+            case TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE:
+                if (request->value_count < 1) {
+                    request_log(
+                        log_fn,
+                        user_data,
+                        "error state window=0x%08x value_count=%u",
+                        request->window_id,
+                        request->value_count);
+                    return 1;
+                }
+                request_log(
+                    log_fn,
+                    user_data,
+                    "dry_run fullscreen window=0x%08x active=%d",
+                    request->window_id,
+                    request->values[0] != 0);
+                break;
+            case TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE:
+                if (request->value_count < 1) {
+                    request_log(
+                        log_fn,
+                        user_data,
+                        "error state window=0x%08x value_count=%u",
+                        request->window_id,
+                        request->value_count);
+                    return 1;
+                }
+                request_log(
+                    log_fn,
+                    user_data,
+                    "dry_run maximized window=0x%08x active=%d",
+                    request->window_id,
+                    request->values[0] != 0);
                 break;
             default:
                 request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);

@@ -85,6 +85,18 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "f",
+          modifiers: 64'u32,
+          command: "maximize-window-to-edges",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "f",
+          modifiers: 65'u32,
+          command: "fullscreen-window",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "c", modifiers: 64'u32, command: "scroller", mode: BindingMode.BindAlways
         ),
         KeyBindingConfig(
@@ -313,6 +325,32 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "maximize-column"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdMaximizeColumn
+
+  test "binding dispatch resolves maximize-to-edges key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+f"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "maximize-window-to-edges"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdToggleMaximized
+
+  test "binding dispatch resolves fullscreen key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+f"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "fullscreen-window"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdToggleFullscreen
 
   test "binding dispatch resolves core scroller layout key binding":
     let parsed = xlibreWritableRequestFor(

@@ -6,6 +6,8 @@ type
     XrqSetInputFocus = 1
     XrqSendCloseWindow = 2
     XrqMapWindow = 3
+    XrqSetFullscreenState = 4
+    XrqSetMaximizedState = 5
 
   X11Request* {.bycopy.} = object
     kind*: X11RequestKind
@@ -15,12 +17,7 @@ type
     values*: array[4, int32]
 
 proc configureValues(intent: X11EffectIntent): array[4, int32] =
-  [
-    intent.configureX,
-    intent.configureY,
-    intent.configureW,
-    intent.configureH,
-  ]
+  [intent.configureX, intent.configureY, intent.configureW, intent.configureH]
 
 proc x11RequestFor*(intent: X11EffectIntent): X11Request =
   case intent.kind
@@ -35,8 +32,20 @@ proc x11RequestFor*(intent: X11EffectIntent): X11Request =
   of X11EffectIntentKind.FocusWindow:
     X11Request(kind: X11RequestKind.XrqSetInputFocus, windowId: intent.focusWindowId)
   of X11EffectIntentKind.CloseWindow:
+    X11Request(kind: X11RequestKind.XrqSendCloseWindow, windowId: intent.closeWindowId)
+  of X11EffectIntentKind.SetFullscreenState:
     X11Request(
-      kind: X11RequestKind.XrqSendCloseWindow, windowId: intent.closeWindowId
+      kind: X11RequestKind.XrqSetFullscreenState,
+      windowId: intent.fullscreenWindowId,
+      valueCount: 1,
+      values: [int32(intent.fullscreenActive), 0'i32, 0'i32, 0'i32],
+    )
+  of X11EffectIntentKind.SetMaximizedState:
+    X11Request(
+      kind: X11RequestKind.XrqSetMaximizedState,
+      windowId: intent.maximizedWindowId,
+      valueCount: 1,
+      values: [int32(intent.maximizedActive), 0'i32, 0'i32, 0'i32],
     )
 
 proc x11MapWindowRequest*(windowId: uint32): X11Request =

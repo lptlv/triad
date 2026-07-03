@@ -404,3 +404,65 @@ suite "X11 admission pipeline":
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
+
+  test "fullscreen command pipeline sets EWMH state and reprojects managed windows":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x64, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdToggleFullscreen))
+
+    check step.message.kind == MsgKind.CmdToggleFullscreen
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x64
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetFullscreenState and it.windowId == 0x64 and
+        it.values[0] == 1
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "maximize command pipeline sets EWMH state and reprojects managed windows":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x65, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdToggleMaximized))
+
+    check step.message.kind == MsgKind.CmdToggleMaximized
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x65
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetMaximizedState and it.windowId == 0x65 and
+        it.values[0] == 1
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun

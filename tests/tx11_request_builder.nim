@@ -6,10 +6,11 @@ import ../src/x11/request_builder
 
 suite "X11 request builder":
   test "builds configure-window request from set-position effect":
-    let requests =
-      Effect(
+    let requests = Effect(
         kind: EffectKind.EffSetPosition, windowId: 42, x: 10, y: 20, w: 640, h: 480
-      ).x11IntentsFor().x11RequestsFor()
+      )
+      .x11IntentsFor()
+      .x11RequestsFor()
 
     let expectedMask =
       X11ConfigureMaskX or X11ConfigureMaskY or X11ConfigureMaskWidth or
@@ -22,21 +23,23 @@ suite "X11 request builder":
     check requests[0].values == [10'i32, 20, 640, 480]
 
   test "preserves signed coordinates and positive clamped dimensions":
-    let requests =
-      Effect(
+    let requests = Effect(
         kind: EffectKind.EffSetPosition, windowId: 7, x: -30, y: -40, w: 0, h: -5
-      ).x11IntentsFor().x11RequestsFor()
+      )
+      .x11IntentsFor()
+      .x11RequestsFor()
 
     check requests.len == 1
     check requests[0].kind == X11RequestKind.XrqConfigureWindow
     check requests[0].values == [-30'i32, -40, 1, 1]
 
   test "builds focus and close request records":
-    let requests =
-      @[
+    let requests = @[
         Effect(kind: EffectKind.EffFocusWindow, focusId: 10),
         Effect(kind: EffectKind.EffCloseWindow, closeId: 11),
-      ].x11IntentsFor().x11RequestsFor()
+      ]
+      .x11IntentsFor()
+      .x11RequestsFor()
 
     check requests.len == 2
     check requests[0].kind == X11RequestKind.XrqSetInputFocus
@@ -56,8 +59,28 @@ suite "X11 request builder":
     check request.valueMask == 0
     check request.valueCount == 0
 
+  test "builds fullscreen and maximized state request records":
+    let requests = @[
+        Effect(kind: EffectKind.EffSetFullscreen, fsWinId: 13, isFullscreen: true),
+        Effect(kind: EffectKind.EffSetMaximized, maxWinId: 14, isMaximized: false),
+      ]
+      .x11IntentsFor()
+      .x11RequestsFor()
+
+    check requests.len == 2
+    check requests[0].kind == X11RequestKind.XrqSetFullscreenState
+    check requests[0].windowId == 13
+    check requests[0].valueCount == 1
+    check requests[0].values[0] == 1
+    check requests[1].kind == X11RequestKind.XrqSetMaximizedState
+    check requests[1].windowId == 14
+    check requests[1].valueCount == 1
+    check requests[1].values[0] == 0
+
   test "request ABI enum keeps stable wire values":
     check ord(X11RequestKind.XrqConfigureWindow) == 0
     check ord(X11RequestKind.XrqSetInputFocus) == 1
     check ord(X11RequestKind.XrqSendCloseWindow) == 2
     check ord(X11RequestKind.XrqMapWindow) == 3
+    check ord(X11RequestKind.XrqSetFullscreenState) == 4
+    check ord(X11RequestKind.XrqSetMaximizedState) == 5

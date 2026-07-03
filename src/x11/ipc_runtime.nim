@@ -213,8 +213,8 @@ proc xlibreCommandSupported(msg: Msg): bool =
       MsgKind.CmdFocusColumnFirst, MsgKind.CmdFocusColumnLast,
       MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdFocusWindowById,
       MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex,
-      MsgKind.CmdSwitchLayout, MsgKind.CmdMaximizeColumn, MsgKind.CmdSpawn,
-      MsgKind.CmdSpawnTerminal:
+      MsgKind.CmdSwitchLayout, MsgKind.CmdMaximizeColumn, MsgKind.CmdToggleFullscreen,
+      MsgKind.CmdToggleMaximized, MsgKind.CmdSpawn, MsgKind.CmdSpawnTerminal:
     true
   else:
     false

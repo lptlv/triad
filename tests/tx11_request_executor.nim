@@ -7,10 +7,12 @@ import ../src/x11/request_executor
 
 suite "X11 request executor":
   test "dry-run execution records configure request without applying it":
-    let executions =
-      Effect(
+    let executions = Effect(
         kind: EffectKind.EffSetPosition, windowId: 42, x: 10, y: 20, w: 640, h: 480
-      ).x11IntentsFor().x11RequestsFor().executeDryRun()
+      )
+      .x11IntentsFor()
+      .x11RequestsFor()
+      .executeDryRun()
 
     check executions.len == 1
     check not executions[0].applied
@@ -19,11 +21,13 @@ suite "X11 request executor":
       "configure window=0x0000002a x=10 y=20 w=640 h=480"
 
   test "dry-run execution describes focus and close requests":
-    let executions =
-      @[
+    let executions = @[
         Effect(kind: EffectKind.EffFocusWindow, focusId: 10),
         Effect(kind: EffectKind.EffCloseWindow, closeId: 11),
-      ].x11IntentsFor().x11RequestsFor().executeDryRun()
+      ]
+      .x11IntentsFor()
+      .x11RequestsFor()
+      .executeDryRun()
 
     check executions.len == 2
     check not executions[0].applied
@@ -39,44 +43,68 @@ suite "X11 request executor":
     check executions[0].request.kind == X11RequestKind.XrqMapWindow
     check executions[0].description == "map window=0x0000000c"
 
+  test "dry-run execution describes state requests":
+    let executions = @[
+        Effect(kind: EffectKind.EffSetFullscreen, fsWinId: 13, isFullscreen: true),
+        Effect(kind: EffectKind.EffSetMaximized, maxWinId: 14, isMaximized: false),
+      ]
+      .x11IntentsFor()
+      .x11RequestsFor()
+      .executeDryRun()
+
+    check executions.len == 2
+    check executions[0].description == "set-fullscreen window=0x0000000d active=true"
+    check executions[1].description == "set-maximized window=0x0000000e active=false"
+
   test "xcb dry-run boundary logs request records without a display":
-    var requests =
-      @[
+    var requests = @[
         Effect(kind: EffectKind.EffFocusWindow, focusId: 10),
         Effect(kind: EffectKind.EffCloseWindow, closeId: 11),
-      ].x11IntentsFor().x11RequestsFor()
+        Effect(kind: EffectKind.EffSetFullscreen, fsWinId: 13, isFullscreen: true),
+        Effect(kind: EffectKind.EffSetMaximized, maxWinId: 14, isMaximized: false),
+      ]
+      .x11IntentsFor()
+      .x11RequestsFor()
     requests.add(x11MapWindowRequest(12))
-    let run =
-      requests.executeWithXcb(dryRun = true)
+    let run = requests.executeWithXcb(dryRun = true)
 
     check run.code == 0
     check run.dryRun
-    check run.logs.len == 4
+    check run.logs.len == 6
     check run.logs[0] == "dry_run focus window=0x0000000a"
     check run.logs[1] == "dry_run close window=0x0000000b"
-    check run.logs[2] == "dry_run map window=0x0000000c"
-    check run.logs[3] == "request execution complete dry_run=1 count=3"
+    check run.logs[2] == "dry_run fullscreen window=0x0000000d active=1"
+    check run.logs[3] == "dry_run maximized window=0x0000000e active=0"
+    check run.logs[4] == "dry_run map window=0x0000000c"
+    check run.logs[5] == "request execution complete dry_run=1 count=5"
 
   test "xcb dry-run boundary rejects malformed configure records":
-    let run =
-      @[
-        X11Request(
-          kind: X11RequestKind.XrqConfigureWindow, windowId: 42, valueCount: 2
-        )
-      ].executeWithXcb(dryRun = true)
+    let run = @[
+      X11Request(kind: X11RequestKind.XrqConfigureWindow, windowId: 42, valueCount: 2)
+    ].executeWithXcb(dryRun = true)
 
     check run.code != 0
     check run.dryRun
     check run.logs.len == 1
     check run.logs[0] == "error configure window=0x0000002a value_count=2"
 
-  test "xcb live boundary reports connection failure for missing display":
-    let run =
-      @[
-        Effect(kind: EffectKind.EffFocusWindow, focusId: 10)
-      ].x11IntentsFor().x11RequestsFor().executeWithXcb(
-        displayName = ":triad-missing-display", dryRun = false
+  test "xcb dry-run boundary rejects malformed state records":
+    let run = @[
+      X11Request(
+        kind: X11RequestKind.XrqSetFullscreenState, windowId: 42, valueCount: 0
       )
+    ].executeWithXcb(dryRun = true)
+
+    check run.code != 0
+    check run.dryRun
+    check run.logs.len == 1
+    check run.logs[0] == "error state window=0x0000002a value_count=0"
+
+  test "xcb live boundary reports connection failure for missing display":
+    let run = @[Effect(kind: EffectKind.EffFocusWindow, focusId: 10)]
+      .x11IntentsFor()
+      .x11RequestsFor()
+      .executeWithXcb(displayName = ":triad-missing-display", dryRun = false)
 
     check run.code != 0
     check not run.dryRun
