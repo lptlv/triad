@@ -230,19 +230,20 @@ the existing model pointer operation path for floating windows; motion and
 release events from the active X11 grab are translated to `WlPointerDelta` and
 `WlPointerRelease`, then executed as configure-window requests. The Xvfb smoke
 test uses XTEST, when available, to fake `Super+h`, `Super+Shift+/`,
-`Super+q`, `Super+Tab`, `Super+x`, `Super+middle`, `Super+button10`,
+`Super+q`, `Super+Tab`, `Super+x`, `Super+t`, `Super+middle`, `Super+button10`,
 `Super+wheel-up`, plus `Super+left` move and `Super+right` resize drags of a
 floating synthetic client. The `Super+q` path closes a focused managed client
 through the same explicit close-window request used by XLibre IPC, the
 `Super+Tab` path cycles focus across two managed clients through the reused model
-focus pipeline, and the `Super+x` path exercises an argv-style configured
-`spawn` binding without enabling general command IPC. Resize chooses top/bottom
-and left/right edges from the pointer's initial position in the floating window.
-Core `MappingNotify` events invalidate the configured key, button, and axis grab
-signatures so the next manage tick rebuilds grabs against the server's current
-keyboard and button mapping. This first input path is intentionally narrow:
-gesture bindings, high-resolution wheel deltas, `spawn-terminal`, and full XKB
-group/layout-specific handling still need follow-up work.
+focus pipeline, and the `Super+x` and `Super+t` paths exercise argv-style
+configured `spawn` and `spawn-terminal` bindings without enabling general
+command IPC. Resize chooses top/bottom and left/right edges from the pointer's
+initial position in the floating window. Core `MappingNotify` events invalidate
+the configured key, button, and axis grab signatures so the next manage tick
+rebuilds grabs against the server's current keyboard and button mapping. This
+first input path is intentionally narrow: gesture bindings, high-resolution
+wheel deltas, and full XKB group/layout-specific handling still need follow-up
+work.
 
 The next step is to expand runtime usability cautiously:
 

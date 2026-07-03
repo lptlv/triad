@@ -484,6 +484,16 @@ proc executeXlibreWritableRequest(
     if request.messages.len > 0:
       var run = X11RequestRunResult(code: 0, dryRun: false)
       for message in request.messages:
+        if message.kind == MsgKind.CmdSpawnTerminal:
+          let terminalRun = context.model.executeXlibreTerminalSpawn()
+          for line in terminalRun.logs:
+            stdout.writeLine("xlibre_ipc_spawn " & line)
+          run = X11RequestRunResult(
+            code: terminalRun.code, dryRun: false, logs: terminalRun.logs
+          )
+          if run.code != 0:
+            break
+          continue
         let step = context.model.processCommandWithActiveProbe(message)
         for x11Request in step.layoutRequests:
           stdout.writeLine(

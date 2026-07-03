@@ -1,8 +1,9 @@
-import std/[os, osproc, strtabs]
+import std/[os, osproc, strtabs, strutils]
 
 import ../core/effects
 import ../types/model
 import ../utils/process_options
+import ../utils/terminal
 
 type X11SpawnRunResult* = object
   code*: int
@@ -25,6 +26,17 @@ proc configuredProcessEnv(model: Model): StringTableRef =
     else:
       result[entry.name] = entry.value
 
+proc commandExistsInEnv(command: string, env: StringTableRef): bool =
+  if command.len == 0:
+    return false
+  if command.contains($DirSep) or (AltSep != '\0' and command.contains($AltSep)):
+    return fileExists(command)
+  let path = env.getOrDefault("PATH", getEnv("PATH", ""))
+  for dir in path.split(PathSep):
+    if dir.len > 0 and fileExists(dir / command):
+      return true
+  false
+
 proc executeXlibreSpawn*(model: Model, command: seq[string]): X11SpawnRunResult =
   if command.len == 0:
     result.code = 1
@@ -44,6 +56,19 @@ proc executeXlibreSpawn*(model: Model, command: seq[string]): X11SpawnRunResult 
   except CatchableError as e:
     result.code = 1
     result.logs.add("spawn failed command=" & command[0] & " error=" & e.msg)
+
+proc executeXlibreTerminalSpawn*(model: Model): X11SpawnRunResult =
+  let env = model.configuredProcessEnv()
+  for command in terminalCandidates(model.terminal.command):
+    if command.len == 0 or not commandExistsInEnv(command[0], env):
+      continue
+    result = model.executeXlibreSpawn(command)
+    if result.code == 0:
+      result.logs.add("spawn-terminal command=" & command[0])
+      return
+
+  result.code = 1
+  result.logs.add("spawn-terminal failed reason=no-terminal-command")
 
 proc executeXlibreSpawnEffects*(
     model: Model, effects: openArray[Effect]

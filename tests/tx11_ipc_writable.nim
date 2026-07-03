@@ -78,6 +78,12 @@ proc bindingModel(): Model =
           command: "spawn-terminal",
           mode: BindingMode.BindAlways,
         ),
+        KeyBindingConfig(
+          key: "z",
+          modifiers: 64'u32,
+          command: "lock-session",
+          mode: BindingMode.BindAlways,
+        ),
       ],
       axisBindings: @[
         AxisBindingConfig(
@@ -255,6 +261,19 @@ suite "X11 writable IPC":
     check parsed.messages[0].kind == MsgKind.CmdSpawn
     check parsed.messages[0].spawnCommand == @["touch", "/tmp/triad-xlibre-spawn-test"]
 
+  test "binding dispatch resolves configured spawn-terminal key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Return"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "spawn-terminal"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSpawnTerminal
+
   test "binding dispatch expands axis ticks into repeated supported commands":
     let parsed = xlibreWritableRequestFor(
       """{"triad":{"version":1,"request":"dispatch-binding","kind":"axis","binding":"Super+wheel-up","ticks":2}}""",
@@ -270,7 +289,7 @@ suite "X11 writable IPC":
 
   test "binding dispatch rejects unsupported configured command":
     let parsed = xlibreWritableRequestFor(
-      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Return"}}""",
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+z"}}""",
       bindingModel(),
       x11Snapshot(),
     )
