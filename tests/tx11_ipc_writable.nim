@@ -79,6 +79,12 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "m",
+          modifiers: 64'u32,
+          command: "maximize-column",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "x",
           modifiers: 64'u32,
           command: "spawn touch /tmp/triad-xlibre-spawn-test",
@@ -285,6 +291,19 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "switch-layout"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdSwitchLayout
+
+  test "binding dispatch resolves maximize-column key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+m"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "maximize-column"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMaximizeColumn
 
   test "binding dispatch resolves configured spawn key binding":
     let parsed = xlibreWritableRequestFor(

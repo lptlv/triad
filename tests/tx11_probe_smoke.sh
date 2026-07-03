@@ -79,6 +79,7 @@ key_press_log="$root/tests/tx11-probe-smoke-key-press.log"
 shifted_key_press_log="$root/tests/tx11-probe-smoke-shifted-key-press.log"
 close_key_press_log="$root/tests/tx11-probe-smoke-close-key-press.log"
 focus_next_press_log="$root/tests/tx11-probe-smoke-focus-next-press.log"
+maximize_column_press_log="$root/tests/tx11-probe-smoke-maximize-column-press.log"
 switch_layout_press_log="$root/tests/tx11-probe-smoke-switch-layout-press.log"
 spawn_press_log="$root/tests/tx11-probe-smoke-spawn-press.log"
 spawn_terminal_press_log="$root/tests/tx11-probe-smoke-spawn-terminal-press.log"
@@ -97,7 +98,7 @@ config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
 spawn_marker="$root/tests/tx11-probe-smoke-spawn-marker"
 spawn_terminal_marker="$root/tests/tx11-probe-smoke-spawn-terminal-marker"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$maximize_column_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -134,7 +135,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$maximize_column_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
 }
 
 trap cleanup EXIT INT TERM
@@ -239,6 +240,7 @@ bindings {
   bind "Super+h" "focus-workspace 1"
   bind "Super+q" "close-window"
   bind "Super+Tab" "focus-next"
+  bind "Super+m" "maximize-column"
   bind "Super+n" "switch-layout"
   bind "Super+x" "spawn touch $spawn_marker"
   bind "Super+t" "spawn-terminal"
@@ -576,6 +578,31 @@ if [ "$xtest_available" -eq 1 ]; then
     printf '%s\n' "tx11_probe_smoke: fake Super+right drag did not resize floating window" >&2
     cat "$manager_log" >&2
     cat "$pointer_resize_log" >&2
+    exit 1
+  fi
+
+  if ! "$client" "$display" --fake-key 0x6d "$x11_mod_super" >"$maximize_column_press_log" 2>&1; then
+    cat "$manager_log" >&2
+    cat "$maximize_column_press_log" >&2
+    exit 1
+  fi
+
+  maximize_column_dispatched=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q 'backend_event KeyBinding binding="Super+m"' "$manager_log" &&
+        grep -q 'xlibre_key_binding_reply .*"binding":"Super+m"' "$manager_log" &&
+        grep -q 'xlibre_key_binding_reply .*"command":"maximize-column"' "$manager_log" &&
+        grep -q 'xlibre_ipc_xcb applied configure window=' "$manager_log"; then
+      maximize_column_dispatched=1
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ "$maximize_column_dispatched" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: fake Super+m did not maximize column" >&2
+    cat "$manager_log" >&2
+    cat "$maximize_column_press_log" >&2
     exit 1
   fi
 
