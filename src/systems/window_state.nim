@@ -280,7 +280,7 @@ proc requestMinimizeForExternal*(model: var Model, externalId: ExternalWindowId)
 proc updateWindowStateForExternal*(
     model: var Model,
     externalId: ExternalWindowId,
-    fullscreen, maximized, minimized: bool,
+    fullscreen, maximized, minimized, urgent: bool,
 ): bool =
   let winId = model.windowForExternal(externalId)
   if winId == NullWindowId:
@@ -314,6 +314,8 @@ proc updateWindowStateForExternal*(
               focused = candidateId
               break
           discard model.setTagFocus(tagId, focused)
+
+  result = model.setWindowUrgent(winId, urgent) or result
 
 proc focusedWindow*(model: Model): WindowId =
   let tagOpt = model.tag(model.activeTag)

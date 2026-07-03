@@ -72,6 +72,7 @@ typedef struct TriadX11Atoms {
     xcb_atom_t net_wm_state_maximized_horz;
     xcb_atom_t net_wm_state_maximized_vert;
     xcb_atom_t net_wm_state_hidden;
+    xcb_atom_t net_wm_state_demands_attention;
     xcb_atom_t net_wm_window_type;
     xcb_atom_t net_supported;
     xcb_atom_t net_supporting_wm_check;
@@ -432,6 +433,8 @@ static void init_atoms(TriadX11Probe *probe)
         intern_atom(probe, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
     probe->atoms.net_wm_state_hidden =
         intern_atom(probe, "_NET_WM_STATE_HIDDEN", 0);
+    probe->atoms.net_wm_state_demands_attention =
+        intern_atom(probe, "_NET_WM_STATE_DEMANDS_ATTENTION", 0);
     probe->atoms.net_wm_window_type = intern_atom(probe, "_NET_WM_WINDOW_TYPE", 0);
     probe->atoms.net_supported = intern_atom(probe, "_NET_SUPPORTED", 0);
     probe->atoms.net_supporting_wm_check =
@@ -547,6 +550,7 @@ static int claim_wm(TriadX11Probe *probe)
         probe->atoms.net_wm_state_maximized_horz,
         probe->atoms.net_wm_state_maximized_vert,
         probe->atoms.net_wm_state_hidden,
+        probe->atoms.net_wm_state_demands_attention,
         probe->atoms.net_wm_window_type,
     };
     xcb_change_property(

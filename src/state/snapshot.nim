@@ -172,6 +172,7 @@ proc shellWindow(
       isFullscreen: win.isFullscreen,
       isMaximized: win.isMaximized,
       isMinimized: win.isMinimized,
+      isUrgent: win.isUrgent,
       isSticky: win.isSticky,
       isOverlay: win.isOverlay,
       isUnmanagedGlobal: win.isUnmanagedGlobal,

@@ -361,6 +361,7 @@ proc triadWindowJson(win: ShellWindow): JsonNode =
     "is_floating": win.isFloating,
     "is_maximized": win.isMaximized,
     "is_minimized": win.isMinimized,
+    "is_urgent": win.isUrgent,
     "is_sticky": win.isSticky,
     "is_overlay": win.isOverlay,
     "is_unmanaged_global": win.isUnmanagedGlobal,

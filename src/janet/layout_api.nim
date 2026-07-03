@@ -130,8 +130,9 @@ proc windowExpr(window: rv.ProjectedWindow): string =
     " :floating " & window.isFloating.boolValue() & " :fullscreen " &
     window.isFullscreen.boolValue() & " :maximized " & window.isMaximized.boolValue() &
     " :minimized " & window.isMinimized.boolValue() & " :sticky " &
-    window.isSticky.boolValue() & " :overlay " & window.isOverlay.boolValue() &
-    " :unmanaged-global " & window.isUnmanagedGlobal.boolValue() & " :fullscreen-output " &
+    window.isSticky.boolValue() & " :urgent " & window.isUrgent.boolValue() &
+    " :overlay " & window.isOverlay.boolValue() & " :unmanaged-global " &
+    window.isUnmanagedGlobal.boolValue() & " :fullscreen-output " &
     $window.fullscreenOutput & " :parent-id " & $window.parentId & " :identifier " &
     window.identifier.escaped() & " :actual-w " & $window.actualW & " :actual-h " &
     $window.actualH & " :min-width " & $window.minWidth & " :min-height " &

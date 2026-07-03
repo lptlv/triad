@@ -15,7 +15,7 @@ suite "X11 request builder":
       X11ConfigureMaskX or X11ConfigureMaskY or X11ConfigureMaskWidth or
       X11ConfigureMaskHeight
     check requests.len == 1
-    check requests[0].kind == XrqConfigureWindow
+    check requests[0].kind == X11RequestKind.XrqConfigureWindow
     check requests[0].windowId == 42
     check requests[0].valueMask == expectedMask
     check requests[0].valueCount == 4
@@ -28,7 +28,7 @@ suite "X11 request builder":
       ).x11IntentsFor().x11RequestsFor()
 
     check requests.len == 1
-    check requests[0].kind == XrqConfigureWindow
+    check requests[0].kind == X11RequestKind.XrqConfigureWindow
     check requests[0].values == [-30'i32, -40, 1, 1]
 
   test "builds focus and close request records":
@@ -39,16 +39,16 @@ suite "X11 request builder":
       ].x11IntentsFor().x11RequestsFor()
 
     check requests.len == 2
-    check requests[0].kind == XrqSetInputFocus
+    check requests[0].kind == X11RequestKind.XrqSetInputFocus
     check requests[0].windowId == 10
     check requests[0].valueMask == 0
     check requests[0].valueCount == 0
-    check requests[1].kind == XrqSendCloseWindow
+    check requests[1].kind == X11RequestKind.XrqSendCloseWindow
     check requests[1].windowId == 11
     check requests[1].valueMask == 0
     check requests[1].valueCount == 0
 
   test "request ABI enum keeps stable wire values":
-    check ord(XrqConfigureWindow) == 0
-    check ord(XrqSetInputFocus) == 1
-    check ord(XrqSendCloseWindow) == 2
+    check ord(X11RequestKind.XrqConfigureWindow) == 0
+    check ord(X11RequestKind.XrqSetInputFocus) == 1
+    check ord(X11RequestKind.XrqSendCloseWindow) == 2

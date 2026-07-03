@@ -403,7 +403,7 @@ suite "Runtime state primitives":
 
     let enumFailures = sourceLineFailures(
       proc(path, line: string): bool =
-        line.contains("= enum") and "{.pure.}" notin line
+        line.contains("= enum") and "{.pure" notin line
     )
     check enumFailures.len == 0
 

@@ -17,6 +17,7 @@ proc addWindow*(
     isFullscreen = false,
     isMaximized = false,
     isMinimized = false,
+    isUrgent = false,
     isSticky = false,
     isOverlay = false,
     isUnmanagedGlobal = false,
@@ -61,6 +62,7 @@ proc addWindow*(
       isFullscreen: isFullscreen,
       isMaximized: isMaximized,
       isMinimized: isMinimized,
+      isUrgent: isUrgent,
       isSticky: isSticky,
       isOverlay: isOverlay,
       isUnmanagedGlobal: isUnmanagedGlobal,
@@ -151,6 +153,7 @@ proc setWindowCreatedState*(
     isFloating = false,
     isFullscreen = false,
     isMaximized = false,
+    isUrgent = false,
     isSticky = false,
     isOverlay = false,
     isUnmanagedGlobal = false,
@@ -186,6 +189,7 @@ proc setWindowCreatedState*(
     isFullscreen: if preserveRuntimeState: current.isFullscreen else: isFullscreen,
     isMaximized: if preserveRuntimeState: current.isMaximized else: isMaximized,
     isMinimized: if preserveRuntimeState: current.isMinimized else: false,
+    isUrgent: if preserveRuntimeState: current.isUrgent else: isUrgent,
     isSticky: if preserveRuntimeState: current.isSticky else: isSticky,
     isOverlay: if preserveRuntimeState: current.isOverlay else: isOverlay,
     isUnmanagedGlobal:
@@ -262,6 +266,14 @@ proc setWindowMinimized*(model: var Model, winId: WindowId, minimized: bool): bo
   model.windows.mEntity(winId).isMinimized = minimized
   true
 
+proc setWindowUrgent*(model: var Model, winId: WindowId, urgent: bool): bool =
+  if model.windows.entity(winId).isNone:
+    return false
+  if model.windows.mEntity(winId).isUrgent == urgent:
+    return false
+  model.windows.mEntity(winId).isUrgent = urgent
+  true
+
 proc preserveWindowRuntimeAttributes*(
     model: var Model, winId: WindowId, source: WindowData
 ): bool =
@@ -274,7 +286,8 @@ proc preserveWindowRuntimeAttributes*(
       current.isFloating == source.isFloating and
       current.isFullscreen == source.isFullscreen and
       current.isMaximized == source.isMaximized and
-      current.isMinimized == source.isMinimized and current.isSticky == source.isSticky and
+      current.isMinimized == source.isMinimized and
+      current.isUrgent == source.isUrgent and current.isSticky == source.isSticky and
       current.isOverlay == source.isOverlay and
       current.isUnmanagedGlobal == source.isUnmanagedGlobal and
       current.fullscreenOutput == source.fullscreenOutput and
@@ -308,6 +321,7 @@ proc preserveWindowRuntimeAttributes*(
   win.isFullscreen = source.isFullscreen
   win.isMaximized = source.isMaximized
   win.isMinimized = source.isMinimized
+  win.isUrgent = source.isUrgent
   win.isSticky = source.isSticky
   win.isOverlay = source.isOverlay
   win.isUnmanagedGlobal = source.isUnmanagedGlobal
@@ -429,6 +443,7 @@ proc setWindowRestoredState*(
   model.windows.mEntity(winId).isMaximized =
     restored.isMaximized and not restored.isUnmanagedGlobal
   model.windows.mEntity(winId).isMinimized = restored.isMinimized
+  model.windows.mEntity(winId).isUrgent = restored.isUrgent
   model.windows.mEntity(winId).isSticky =
     restored.isSticky and not restored.isUnmanagedGlobal
   model.windows.mEntity(winId).isUnmanagedGlobal = restored.isUnmanagedGlobal

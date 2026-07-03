@@ -9,9 +9,10 @@ const
   X11StateMaximizedHorz = "_NET_WM_STATE_MAXIMIZED_HORZ"
   X11StateMaximizedVert = "_NET_WM_STATE_MAXIMIZED_VERT"
   X11StateHidden = "_NET_WM_STATE_HIDDEN"
+  X11StateDemandsAttention = "_NET_WM_STATE_DEMANDS_ATTENTION"
 
 type
-  X11ProbeEventKind* {.size: sizeof(cuint).} = enum
+  X11ProbeEventKind* {.pure, size: sizeof(cuint).} = enum
     XpeWindowDiscovered = 0
     XpeWindowDestroyed = 1
     XpeWindowUnmapped = 2
@@ -126,7 +127,7 @@ proc cArrayString[N: static[int]](value: array[N, char]): string =
 
 proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
   case event.kind
-  of XpeWindowDiscovered:
+  of X11ProbeEventKind.XpeWindowDiscovered:
     X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,
       window: X11WindowSnapshot(
@@ -143,11 +144,11 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         mapped: event.mapped != 0,
       ),
     )
-  of XpeWindowDestroyed:
+  of X11ProbeEventKind.XpeWindowDestroyed:
     X11BackendEvent(kind: X11BackendEventKind.WindowDestroyed, windowId: event.id)
-  of XpeWindowUnmapped:
+  of X11ProbeEventKind.XpeWindowUnmapped:
     X11BackendEvent(kind: X11BackendEventKind.WindowUnmapped, windowId: event.id)
-  of XpeOutputDiscovered:
+  of X11ProbeEventKind.XpeOutputDiscovered:
     X11BackendEvent(
       kind: X11BackendEventKind.OutputDiscovered,
       output: X11OutputSnapshot(
@@ -160,7 +161,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         h: event.h,
       ),
     )
-  of XpeConfigureRequested:
+  of X11ProbeEventKind.XpeConfigureRequested:
     X11BackendEvent(
       kind: X11BackendEventKind.ConfigureRequested,
       configure: X11ConfigureRequest(
@@ -174,7 +175,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         stackMode: event.stackMode,
       ),
     )
-  of XpePropertyChanged:
+  of X11ProbeEventKind.XpePropertyChanged:
     X11BackendEvent(
       kind: X11BackendEventKind.PropertyChanged,
       propertyWindowId: event.id,
@@ -182,15 +183,15 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       propertyValue: event.title.cArrayString(),
       propertyPid: event.pid,
     )
-  of XpeFocusChanged:
+  of X11ProbeEventKind.XpeFocusChanged:
     X11BackendEvent(
       kind: X11BackendEventKind.FocusChanged,
       focusWindowId: event.id,
       focused: event.focused != 0,
     )
-  of XpePointerEntered:
+  of X11ProbeEventKind.XpePointerEntered:
     X11BackendEvent(kind: X11BackendEventKind.PointerEntered, enterWindowId: event.id)
-  of XpeRandrChanged:
+  of X11ProbeEventKind.XpeRandrChanged:
     X11BackendEvent(
       kind: X11BackendEventKind.RandrChanged,
       randrRoot: event.root,
@@ -317,6 +318,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
             tokens.hasState(X11StateMaximizedHorz) or
             tokens.hasState(X11StateMaximizedVert),
           stateMinimized: tokens.hasState(X11StateHidden),
+          stateUrgent: tokens.hasState(X11StateDemandsAttention),
         )
       )
     else:

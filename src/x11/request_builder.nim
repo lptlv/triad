@@ -1,7 +1,7 @@
 import effect_adapter
 
 type
-  X11RequestKind* {.size: sizeof(cuint).} = enum
+  X11RequestKind* {.pure, size: sizeof(cuint).} = enum
     XrqConfigureWindow = 0
     XrqSetInputFocus = 1
     XrqSendCloseWindow = 2
@@ -25,16 +25,18 @@ proc x11RequestFor*(intent: X11EffectIntent): X11Request =
   case intent.kind
   of X11EffectIntentKind.ConfigureWindow:
     X11Request(
-      kind: XrqConfigureWindow,
+      kind: X11RequestKind.XrqConfigureWindow,
       windowId: intent.configureWindowId,
       valueMask: intent.configureMask,
       valueCount: 4,
       values: intent.configureValues(),
     )
   of X11EffectIntentKind.FocusWindow:
-    X11Request(kind: XrqSetInputFocus, windowId: intent.focusWindowId)
+    X11Request(kind: X11RequestKind.XrqSetInputFocus, windowId: intent.focusWindowId)
   of X11EffectIntentKind.CloseWindow:
-    X11Request(kind: XrqSendCloseWindow, windowId: intent.closeWindowId)
+    X11Request(
+      kind: X11RequestKind.XrqSendCloseWindow, windowId: intent.closeWindowId
+    )
 
 proc x11RequestsFor*(intents: openArray[X11EffectIntent]): seq[X11Request] =
   for intent in intents:

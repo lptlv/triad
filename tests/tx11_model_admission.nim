@@ -230,7 +230,7 @@ suite "X11 model admission":
           propertyAtom: "_NET_WM_STATE",
           propertyValue:
             "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_VERT " &
-            "_NET_WM_STATE_HIDDEN",
+            "_NET_WM_STATE_HIDDEN _NET_WM_STATE_DEMANDS_ATTENTION",
         )
       )
 
@@ -242,6 +242,7 @@ suite "X11 model admission":
     check win.isFullscreen
     check win.isMaximized
     check win.isMinimized
+    check win.isUrgent
 
     discard model.admitDryRun(
       X11BackendEvent(
@@ -255,3 +256,4 @@ suite "X11 model admission":
     check not win.isFullscreen
     check not win.isMaximized
     check not win.isMinimized
+    check not win.isUrgent

@@ -852,6 +852,20 @@ suite "Shell compatibility contracts":
     check workspaces.len > 0
     check workspaces[0]["is_urgent"].getBool() == false
 
+  test "window JSON surfaces preserve urgency":
+    var snapshot = snapshotForShell()
+    snapshot.windows[0].isUrgent = true
+
+    let niriReply = handleNiriRequest("\"Windows\"", snapshot)
+    let niriWindows = parseJson(niriReply.reply)["Ok"]["Windows"]
+    check niriWindows[0]["is_urgent"].getBool()
+
+    let triadReply = handleTriadRequest(
+      """{"triad":{"version":1,"request":"state"}}""", snapshot
+    )
+    let triadWindows = parseJson(triadReply.reply)["triad"]["state"]["windows"]
+    check triadWindows[0]["is_urgent"].getBool()
+
   test "triad_niri shim parses shell commands":
     let action = buildNiriCliRequest(@["msg", "action", "focus-workspace", "2"])
     check action.kind == NiriCliKind.NckRequest

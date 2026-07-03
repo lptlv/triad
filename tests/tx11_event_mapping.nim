@@ -6,7 +6,7 @@ import ../src/x11/events
 suite "X11 event mapping":
   test "raw probe window event maps to typed backend event":
     var raw = X11ProbeEvent(
-      kind: XpeWindowDiscovered,
+      kind: X11ProbeEventKind.XpeWindowDiscovered,
       id: 0x2a,
       parentId: 7,
       pid: 1234,
@@ -36,7 +36,7 @@ suite "X11 event mapping":
 
   test "raw probe output event maps to typed backend event":
     var raw = X11ProbeEvent(
-      kind: XpeOutputDiscovered,
+      kind: X11ProbeEventKind.XpeOutputDiscovered,
       id: 5,
       connected: 1,
       x: 1920,
@@ -59,7 +59,7 @@ suite "X11 event mapping":
 
   test "raw probe configure and property events preserve observed data":
     var propertyRaw = X11ProbeEvent(
-      kind: XpePropertyChanged,
+      kind: X11ProbeEventKind.XpePropertyChanged,
       id: 9,
     )
     for idx, ch in "_NET_WM_STATE":
@@ -76,7 +76,7 @@ suite "X11 event mapping":
 
     let configure =
       X11ProbeEvent(
-        kind: XpeConfigureRequested,
+        kind: X11ProbeEventKind.XpeConfigureRequested,
         id: 10,
         valueMask: 0x0f,
         x: 1,
@@ -259,7 +259,7 @@ suite "X11 event mapping":
         propertyAtom: "_NET_WM_STATE",
         propertyValue:
           "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
-          "_NET_WM_STATE_HIDDEN",
+          "_NET_WM_STATE_HIDDEN _NET_WM_STATE_DEMANDS_ATTENTION",
       ).messagesFor()
     let cleared =
       X11BackendEvent(
@@ -275,11 +275,13 @@ suite "X11 event mapping":
     check messages[0].stateFullscreen
     check messages[0].stateMaximized
     check messages[0].stateMinimized
+    check messages[0].stateUrgent
     check cleared.len == 1
     check cleared[0].kind == MsgKind.WlWindowStateChanged
     check not cleared[0].stateFullscreen
     check not cleared[0].stateMaximized
     check not cleared[0].stateMinimized
+    check not cleared[0].stateUrgent
 
   test "observed-only and incomplete events are explicit no-ops":
     let events = [

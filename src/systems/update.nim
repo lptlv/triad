@@ -107,6 +107,7 @@ proc compactWindowState(snapshot: ShellSnapshot, id: uint32): JsonNode =
         "fullscreen": win.isFullscreen,
         "maximized": win.isMaximized,
         "minimized": win.isMinimized,
+        "urgent": win.isUrgent,
         "app_id": win.appId,
         "title": win.title,
       }

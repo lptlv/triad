@@ -1,5 +1,5 @@
 type
-  X11AtomName* = enum
+  X11AtomName* {.pure.} = enum
     XaWmProtocols
     XaWmDeleteWindow
     XaWmClass

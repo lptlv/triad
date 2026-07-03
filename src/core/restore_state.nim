@@ -425,6 +425,8 @@ proc parseWindowState(state: var LiveRestoreState, node: JsonNode) =
     win.isMaximized = boolFromJson(node["is_maximized"])
   if node.hasKey("is_minimized"):
     win.isMinimized = boolFromJson(node["is_minimized"])
+  if node.hasKey("is_urgent"):
+    win.isUrgent = boolFromJson(node["is_urgent"])
   if node.hasKey("is_sticky"):
     win.isSticky = boolFromJson(node["is_sticky"])
   if node.hasKey("is_unmanaged_global"):

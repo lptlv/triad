@@ -157,12 +157,12 @@ client for configure, focus, and polite close requests. The controlled
 admission-to-executor loop is available through `src/x11/pipeline.nim`; it is
 still opt-in and the probe CLI remains observational. Configure requests,
 metadata notifications, and `_NET_WM_STATE` changes for fullscreen, maximized,
-and minimized windows now update isolated model state through existing Triad
-messages. The next step is to expand the model updates that produce executable
-effects:
+minimized, and urgent windows now update isolated model state through existing
+Triad messages. The next step is to expand the model updates that produce
+executable effects:
 
 - decide which admitted state changes should remain model-only versus request-backed
-- add an explicit urgency model field before admitting `_NET_WM_STATE_DEMANDS_ATTENTION`
+- aggregate per-window urgency into workspace-level urgency once policy is defined
 
 Only after this subset works should the branch attempt tiling, shell snapshots,
 bindings, overlays, or live-session packaging.

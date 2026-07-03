@@ -32,6 +32,7 @@ type
     isFullscreen*: bool
     isMaximized*: bool
     isMinimized*: bool
+    isUrgent*: bool
     isSticky*: bool
     isOverlay*: bool
     isUnmanagedGlobal*: bool
@@ -359,6 +360,7 @@ type
     isFullscreen*: bool
     isMaximized*: bool
     isMinimized*: bool
+    isUrgent*: bool
     isSticky*: bool
     isUnmanagedGlobal*: bool
     fullscreenOutput*: ExternalOutputId

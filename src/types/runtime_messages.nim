@@ -285,6 +285,7 @@ type
       stateFullscreen*: bool
       stateMaximized*: bool
       stateMinimized*: bool
+      stateUrgent*: bool
     of MsgKind.WlWindowAdmissionSettled:
       admissionWindowId*: uint32
     of MsgKind.WlOutputDimensions:

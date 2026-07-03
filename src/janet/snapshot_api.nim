@@ -84,8 +84,9 @@ proc janetWindowExpr*(window: ShellWindow): string =
     $window.winIdx & " :focused " & window.isFocused.boolValue() & " :floating " &
     window.isFloating.boolValue() & " :fullscreen " & window.isFullscreen.boolValue() &
     " :maximized " & window.isMaximized.boolValue() & " :minimized " &
-    window.isMinimized.boolValue() & " :sticky " & window.isSticky.boolValue() &
-    " :overlay " & window.isOverlay.boolValue() & " :unmanaged-global " &
+    window.isMinimized.boolValue() & " :urgent " & window.isUrgent.boolValue() &
+    " :sticky " & window.isSticky.boolValue() & " :overlay " &
+    window.isOverlay.boolValue() & " :unmanaged-global " &
     window.isUnmanagedGlobal.boolValue() & " :fullscreen-output " &
     $window.fullscreenOutput & " :width-proportion " & $window.widthProportion &
     " :height-proportion " & $window.heightProportion & " :actual-w " & $window.actualW &

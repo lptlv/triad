@@ -385,6 +385,7 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
       msg.stateFullscreen,
       msg.stateMaximized,
       msg.stateMinimized,
+      msg.stateUrgent,
     )
   of MsgKind.WlWindowAdmissionSettled:
     result.dirty =

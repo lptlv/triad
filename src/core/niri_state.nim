@@ -66,7 +66,7 @@ proc niriWindowJson*(snapshot: ShellSnapshot, win: ShellWindow): JsonNode =
       "is_maximized": win.isMaximized,
       "is_minimized": win.isMinimized,
       "is_fullscreen": win.isFullscreen,
-      "is_urgent": false,
+      "is_urgent": win.isUrgent,
       "output":
         if win.outputName == "":
           newJNull()

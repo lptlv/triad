@@ -14,7 +14,7 @@ suite "X11 request executor":
 
     check executions.len == 1
     check not executions[0].applied
-    check executions[0].request.kind == XrqConfigureWindow
+    check executions[0].request.kind == X11RequestKind.XrqConfigureWindow
     check executions[0].description ==
       "configure window=0x0000002a x=10 y=20 w=640 h=480"
 
@@ -48,7 +48,9 @@ suite "X11 request executor":
   test "xcb dry-run boundary rejects malformed configure records":
     let run =
       @[
-        X11Request(kind: XrqConfigureWindow, windowId: 42, valueCount: 2)
+        X11Request(
+          kind: X11RequestKind.XrqConfigureWindow, windowId: 42, valueCount: 2
+        )
       ].executeWithXcb(dryRun = true)
 
     check run.code != 0

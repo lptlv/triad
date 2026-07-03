@@ -113,6 +113,8 @@ int main(int argc, char **argv)
     xcb_atom_t net_wm_state_fullscreen = intern_atom(conn, "_NET_WM_STATE_FULLSCREEN");
     xcb_atom_t net_wm_state_maximized_horz =
         intern_atom(conn, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    xcb_atom_t net_wm_state_demands_attention =
+        intern_atom(conn, "_NET_WM_STATE_DEMANDS_ATTENTION");
     xcb_atom_t utf8_string = intern_atom(conn, "UTF8_STRING");
     xcb_atom_t cardinal = intern_atom(conn, "CARDINAL");
     if (
@@ -122,6 +124,7 @@ int main(int argc, char **argv)
         net_wm_state == XCB_ATOM_NONE ||
         net_wm_state_fullscreen == XCB_ATOM_NONE ||
         net_wm_state_maximized_horz == XCB_ATOM_NONE ||
+        net_wm_state_demands_attention == XCB_ATOM_NONE ||
         utf8_string == XCB_ATOM_NONE || cardinal == XCB_ATOM_NONE) {
         fprintf(stderr, "tx11_synthetic_client: failed to intern atoms\n");
         xcb_disconnect(conn);
@@ -231,7 +234,11 @@ int main(int argc, char **argv)
     xcb_flush(conn);
     usleep(200000);
 
-    xcb_atom_t states[] = {net_wm_state_fullscreen, net_wm_state_maximized_horz};
+    xcb_atom_t states[] = {
+        net_wm_state_fullscreen,
+        net_wm_state_maximized_horz,
+        net_wm_state_demands_attention,
+    };
     xcb_change_property(
         conn,
         XCB_PROP_MODE_REPLACE,
