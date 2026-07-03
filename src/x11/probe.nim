@@ -26,6 +26,7 @@ type
     stopRequested: bool
     stopPolls: int
     keyGrabSignature: string
+    buttonGrabSignature: string
 
   X11ModelLoadResult* = object
     ok*: bool
@@ -42,13 +43,13 @@ proc probeLogCallback(userData: pointer, message: cstring) {.cdecl.} =
 proc discardIpcMsg(msg: Msg) {.gcsafe.} =
   discard msg
 
-proc configureKeyGrabs(context: ptr X11ProbeContext) {.gcsafe.}
+proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.}
 
 proc probeTickCallback(userData: pointer) {.cdecl.} =
   asyncdispatch.poll(0)
   if userData != nil:
     let context = cast[ptr X11ProbeContext](userData)
-    context.configureKeyGrabs()
+    context.configureInputGrabs()
     if context.stopRequested:
       inc context.stopPolls
       if context.stopPolls >= 2:
@@ -85,6 +86,40 @@ proc bindingSpec(binding: KeyBindingConfig): string =
   parts.add(binding.key)
   parts.join("+")
 
+proc buttonName(button: uint32): string =
+  case button
+  of 0x110'u32: "left"
+  of 0x111'u32: "right"
+  of 0x112'u32: "middle"
+  else: ""
+
+proc x11ButtonDetail(button: uint32): uint32 =
+  case button
+  of 0x110'u32: 1'u32
+  of 0x111'u32: 3'u32
+  of 0x112'u32: 2'u32
+  else: 0'u32
+
+proc bindingSpec(binding: PointerBindingConfig): string =
+  let name = binding.button.buttonName()
+  if name.len == 0:
+    return ""
+  var parts: seq[string]
+  if (binding.modifiers and 64'u32) != 0:
+    parts.add("Super")
+  if (binding.modifiers and 4'u32) != 0:
+    parts.add("Ctrl")
+  if (binding.modifiers and 1'u32) != 0:
+    parts.add("Shift")
+  if (binding.modifiers and 8'u32) != 0:
+    parts.add("Alt")
+  if (binding.modifiers and 32'u32) != 0:
+    parts.add("Mod3")
+  if (binding.modifiers and 128'u32) != 0:
+    parts.add("Mod5")
+  parts.add(name)
+  parts.join("+")
+
 proc bindingText(value: string): array[128, char] =
   let limit = min(value.len, result.len - 1)
   for i in 0 ..< limit:
@@ -96,9 +131,24 @@ proc grabBinding(value: X11KeyGrab): string =
       break
     result.add(ch)
 
+proc grabBinding(value: X11ButtonGrab): string =
+  for ch in value.binding:
+    if ch == '\0':
+      break
+    result.add(ch)
+
 proc keyGrabSignature(grabs: openArray[X11KeyGrab]): string =
   for grab in grabs:
     result.add($grab.keysym)
+    result.add(":")
+    result.add($grab.modifiers)
+    result.add(":")
+    result.add(grab.grabBinding())
+    result.add("\n")
+
+proc buttonGrabSignature(grabs: openArray[X11ButtonGrab]): string =
+  for grab in grabs:
+    result.add($grab.button)
     result.add(":")
     result.add($grab.modifiers)
     result.add(":")
@@ -124,22 +174,62 @@ proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
         )
       )
 
-proc configureKeyGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
+proc xlibreButtonGrabs(model: Model): seq[X11ButtonGrab] =
+  let snapshot = model.shellSnapshot()
+  for binding in model.pointerBindings:
+    if binding.op != PointerOpKind.OpNone:
+      continue
+    let button = binding.button.x11ButtonDetail()
+    if button == 0:
+      continue
+    let spec = binding.bindingSpec()
+    if spec.len == 0:
+      continue
+    let request = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindPointer, binding: spec, ticks: 1'i32
+    )
+    let parsed =
+      xlibreWritableRequestFor(bindingDispatchPayload(request), model, snapshot)
+    if parsed.handled and parsed.bindingDispatch.ok:
+      result.add(
+        X11ButtonGrab(
+          button: button, modifiers: binding.modifiers, binding: spec.bindingText()
+        )
+      )
+
+proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
   if context == nil or context.mode != X11ProbeMode.Manage:
     return
   {.cast(gcsafe).}:
     let grabs = context.model.xlibreKeyGrabs()
     let signature = grabs.keyGrabSignature()
-    if context.keyGrabSignature == signature:
-      return
-    let status =
-      if grabs.len == 0:
-        triadX11ConfigureActiveKeyGrabs(cast[ptr X11KeyGrab](nil), 0)
-      else:
-        triadX11ConfigureActiveKeyGrabs(unsafeAddr grabs[0], cuint(grabs.len))
-    context.keyGrabSignature = signature
-    stdout.writeLine("xlibre_key_grabs requested=" & $grabs.len & " status=" & $status)
-    stdout.flushFile()
+    if context.keyGrabSignature != signature:
+      let status =
+        if grabs.len == 0:
+          triadX11ConfigureActiveKeyGrabs(cast[ptr X11KeyGrab](nil), 0)
+        else:
+          triadX11ConfigureActiveKeyGrabs(unsafeAddr grabs[0], cuint(grabs.len))
+      context.keyGrabSignature = signature
+      stdout.writeLine(
+        "xlibre_key_grabs requested=" & $grabs.len & " status=" & $status
+      )
+      stdout.flushFile()
+
+    let buttonGrabs = context.model.xlibreButtonGrabs()
+    let buttonSignature = buttonGrabs.buttonGrabSignature()
+    if context.buttonGrabSignature != buttonSignature:
+      let status =
+        if buttonGrabs.len == 0:
+          triadX11ConfigureActiveButtonGrabs(cast[ptr X11ButtonGrab](nil), 0)
+        else:
+          triadX11ConfigureActiveButtonGrabs(
+            unsafeAddr buttonGrabs[0], cuint(buttonGrabs.len)
+          )
+      context.buttonGrabSignature = buttonSignature
+      stdout.writeLine(
+        "xlibre_button_grabs requested=" & $buttonGrabs.len & " status=" & $status
+      )
+      stdout.flushFile()
 
 proc executeXlibreWritableRequest(
   context: ptr X11ProbeContext, request: X11WritableIpcRequest
@@ -158,6 +248,22 @@ proc dispatchKeyBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.
     if request.handled:
       stdout.writeLine(
         "xlibre_key_binding_reply " & context.executeXlibreWritableRequest(request)
+      )
+      stdout.flushFile()
+
+proc dispatchPointerBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.} =
+  if context == nil or binding.len == 0:
+    return
+  {.cast(gcsafe).}:
+    let dispatch = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindPointer, binding: binding, ticks: 1'i32
+    )
+    let request = xlibreWritableRequestFor(
+      bindingDispatchPayload(dispatch), context.model, context.model.shellSnapshot()
+    )
+    if request.handled:
+      stdout.writeLine(
+        "xlibre_pointer_binding_reply " & context.executeXlibreWritableRequest(request)
       )
       stdout.flushFile()
 
@@ -315,6 +421,10 @@ proc eventLabel(event: X11BackendEvent): string =
   of X11BackendEventKind.KeyBinding:
     "KeyBinding binding=\"" & event.keyBinding & "\" keycode=" & $event.keyBindingKeycode &
       " modifiers=0x" & toHex(event.keyBindingModifiers, 4).toLowerAscii()
+  of X11BackendEventKind.PointerBinding:
+    "PointerBinding binding=\"" & event.pointerBinding & "\" button=" &
+      $event.pointerBindingButton & " modifiers=0x" &
+      toHex(event.pointerBindingModifiers, 4).toLowerAscii()
 
 proc x11ConfigPath*(configPath = ""): string =
   if configPath.len > 0:
@@ -345,6 +455,15 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
       stdout.writeLine("dry_run_msg X11KeyBinding binding=\"" & event.keyBinding & "\"")
     else:
       cast[ptr X11ProbeContext](userData).dispatchKeyBinding(event.keyBinding)
+    stdout.flushFile()
+    return
+  if event.kind == X11BackendEventKind.PointerBinding:
+    if userData == nil:
+      stdout.writeLine(
+        "dry_run_msg X11PointerBinding binding=\"" & event.pointerBinding & "\""
+      )
+    else:
+      cast[ptr X11ProbeContext](userData).dispatchPointerBinding(event.pointerBinding)
     stdout.flushFile()
     return
   if userData == nil:

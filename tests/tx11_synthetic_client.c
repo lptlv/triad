@@ -169,6 +169,49 @@ static int fake_keypress(
     fflush(stdout);
     return 0;
 }
+
+static int fake_button_press(
+    xcb_connection_t *conn,
+    xcb_screen_t *screen,
+    uint32_t button,
+    uint32_t modifiers)
+{
+    if (button == 0 || button > UINT8_MAX) {
+        fprintf(stderr, "tx11_synthetic_client: invalid button=%u\n", button);
+        return 1;
+    }
+
+    uint32_t mod_keysyms[6];
+    xcb_keycode_t mod_keycodes[6];
+    int mod_count = modifier_keysyms(modifiers, mod_keysyms);
+    for (int i = 0; i < mod_count; i++) {
+        mod_keycodes[i] = keycode_for_keysym(conn, mod_keysyms[i]);
+        if (mod_keycodes[i] == 0) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: modifier keysym unavailable=0x%08x\n",
+                mod_keysyms[i]);
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < mod_count; i++) {
+        if (fake_input(conn, screen, XCB_KEY_PRESS, mod_keycodes[i]) != 0)
+            return 1;
+    }
+    if (fake_input(conn, screen, XCB_BUTTON_PRESS, (xcb_keycode_t)button) != 0)
+        return 1;
+    if (fake_input(conn, screen, XCB_BUTTON_RELEASE, (xcb_keycode_t)button) != 0)
+        return 1;
+    for (int i = mod_count - 1; i >= 0; i--) {
+        if (fake_input(conn, screen, XCB_KEY_RELEASE, mod_keycodes[i]) != 0)
+            return 1;
+    }
+
+    printf("fake-button button=%u modifiers=0x%04x\n", button, modifiers);
+    fflush(stdout);
+    return 0;
+}
 #endif
 
 static int wait_for_close(
@@ -217,6 +260,7 @@ int main(int argc, char **argv)
 {
     const char *display = argc > 1 ? argv[1] : NULL;
     int fake_key = argc > 2 && strcmp(argv[2], "--fake-key") == 0;
+    int fake_button = argc > 2 && strcmp(argv[2], "--fake-button") == 0;
     int hold = argc > 2 &&
         (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
     int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
@@ -245,6 +289,24 @@ int main(int argc, char **argv)
         uint32_t keysym = (uint32_t)strtoul(argv[3], NULL, 0);
         uint32_t modifiers = (uint32_t)strtoul(argv[4], NULL, 0);
         int status = fake_keypress(conn, screen, keysym, modifiers);
+        xcb_disconnect(conn);
+        return status;
+#else
+        fprintf(stderr, "tx11_synthetic_client: XTEST support not compiled\n");
+        xcb_disconnect(conn);
+        return 1;
+#endif
+    }
+    if (fake_button) {
+        if (argc < 5) {
+            fprintf(stderr, "tx11_synthetic_client: --fake-button requires button modifiers\n");
+            xcb_disconnect(conn);
+            return 1;
+        }
+#ifdef TRIAD_X11_XTEST
+        uint32_t button = (uint32_t)strtoul(argv[3], NULL, 0);
+        uint32_t modifiers = (uint32_t)strtoul(argv[4], NULL, 0);
+        int status = fake_button_press(conn, screen, button, modifiers);
         xcb_disconnect(conn);
         return status;
 #else

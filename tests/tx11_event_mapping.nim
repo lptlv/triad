@@ -133,6 +133,19 @@ suite "X11 event mapping":
     check event.keyBindingModifiers == 64'u32
     check event.messagesFor().len == 0
 
+  test "raw pointer binding event preserves binding identity without model messages":
+    var raw =
+      X11ProbeEvent(kind: X11ProbeEventKind.XpePointerBinding, id: 2, valueMask: 64'u32)
+    for idx, ch in "Super+middle":
+      raw.name[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.PointerBinding
+    check event.pointerBinding == "Super+middle"
+    check event.pointerBindingButton == 2
+    check event.pointerBindingModifiers == 64'u32
+    check event.messagesFor().len == 0
+
   test "window discovery maps to creation, dimensions, and pid messages":
     let messages = X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,

@@ -43,6 +43,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_RANDR_CHANGED = 8,
     TRIAD_X11_EVENT_MAP_REQUESTED = 9,
     TRIAD_X11_EVENT_KEY_BINDING = 10,
+    TRIAD_X11_EVENT_POINTER_BINDING = 11,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -72,12 +73,24 @@ typedef struct TriadX11KeyGrab {
     char binding[128];
 } TriadX11KeyGrab;
 
+typedef struct TriadX11ButtonGrab {
+    uint32_t button;
+    uint32_t modifiers;
+    char binding[128];
+} TriadX11ButtonGrab;
+
 typedef struct TriadX11ResolvedKeyGrab {
     uint32_t keysym;
     uint32_t modifiers;
     xcb_keycode_t keycode;
     char binding[128];
 } TriadX11ResolvedKeyGrab;
+
+typedef struct TriadX11ResolvedButtonGrab {
+    uint32_t button;
+    uint32_t modifiers;
+    char binding[128];
+} TriadX11ResolvedButtonGrab;
 
 typedef void (*triad_x11_event_fn)(void *user_data, const TriadX11Event *event);
 typedef void (*triad_x11_tick_fn)(void *user_data);
@@ -118,6 +131,8 @@ typedef struct TriadX11Probe {
     int stop_requested;
     TriadX11ResolvedKeyGrab *key_grabs;
     uint32_t key_grab_count;
+    TriadX11ResolvedButtonGrab *button_grabs;
+    uint32_t button_grab_count;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -205,6 +220,10 @@ static const char *event_name(uint8_t response_type)
         return "KeyPress";
     case XCB_KEY_RELEASE:
         return "KeyRelease";
+    case XCB_BUTTON_PRESS:
+        return "ButtonPress";
+    case XCB_BUTTON_RELEASE:
+        return "ButtonRelease";
     case XCB_UNMAP_NOTIFY:
         return "UnmapNotify";
     case XCB_DESTROY_NOTIFY:
@@ -488,6 +507,91 @@ static void clear_key_grabs(TriadX11Probe *probe)
     free(probe->key_grabs);
     probe->key_grabs = NULL;
     probe->key_grab_count = 0;
+}
+
+static void ungrab_button_variants(
+    TriadX11Probe *probe,
+    uint32_t button,
+    uint32_t modifiers)
+{
+    uint32_t variants[] = {
+        modifiers,
+        modifiers | XCB_MOD_MASK_LOCK,
+        modifiers | XCB_MOD_MASK_2,
+        modifiers | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_2,
+    };
+    for (size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); i++)
+        xcb_ungrab_button(
+            probe->conn,
+            (uint8_t)button,
+            probe->screen->root,
+            (uint16_t)variants[i]);
+}
+
+static int grab_button_variants(
+    TriadX11Probe *probe,
+    uint32_t button,
+    uint32_t modifiers,
+    const char *binding)
+{
+    uint32_t variants[] = {
+        modifiers,
+        modifiers | XCB_MOD_MASK_LOCK,
+        modifiers | XCB_MOD_MASK_2,
+        modifiers | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_2,
+    };
+    int ok = 1;
+    for (size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); i++) {
+        xcb_void_cookie_t cookie = xcb_grab_button_checked(
+            probe->conn,
+            0,
+            probe->screen->root,
+            XCB_EVENT_MASK_BUTTON_PRESS,
+            XCB_GRAB_MODE_ASYNC,
+            XCB_GRAB_MODE_ASYNC,
+            XCB_NONE,
+            XCB_NONE,
+            (uint8_t)button,
+            (uint16_t)variants[i]);
+        xcb_generic_error_t *error = xcb_request_check(probe->conn, cookie);
+        if (error != NULL) {
+            probe_log(
+                probe,
+                "button grab failed binding=\"%s\" button=%u modifiers=0x%04x error_code=%u",
+                binding,
+                button,
+                variants[i],
+                error->error_code);
+            free(error);
+            ok = 0;
+        }
+    }
+    return ok;
+}
+
+static const TriadX11ResolvedButtonGrab *button_grab_for_event(
+    TriadX11Probe *probe,
+    uint32_t button,
+    uint32_t state)
+{
+    uint32_t modifiers = binding_modifier_mask(state);
+    for (uint32_t i = 0; i < probe->button_grab_count; i++) {
+        TriadX11ResolvedButtonGrab *grab = &probe->button_grabs[i];
+        if (grab->button == button && grab->modifiers == modifiers)
+            return grab;
+    }
+    return NULL;
+}
+
+static void clear_button_grabs(TriadX11Probe *probe)
+{
+    for (uint32_t i = 0; i < probe->button_grab_count; i++) {
+        TriadX11ResolvedButtonGrab *grab = &probe->button_grabs[i];
+        ungrab_button_variants(probe, grab->button, grab->modifiers);
+    }
+    free(probe->button_grabs);
+    probe->button_grabs = NULL;
+    probe->button_grab_count = 0;
 }
 
 static void log_window(
@@ -1051,6 +1155,28 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         }
         break;
     }
+    case XCB_BUTTON_PRESS: {
+        xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
+        const TriadX11ResolvedButtonGrab *grab =
+            button_grab_for_event(probe, ev->detail, ev->state);
+        probe_log(
+            probe,
+            "event %s button=%u state=0x%04x binding=\"%s\"",
+            event_name(type),
+            ev->detail,
+            ev->state,
+            grab != NULL ? grab->binding : "");
+        if (grab != NULL) {
+            TriadX11Event event;
+            memset(&event, 0, sizeof(event));
+            event.kind = TRIAD_X11_EVENT_POINTER_BINDING;
+            event.id = ev->detail;
+            event.value_mask = binding_modifier_mask(ev->state);
+            copy_text(event.name, sizeof(event.name), grab->binding);
+            probe_event(probe, &event);
+        }
+        break;
+    }
     case XCB_UNMAP_NOTIFY: {
         xcb_unmap_notify_event_t *ev = (xcb_unmap_notify_event_t *)event;
         probe_log(
@@ -1316,6 +1442,7 @@ int triad_x11_probe_run(
         }
     }
     clear_key_grabs(&probe);
+    clear_button_grabs(&probe);
     if (active_probe == &probe)
         active_probe = NULL;
 
@@ -1396,6 +1523,69 @@ int triad_x11_configure_active_key_grabs(
     probe->key_grab_count = resolved_count;
     xcb_flush(probe->conn);
     probe_log(probe, "key grabs configured count=%u requested=%u", resolved_count, count);
+    return 0;
+}
+
+int triad_x11_configure_active_button_grabs(
+    const TriadX11ButtonGrab *grabs,
+    uint32_t count)
+{
+    if (active_probe == NULL)
+        return 1;
+
+    TriadX11Probe *probe = active_probe;
+    clear_button_grabs(probe);
+
+    if (count == 0 || grabs == NULL) {
+        xcb_flush(probe->conn);
+        probe_log(probe, "button grabs configured count=0");
+        return 0;
+    }
+
+    TriadX11ResolvedButtonGrab *resolved =
+        calloc((size_t)count, sizeof(TriadX11ResolvedButtonGrab));
+    if (resolved == NULL) {
+        probe_log(probe, "button grabs unavailable allocation_failed=1 count=%u", count);
+        return 1;
+    }
+
+    uint32_t resolved_count = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        if (grabs[i].button == 0 || grabs[i].button > UINT8_MAX) {
+            probe_log(
+                probe,
+                "button grab unavailable binding=\"%s\" button=%u",
+                grabs[i].binding,
+                grabs[i].button);
+            continue;
+        }
+        if (!grab_button_variants(probe, grabs[i].button, grabs[i].modifiers, grabs[i].binding))
+            continue;
+
+        resolved[resolved_count].button = grabs[i].button;
+        resolved[resolved_count].modifiers = grabs[i].modifiers;
+        copy_text(
+            resolved[resolved_count].binding,
+            sizeof(resolved[resolved_count].binding),
+            grabs[i].binding);
+        probe_log(
+            probe,
+            "button grab configured binding=\"%s\" button=%u modifiers=0x%04x",
+            resolved[resolved_count].binding,
+            resolved[resolved_count].button,
+            resolved[resolved_count].modifiers);
+        resolved_count++;
+    }
+
+    if (resolved_count == 0) {
+        free(resolved);
+        resolved = NULL;
+    }
+    probe->button_grabs = resolved;
+    probe->button_grab_count = resolved_count;
+    xcb_flush(probe->conn);
+    probe_log(
+        probe, "button grabs configured count=%u requested=%u", resolved_count, count);
     return 0;
 }
 
