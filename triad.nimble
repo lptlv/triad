@@ -96,8 +96,9 @@ task tidy, "Remove local Nim build outputs and project cache artifacts":
     "tests/tx11_pipeline", "tests/tx11_live_executor", "tests/tx11_synthetic_client",
     "triad-live-smoke.events", "triad-live-smoke.log", "triad-live-smoke.out",
     "tests/tx11-probe-smoke.log", "tests/tx11-probe-smoke-events.log",
-    "tests/tx11-probe-smoke-client.log", "tests/tx11-probe-smoke-executor.log",
-    "tests/tx11-probe-smoke.log.xvfb",
+    "tests/tx11-probe-smoke-manager.log", "tests/tx11-probe-smoke-client.log",
+    "tests/tx11-probe-smoke-managed-client.log",
+    "tests/tx11-probe-smoke-executor.log", "tests/tx11-probe-smoke.log.xvfb",
     "tests/tconfig", "tests/tcore", "tests/tdod",
   ]:
     if fileExists(path):

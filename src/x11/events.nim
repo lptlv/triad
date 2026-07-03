@@ -22,6 +22,7 @@ type
     XpeFocusChanged = 6
     XpePointerEntered = 7
     XpeRandrChanged = 8
+    XpeMapRequested = 9
 
   X11ProbeEvent* {.bycopy.} = object
     kind*: X11ProbeEventKind
@@ -42,6 +43,7 @@ type
 
   X11BackendEventKind* {.pure.} = enum
     WindowDiscovered
+    MapRequested
     WindowDestroyed
     WindowUnmapped
     OutputDiscovered
@@ -76,7 +78,7 @@ type
 
   X11BackendEvent* = object
     case kind*: X11BackendEventKind
-    of X11BackendEventKind.WindowDiscovered:
+    of X11BackendEventKind.WindowDiscovered, X11BackendEventKind.MapRequested:
       window*: X11WindowSnapshot
     of X11BackendEventKind.WindowDestroyed, X11BackendEventKind.WindowUnmapped:
       windowId*: uint32
@@ -130,6 +132,23 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
   of X11ProbeEventKind.XpeWindowDiscovered:
     X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,
+      window: X11WindowSnapshot(
+        id: event.id,
+        parentId: event.parentId,
+        pid: event.pid,
+        wmClass: event.name.cArrayString(),
+        title: event.title.cArrayString(),
+        x: event.x,
+        y: event.y,
+        w: event.w,
+        h: event.h,
+        overrideRedirect: event.overrideRedirect != 0,
+        mapped: event.mapped != 0,
+      ),
+    )
+  of X11ProbeEventKind.XpeMapRequested:
+    X11BackendEvent(
+      kind: X11BackendEventKind.MapRequested,
       window: X11WindowSnapshot(
         id: event.id,
         parentId: event.parentId,
@@ -201,7 +220,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
 
 proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   case event.kind
-  of X11BackendEventKind.WindowDiscovered:
+  of X11BackendEventKind.WindowDiscovered, X11BackendEventKind.MapRequested:
     if event.window.overrideRedirect:
       return
     result.add(

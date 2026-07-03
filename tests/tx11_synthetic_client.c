@@ -87,7 +87,9 @@ static int wait_for_close(
 int main(int argc, char **argv)
 {
     const char *display = argc > 1 ? argv[1] : NULL;
-    int hold = argc > 2 && strcmp(argv[2], "--hold") == 0;
+    int hold = argc > 2 &&
+        (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
+    int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
     int screen_number = 0;
     xcb_connection_t *conn = xcb_connect(display, &screen_number);
     if (xcb_connection_has_error(conn)) {
@@ -135,10 +137,10 @@ int main(int argc, char **argv)
     uint32_t event_mask = XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_FOCUS_CHANGE;
     uint32_t value_mask =
         XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK |
-        (hold ? XCB_CW_OVERRIDE_REDIRECT : 0);
+        (override_redirect ? XCB_CW_OVERRIDE_REDIRECT : 0);
     uint32_t values[3];
     values[0] = screen->black_pixel;
-    if (hold) {
+    if (override_redirect) {
         values[1] = 1;
         values[2] = event_mask;
     } else {

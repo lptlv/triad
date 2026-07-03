@@ -31,19 +31,31 @@ suite "X11 request executor":
     check not executions[1].applied
     check executions[1].description == "close window=0x0000000b"
 
+  test "dry-run execution describes map requests":
+    let executions = @[x11MapWindowRequest(12)].executeDryRun()
+
+    check executions.len == 1
+    check not executions[0].applied
+    check executions[0].request.kind == X11RequestKind.XrqMapWindow
+    check executions[0].description == "map window=0x0000000c"
+
   test "xcb dry-run boundary logs request records without a display":
-    let run =
+    var requests =
       @[
         Effect(kind: EffectKind.EffFocusWindow, focusId: 10),
         Effect(kind: EffectKind.EffCloseWindow, closeId: 11),
-      ].x11IntentsFor().x11RequestsFor().executeWithXcb(dryRun = true)
+      ].x11IntentsFor().x11RequestsFor()
+    requests.add(x11MapWindowRequest(12))
+    let run =
+      requests.executeWithXcb(dryRun = true)
 
     check run.code == 0
     check run.dryRun
-    check run.logs.len == 3
+    check run.logs.len == 4
     check run.logs[0] == "dry_run focus window=0x0000000a"
     check run.logs[1] == "dry_run close window=0x0000000b"
-    check run.logs[2] == "request execution complete dry_run=1 count=2"
+    check run.logs[2] == "dry_run map window=0x0000000c"
+    check run.logs[3] == "request execution complete dry_run=1 count=3"
 
   test "xcb dry-run boundary rejects malformed configure records":
     let run =
@@ -70,3 +82,11 @@ suite "X11 request executor":
     check not run.dryRun
     check run.logs.len == 1
     check run.logs[0] == "error failed to connect to X display"
+
+  test "active probe boundary rejects calls outside probe callbacks":
+    let run = @[x11MapWindowRequest(12)].executeWithActiveProbe()
+
+    check run.code != 0
+    check not run.dryRun
+    check run.logs.len == 1
+    check run.logs[0] == "error active probe connection unavailable"

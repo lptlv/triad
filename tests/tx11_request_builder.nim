@@ -48,7 +48,16 @@ suite "X11 request builder":
     check requests[1].valueMask == 0
     check requests[1].valueCount == 0
 
+  test "builds map-window request record":
+    let request = x11MapWindowRequest(12)
+
+    check request.kind == X11RequestKind.XrqMapWindow
+    check request.windowId == 12
+    check request.valueMask == 0
+    check request.valueCount == 0
+
   test "request ABI enum keeps stable wire values":
     check ord(X11RequestKind.XrqConfigureWindow) == 0
     check ord(X11RequestKind.XrqSetInputFocus) == 1
     check ord(X11RequestKind.XrqSendCloseWindow) == 2
+    check ord(X11RequestKind.XrqMapWindow) == 3

@@ -81,6 +81,33 @@ suite "X11 admission pipeline":
       "request execution complete dry_run=1 count=1",
     ]
 
+  test "map requests add map before focus execution":
+    var model = x11Model()
+    let step =
+      model.processEventWithExecutor(
+        X11BackendEvent(
+          kind: X11BackendEventKind.MapRequested,
+          window: X11WindowSnapshot(
+            id: 0x2c, wmClass: "app", title: "App", w: 300, h: 200
+          ),
+        ),
+        dryRun = true,
+      )
+
+    check step.admission.messages.len == 2
+    check step.requests.len == 2
+    check step.requests[0].kind == X11RequestKind.XrqMapWindow
+    check step.requests[0].windowId == 0x2c
+    check step.requests[1].kind == X11RequestKind.XrqSetInputFocus
+    check step.requests[1].windowId == 0x2c
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+    check step.xcbRun.logs == @[
+      "dry_run map window=0x0000002c",
+      "dry_run focus window=0x0000002c",
+      "request execution complete dry_run=1 count=2",
+    ]
+
   test "observed-only events do not invoke the executor boundary":
     var model = x11Model()
     let step =

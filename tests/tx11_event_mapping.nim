@@ -34,6 +34,34 @@ suite "X11 event mapping":
     check event.window.h == 600
     check event.window.mapped
 
+  test "raw probe map request maps to distinct backend event":
+    var raw = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeMapRequested,
+      id: 0x2b,
+      parentId: 7,
+      pid: 1235,
+      x: 12,
+      y: 24,
+      w: 640,
+      h: 480,
+    )
+    for idx, ch in "app/app":
+      raw.name[idx] = ch
+    for idx, ch in "App":
+      raw.title[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.MapRequested
+    check event.window.id == 0x2b
+    check event.window.parentId == 7
+    check event.window.pid == 1235
+    check event.window.wmClass == "app/app"
+    check event.window.title == "App"
+    check event.window.x == 12
+    check event.window.y == 24
+    check event.window.w == 640
+    check event.window.h == 480
+
   test "raw probe output event maps to typed backend event":
     var raw = X11ProbeEvent(
       kind: X11ProbeEventKind.XpeOutputDiscovered,
@@ -130,6 +158,30 @@ suite "X11 event mapping":
     check messages[2].kind == MsgKind.WlWindowPid
     check messages[2].pidWindowId == 42
     check messages[2].windowPid == 1234
+
+  test "map request maps to creation, dimensions, and pid messages":
+    let messages =
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window: X11WindowSnapshot(
+          id: 43,
+          parentId: 7,
+          pid: 1235,
+          wmClass: "app/app",
+          title: "App",
+          w: 640,
+          h: 480,
+        ),
+      ).messagesFor()
+
+    check messages.len == 3
+    check messages[0].kind == MsgKind.WlWindowCreated
+    check messages[0].windowId == 43
+    check messages[0].appId == "app"
+    check messages[1].kind == MsgKind.WlWindowDimensions
+    check messages[1].dimensionsWindowId == 43
+    check messages[2].kind == MsgKind.WlWindowPid
+    check messages[2].pidWindowId == 43
 
   test "override-redirect windows are not admitted":
     let messages =

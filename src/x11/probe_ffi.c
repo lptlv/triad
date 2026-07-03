@@ -15,6 +15,7 @@ typedef enum TriadX11RequestKind {
     TRIAD_X11_REQUEST_CONFIGURE_WINDOW = 0,
     TRIAD_X11_REQUEST_SET_INPUT_FOCUS = 1,
     TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW = 2,
+    TRIAD_X11_REQUEST_MAP_WINDOW = 3,
 } TriadX11RequestKind;
 
 typedef struct TriadX11Request {
@@ -35,6 +36,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_FOCUS_CHANGED = 6,
     TRIAD_X11_EVENT_POINTER_ENTERED = 7,
     TRIAD_X11_EVENT_RANDR_CHANGED = 8,
+    TRIAD_X11_EVENT_MAP_REQUESTED = 9,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -97,6 +99,8 @@ typedef struct TriadX11Probe {
     void *log_user_data;
 } TriadX11Probe;
 
+static TriadX11Probe *active_probe = NULL;
+
 static void probe_log(TriadX11Probe *probe, const char *fmt, ...)
 {
     char buffer[1024];
@@ -122,8 +126,12 @@ static void copy_text(char *dst, size_t dst_len, const char *src)
 
 static void probe_event(TriadX11Probe *probe, const TriadX11Event *event)
 {
-    if (probe->event != NULL)
+    if (probe->event != NULL) {
+        TriadX11Probe *previous = active_probe;
+        active_probe = probe;
         probe->event(probe->log_user_data, event);
+        active_probe = previous;
+    }
 }
 
 static void request_log(
@@ -335,8 +343,15 @@ static int select_window_events(TriadX11Probe *probe, xcb_window_t win)
     return 1;
 }
 
-static void log_window(TriadX11Probe *probe, xcb_window_t win, const char *source)
+static void log_window(
+    TriadX11Probe *probe,
+    xcb_window_t win,
+    const char *source,
+    TriadX11EventKind event_kind)
 {
+    if (win == probe->owner_window)
+        return;
+
     xcb_get_window_attributes_cookie_t attr_cookie =
         xcb_get_window_attributes(probe->conn, win);
     xcb_get_geometry_cookie_t geom_cookie = xcb_get_geometry(probe->conn, win);
@@ -372,7 +387,7 @@ static void log_window(TriadX11Probe *probe, xcb_window_t win, const char *sourc
 
     TriadX11Event event;
     memset(&event, 0, sizeof(event));
-    event.kind = TRIAD_X11_EVENT_WINDOW_DISCOVERED;
+    event.kind = event_kind;
     event.id = win;
     event.parent_id = 0;
     event.pid = (int32_t)pid;
@@ -409,7 +424,7 @@ static void query_existing_windows(TriadX11Probe *probe)
     xcb_window_t *children = xcb_query_tree_children(reply);
     probe_log(probe, "windows count=%d", len);
     for (int i = 0; i < len; i++)
-        log_window(probe, children[i], "startup");
+        log_window(probe, children[i], "startup", TRIAD_X11_EVENT_WINDOW_DISCOVERED);
     free(reply);
 }
 
@@ -718,7 +733,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             event_name(type),
             ev->parent,
             ev->window);
-        log_window(probe, ev->window, "map-request");
+        log_window(probe, ev->window, "map-request", TRIAD_X11_EVENT_MAP_REQUESTED);
         break;
     }
     case XCB_UNMAP_NOTIFY: {
@@ -1034,6 +1049,28 @@ static int execute_focus_request(
     return 0;
 }
 
+static int execute_map_request(
+    xcb_connection_t *conn,
+    const TriadX11Request *request,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    xcb_void_cookie_t cookie = xcb_map_window_checked(conn, request->window_id);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error map window=0x%08x code=%u",
+            request->window_id,
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    request_log(log_fn, user_data, "applied map window=0x%08x", request->window_id);
+    return 0;
+}
+
 static int execute_close_request(
     xcb_connection_t *conn,
     const TriadX11Request *request,
@@ -1071,6 +1108,63 @@ static int execute_close_request(
     }
     request_log(log_fn, user_data, "applied close window=0x%08x", request->window_id);
     return 0;
+}
+
+static int execute_requests_on_connection(
+    xcb_connection_t *conn,
+    const TriadX11Request *requests,
+    uint32_t count,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    int status = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        const TriadX11Request *request = &requests[i];
+        int request_status = 0;
+        switch (request->kind) {
+        case TRIAD_X11_REQUEST_CONFIGURE_WINDOW:
+            request_status = execute_configure_request(conn, request, log_fn, user_data);
+            break;
+        case TRIAD_X11_REQUEST_SET_INPUT_FOCUS:
+            request_status = execute_focus_request(conn, request, log_fn, user_data);
+            break;
+        case TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW:
+            request_status = execute_close_request(conn, request, log_fn, user_data);
+            break;
+        case TRIAD_X11_REQUEST_MAP_WINDOW:
+            request_status = execute_map_request(conn, request, log_fn, user_data);
+            break;
+        default:
+            request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);
+            request_status = 1;
+            break;
+        }
+        if (request_status != 0)
+            status = request_status;
+    }
+    xcb_flush(conn);
+    return status;
+}
+
+int triad_x11_execute_requests_on_active_probe(
+    const TriadX11Request *requests,
+    uint32_t count,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    if (count > 0 && requests == NULL) {
+        request_log(log_fn, user_data, "error requests pointer is null");
+        return 1;
+    }
+    if (active_probe == NULL || active_probe->conn == NULL) {
+        request_log(log_fn, user_data, "error active probe connection unavailable");
+        return 1;
+    }
+
+    int status = execute_requests_on_connection(
+        active_probe->conn, requests, count, log_fn, user_data);
+    request_log(log_fn, user_data, "request execution complete active_probe=1 count=%u", count);
+    return status;
 }
 
 int triad_x11_execute_requests(
@@ -1116,6 +1210,9 @@ int triad_x11_execute_requests(
             case TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW:
                 request_log(log_fn, user_data, "dry_run close window=0x%08x", request->window_id);
                 break;
+            case TRIAD_X11_REQUEST_MAP_WINDOW:
+                request_log(log_fn, user_data, "dry_run map window=0x%08x", request->window_id);
+                break;
             default:
                 request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);
                 return 1;
@@ -1134,29 +1231,7 @@ int triad_x11_execute_requests(
         return 1;
     }
 
-    int status = 0;
-    for (uint32_t i = 0; i < count; i++) {
-        const TriadX11Request *request = &requests[i];
-        int request_status = 0;
-        switch (request->kind) {
-        case TRIAD_X11_REQUEST_CONFIGURE_WINDOW:
-            request_status = execute_configure_request(conn, request, log_fn, user_data);
-            break;
-        case TRIAD_X11_REQUEST_SET_INPUT_FOCUS:
-            request_status = execute_focus_request(conn, request, log_fn, user_data);
-            break;
-        case TRIAD_X11_REQUEST_SEND_CLOSE_WINDOW:
-            request_status = execute_close_request(conn, request, log_fn, user_data);
-            break;
-        default:
-            request_log(log_fn, user_data, "error unknown request kind=%u", request->kind);
-            request_status = 1;
-            break;
-        }
-        if (request_status != 0)
-            status = request_status;
-    }
-    xcb_flush(conn);
+    int status = execute_requests_on_connection(conn, requests, count, log_fn, user_data);
     xcb_disconnect(conn);
     request_log(log_fn, user_data, "request execution complete dry_run=0 count=%u", count);
     return status;

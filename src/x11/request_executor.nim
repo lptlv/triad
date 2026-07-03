@@ -22,6 +22,8 @@ proc requestDescription(request: X11Request): string =
     "focus window=0x" & request.windowId.toHex(8).toLowerAscii()
   of X11RequestKind.XrqSendCloseWindow:
     "close window=0x" & request.windowId.toHex(8).toLowerAscii()
+  of X11RequestKind.XrqMapWindow:
+    "map window=0x" & request.windowId.toHex(8).toLowerAscii()
 
 proc executeDryRun*(request: X11Request): X11RequestExecution =
   X11RequestExecution(
@@ -62,4 +64,20 @@ proc executeWithXcb*(
       )
     )
   result.dryRun = dryRun
+  result.logs = logs
+
+proc executeWithActiveProbe*(requests: openArray[X11Request]): X11RequestRunResult =
+  var logs: seq[string]
+  let requestPtr =
+    if requests.len == 0:
+      nil
+    else:
+      unsafeAddr requests[0]
+  result.code =
+    int(
+      triadX11ExecuteRequestsOnActiveProbe(
+        requestPtr, cuint(requests.len), requestLogCallback, addr logs
+      )
+    )
+  result.dryRun = false
   result.logs = logs

@@ -37,9 +37,11 @@ cc -Wall -Wextra -Werror -o "$client" "$client_src" $(pkg-config --cflags --libs
 display=":73"
 log="$root/tests/tx11-probe-smoke.log"
 event_log="$root/tests/tx11-probe-smoke-events.log"
+manager_log="$root/tests/tx11-probe-smoke-manager.log"
 client_log="$root/tests/tx11-probe-smoke-client.log"
+managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
-rm -f "$log" "$event_log" "$client_log" "$executor_log"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log"
 
 Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
 xvfb_pid="$!"
@@ -57,7 +59,7 @@ cleanup() {
   fi
   kill "$xvfb_pid" 2>/dev/null || true
   wait "$xvfb_pid" 2>/dev/null || true
-  rm -f "$log" "$event_log" "$client_log" "$executor_log" "$log.xvfb" "$client"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$log.xvfb" "$client"
 }
 
 trap cleanup EXIT INT TERM
@@ -122,7 +124,7 @@ fi
 
 for pattern in \
   "event MapRequest" \
-  "backend_event WindowDiscovered" \
+  "backend_event MapRequested" \
   "dry_run_msg WlWindowCreated" \
   "dry_run_msg WlWindowDimensions" \
   "dry_run_msg WlWindowPid" \
@@ -141,6 +143,69 @@ for pattern in \
     exit 1
   fi
 done
+
+kill "$probe_pid" 2>/dev/null || true
+wait "$probe_pid" 2>/dev/null || true
+probe_pid=""
+sleep 0.2
+
+"$probe" --display "$display" --mode manage >"$manager_log" 2>&1 &
+probe_pid="$!"
+
+started=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q "event loop started" "$manager_log" 2>/dev/null; then
+    started=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$started" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: manager loop did not start" >&2
+  cat "$manager_log" >&2
+  exit 1
+fi
+
+"$client" "$display" --managed-hold >"$managed_client_log" 2>&1 &
+client_pid="$!"
+
+managed_observed=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q "live_xcb applied map" "$manager_log" 2>/dev/null; then
+    managed_observed=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$managed_observed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: manager did not map managed client" >&2
+  cat "$manager_log" >&2
+  cat "$managed_client_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  "backend_event MapRequested" \
+  "model_msg WlWindowCreated" \
+  "x11_request map window=" \
+  "live_xcb applied map window=" \
+  "live_xcb applied focus window="; do
+  if ! grep -q "$pattern" "$manager_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing manager log pattern: $pattern" >&2
+    cat "$manager_log" >&2
+    exit 1
+  fi
+done
+
+kill "$client_pid" 2>/dev/null || true
+wait "$client_pid" 2>/dev/null || true
+client_pid=""
+kill "$probe_pid" 2>/dev/null || true
+wait "$probe_pid" 2>/dev/null || true
+probe_pid=""
+sleep 0.2
 
 "$client" "$display" --hold >"$client_log" 2>&1 &
 client_pid="$!"

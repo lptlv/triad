@@ -5,6 +5,7 @@ type
     XrqConfigureWindow = 0
     XrqSetInputFocus = 1
     XrqSendCloseWindow = 2
+    XrqMapWindow = 3
 
   X11Request* {.bycopy.} = object
     kind*: X11RequestKind
@@ -37,6 +38,9 @@ proc x11RequestFor*(intent: X11EffectIntent): X11Request =
     X11Request(
       kind: X11RequestKind.XrqSendCloseWindow, windowId: intent.closeWindowId
     )
+
+proc x11MapWindowRequest*(windowId: uint32): X11Request =
+  X11Request(kind: X11RequestKind.XrqMapWindow, windowId: windowId)
 
 proc x11RequestsFor*(intents: openArray[X11EffectIntent]): seq[X11Request] =
   for intent in intents:
