@@ -1,6 +1,7 @@
 import std/strutils
+import modifiers
 
-const ShiftModifier* = 1'u32
+export modifiers
 
 proc keySymForBinding*(key: string, modifiers: uint32 = 0): uint32 =
   if key.len == 1:

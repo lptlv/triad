@@ -656,29 +656,6 @@ proc parseHotkeyOverlayPosition(name: string): HotkeyOverlayPosition =
   else:
     raise newException(ValueError, "invalid hotkey-overlay position: " & name)
 
-proc modifierValue(name: string): uint32 =
-  case name
-  of "Shift", "shift", "SHIFT":
-    1'u32
-  of "Ctrl", "Control", "ctrl", "control", "CTRL", "CONTROL":
-    4'u32
-  of "Alt", "Mod1", "alt", "mod1", "ALT", "MOD1":
-    8'u32
-  of "Mod3", "mod3", "MOD3":
-    32'u32
-  of "Super", "Logo", "Mod4", "super", "logo", "mod4", "SUPER", "LOGO", "MOD4":
-    64'u32
-  of "Mod5", "mod5", "MOD5":
-    128'u32
-  of "None", "none", "NONE":
-    0'u32
-  else:
-    0'u32
-
-proc parseModifiers*(value: string): uint32 =
-  for part in value.split("+"):
-    result = result or modifierValue(part.strip())
-
 proc buttonValue*(name: string): uint32 =
   case name
   of "left", "Left", "BTN_LEFT", "btn-left", "btn_left":
@@ -1174,7 +1151,7 @@ proc mirrorHjklArrowBindings(bindings: var seq[KeyBindingConfig]) =
 proc hotkeyOverlayFallbackBinding(): KeyBindingConfig =
   KeyBindingConfig(
     key: "Question",
-    modifiers: 64'u32,
+    modifiers: ModifierSuper,
     command: "toggle-hotkey-overlay",
     bypassShortcutsInhibit: true,
     hotkeyOverlayTitleKind: HotkeyOverlayTitleKind.HotkeyTitleCustom,
@@ -1185,25 +1162,25 @@ proc defaultRecentWindowBindings*(): seq[KeyBindingConfig] =
   @[
     KeyBindingConfig(
       key: "Tab",
-      modifiers: 8'u32,
+      modifiers: ModifierAlt,
       command: "recent-window-next",
       mode: BindingMode.BindRecent,
     ),
     KeyBindingConfig(
       key: "Tab",
-      modifiers: 9'u32,
+      modifiers: ModifierAlt or ModifierShift,
       command: "recent-window-prev",
       mode: BindingMode.BindRecent,
     ),
     KeyBindingConfig(
       key: "grave",
-      modifiers: 8'u32,
+      modifiers: ModifierAlt,
       command: "recent-window-next --filter app-id",
       mode: BindingMode.BindRecent,
     ),
     KeyBindingConfig(
       key: "grave",
-      modifiers: 9'u32,
+      modifiers: ModifierAlt or ModifierShift,
       command: "recent-window-prev --filter app-id",
       mode: BindingMode.BindRecent,
     ),
@@ -1509,46 +1486,66 @@ proc parseIdleInhibitMode(
 proc defaultKeyBindings*(): seq[KeyBindingConfig] =
   @[
     hotkeyOverlayFallbackBinding(),
-    KeyBindingConfig(key: "q", modifiers: 64'u32, command: "close-window"),
-    KeyBindingConfig(key: "f", modifiers: 64'u32, command: "maximize-window-to-edges"),
-    KeyBindingConfig(key: "f", modifiers: 65'u32, command: "fullscreen-window"),
-    KeyBindingConfig(key: "m", modifiers: 64'u32, command: "maximize-column"),
-    KeyBindingConfig(key: "b", modifiers: 65'u32, command: "minimize"),
-    KeyBindingConfig(key: "s", modifiers: 64'u32, command: "move-to-scratchpad"),
-    KeyBindingConfig(key: "s", modifiers: 72'u32, command: "toggle-scratchpad"),
-    KeyBindingConfig(key: "s", modifiers: 65'u32, command: "restore-scratchpad"),
+    KeyBindingConfig(key: "q", modifiers: ModifierSuper, command: "close-window"),
     KeyBindingConfig(
-      key: "r", modifiers: 12'u32, command: "triad-reload", bypassShortcutsInhibit: true
+      key: "f", modifiers: ModifierSuper, command: "maximize-window-to-edges"
     ),
-    KeyBindingConfig(key: "t", modifiers: 64'u32, command: "spawn-terminal"),
-    KeyBindingConfig(key: "Tab", modifiers: 64'u32, command: "focus-next"),
-    KeyBindingConfig(key: "Left", modifiers: 8'u32, command: "focus-left"),
-    KeyBindingConfig(key: "Right", modifiers: 8'u32, command: "focus-right"),
-    KeyBindingConfig(key: "Up", modifiers: 8'u32, command: "focus-up"),
-    KeyBindingConfig(key: "Down", modifiers: 8'u32, command: "focus-down"),
-    KeyBindingConfig(key: "n", modifiers: 64'u32, command: "switch-layout"),
-    KeyBindingConfig(key: "1", modifiers: 72'u32, command: "scroller"),
-    KeyBindingConfig(key: "2", modifiers: 72'u32, command: "notion"),
-    KeyBindingConfig(key: "3", modifiers: 72'u32, command: "dwindle"),
-    KeyBindingConfig(key: "4", modifiers: 72'u32, command: "grid"),
-    KeyBindingConfig(key: "5", modifiers: 72'u32, command: "center-tile"),
-    KeyBindingConfig(key: "6", modifiers: 72'u32, command: "spiral"),
-    KeyBindingConfig(key: "7", modifiers: 72'u32, command: "i3"),
-    KeyBindingConfig(key: "n", modifiers: 65'u32, command: "new-workspace"),
-    KeyBindingConfig(key: "1", modifiers: 64'u32, command: "focus-workspace 1"),
-    KeyBindingConfig(key: "2", modifiers: 64'u32, command: "focus-workspace 2"),
-    KeyBindingConfig(key: "3", modifiers: 64'u32, command: "focus-workspace 3"),
-    KeyBindingConfig(key: "4", modifiers: 64'u32, command: "focus-workspace 4"),
+    KeyBindingConfig(
+      key: "f", modifiers: ModifierSuper or ModifierShift, command: "fullscreen-window"
+    ),
+    KeyBindingConfig(key: "m", modifiers: ModifierSuper, command: "maximize-column"),
+    KeyBindingConfig(
+      key: "b", modifiers: ModifierSuper or ModifierShift, command: "minimize"
+    ),
+    KeyBindingConfig(key: "s", modifiers: ModifierSuper, command: "move-to-scratchpad"),
+    KeyBindingConfig(
+      key: "s", modifiers: ModifierSuper or ModifierAlt, command: "toggle-scratchpad"
+    ),
+    KeyBindingConfig(
+      key: "s", modifiers: ModifierSuper or ModifierShift, command: "restore-scratchpad"
+    ),
+    KeyBindingConfig(
+      key: "r",
+      modifiers: ModifierCtrl or ModifierAlt,
+      command: "triad-reload",
+      bypassShortcutsInhibit: true,
+    ),
+    KeyBindingConfig(key: "t", modifiers: ModifierSuper, command: "spawn-terminal"),
+    KeyBindingConfig(key: "Tab", modifiers: ModifierSuper, command: "focus-next"),
+    KeyBindingConfig(key: "Left", modifiers: ModifierAlt, command: "focus-left"),
+    KeyBindingConfig(key: "Right", modifiers: ModifierAlt, command: "focus-right"),
+    KeyBindingConfig(key: "Up", modifiers: ModifierAlt, command: "focus-up"),
+    KeyBindingConfig(key: "Down", modifiers: ModifierAlt, command: "focus-down"),
+    KeyBindingConfig(key: "n", modifiers: ModifierSuper, command: "switch-layout"),
+    KeyBindingConfig(key: "1", modifiers: ModifierSuper or ModifierAlt, command: "scroller"),
+    KeyBindingConfig(key: "2", modifiers: ModifierSuper or ModifierAlt, command: "notion"),
+    KeyBindingConfig(key: "3", modifiers: ModifierSuper or ModifierAlt, command: "dwindle"),
+    KeyBindingConfig(key: "4", modifiers: ModifierSuper or ModifierAlt, command: "grid"),
+    KeyBindingConfig(
+      key: "5", modifiers: ModifierSuper or ModifierAlt, command: "center-tile"
+    ),
+    KeyBindingConfig(key: "6", modifiers: ModifierSuper or ModifierAlt, command: "spiral"),
+    KeyBindingConfig(key: "7", modifiers: ModifierSuper or ModifierAlt, command: "i3"),
+    KeyBindingConfig(
+      key: "n", modifiers: ModifierSuper or ModifierShift, command: "new-workspace"
+    ),
+    KeyBindingConfig(key: "1", modifiers: ModifierSuper, command: "focus-workspace 1"),
+    KeyBindingConfig(key: "2", modifiers: ModifierSuper, command: "focus-workspace 2"),
+    KeyBindingConfig(key: "3", modifiers: ModifierSuper, command: "focus-workspace 3"),
+    KeyBindingConfig(key: "4", modifiers: ModifierSuper, command: "focus-workspace 4"),
   ]
 
 proc defaultPointerBindings*(): seq[PointerBindingConfig] =
   @[
     PointerBindingConfig(
-      button: 0x110'u32, modifiers: 64'u32, op: PointerOpKind.OpMove, command: "move"
+      button: 0x110'u32,
+      modifiers: ModifierSuper,
+      op: PointerOpKind.OpMove,
+      command: "move",
     ),
     PointerBindingConfig(
       button: 0x111'u32,
-      modifiers: 64'u32,
+      modifiers: ModifierSuper,
       op: PointerOpKind.OpResize,
       command: "resize",
     ),

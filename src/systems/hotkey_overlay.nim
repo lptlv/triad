@@ -1,4 +1,5 @@
 import std/[options, sequtils, strutils]
+import ../config/modifiers
 import ../state/engine
 import ../types/runtime_values
 import binding_profiles
@@ -31,20 +32,6 @@ const ImportantHotkeys = [
   ImportantHotkey(command: "screenshot", label: "Take a Screenshot"),
 ]
 
-proc modifierNames(modifiers: uint32): seq[string] =
-  if (modifiers and 64'u32) != 0:
-    result.add("Super")
-  if (modifiers and 4'u32) != 0:
-    result.add("Ctrl")
-  if (modifiers and 1'u32) != 0:
-    result.add("Shift")
-  if (modifiers and 8'u32) != 0:
-    result.add("Alt")
-  if (modifiers and 32'u32) != 0:
-    result.add("Mod3")
-  if (modifiers and 128'u32) != 0:
-    result.add("Mod5")
-
 proc prettyKeyName(key: string): string =
   case key
   of "Slash":
@@ -62,7 +49,7 @@ proc prettyKeyName(key: string): string =
       key
 
 proc prettyBinding(binding: KeyBindingConfig): string =
-  let parts = binding.modifiers.modifierNames()
+  let parts = binding.modifiers.modifierLabels()
   if parts.len == 0:
     binding.key.prettyKeyName()
   else:
@@ -138,5 +125,5 @@ proc hotkeyOverlayRows*(model: Model): seq[HotkeyOverlayRow] =
 
   for binding in bindings:
     if binding.command.commandBase() in ["spawn", "spawn-terminal"] and
-        (binding.modifiers and 64'u32) != 0:
+        (binding.modifiers and ModifierSuper) != 0:
       result.addRow(binding.rowForBinding())

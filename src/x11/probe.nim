@@ -17,13 +17,6 @@ const
   X11ResizeEdgeBottom = 2'u32
   X11ResizeEdgeLeft = 4'u32
   X11ResizeEdgeRight = 8'u32
-  # Core X11/XCB modifier masks, kept aligned with config modifier parsing.
-  X11ModShift = ShiftModifier
-  X11ModCtrl = 4'u32
-  X11ModAlt = 8'u32
-  X11Mod3 = 32'u32
-  X11ModSuper = 64'u32
-  X11Mod5 = 128'u32
 
 type
   X11ProbeMode* {.pure.} = enum
@@ -86,21 +79,7 @@ proc modeLabel(mode: X11ProbeMode): string =
   of X11ProbeMode.Manage: "manage"
 
 proc bindingSpec(binding: KeyBindingConfig): string =
-  var parts: seq[string]
-  if (binding.modifiers and X11ModSuper) != 0:
-    parts.add("Super")
-  if (binding.modifiers and X11ModCtrl) != 0:
-    parts.add("Ctrl")
-  if (binding.modifiers and X11ModShift) != 0:
-    parts.add("Shift")
-  if (binding.modifiers and X11ModAlt) != 0:
-    parts.add("Alt")
-  if (binding.modifiers and X11Mod3) != 0:
-    parts.add("Mod3")
-  if (binding.modifiers and X11Mod5) != 0:
-    parts.add("Mod5")
-  parts.add(binding.key)
-  parts.join("+")
+  bindingSpec(binding.modifiers, binding.key)
 
 proc buttonName(button: uint32): string =
   case button
@@ -130,21 +109,7 @@ proc bindingSpec(binding: PointerBindingConfig): string =
   let name = binding.button.buttonName()
   if name.len == 0:
     return ""
-  var parts: seq[string]
-  if (binding.modifiers and X11ModSuper) != 0:
-    parts.add("Super")
-  if (binding.modifiers and X11ModCtrl) != 0:
-    parts.add("Ctrl")
-  if (binding.modifiers and X11ModShift) != 0:
-    parts.add("Shift")
-  if (binding.modifiers and X11ModAlt) != 0:
-    parts.add("Alt")
-  if (binding.modifiers and X11Mod3) != 0:
-    parts.add("Mod3")
-  if (binding.modifiers and X11Mod5) != 0:
-    parts.add("Mod5")
-  parts.add(name)
-  parts.join("+")
+  bindingSpec(binding.modifiers, name)
 
 proc axisName(direction: AxisBindingDirection): string =
   case direction
@@ -166,21 +131,7 @@ proc bindingSpec(binding: AxisBindingConfig): string =
   let name = binding.direction.axisName()
   if name.len == 0:
     return ""
-  var parts: seq[string]
-  if (binding.modifiers and X11ModSuper) != 0:
-    parts.add("Super")
-  if (binding.modifiers and X11ModCtrl) != 0:
-    parts.add("Ctrl")
-  if (binding.modifiers and X11ModShift) != 0:
-    parts.add("Shift")
-  if (binding.modifiers and X11ModAlt) != 0:
-    parts.add("Alt")
-  if (binding.modifiers and X11Mod3) != 0:
-    parts.add("Mod3")
-  if (binding.modifiers and X11Mod5) != 0:
-    parts.add("Mod5")
-  parts.add(name)
-  parts.join("+")
+  bindingSpec(binding.modifiers, name)
 
 proc bindingText(value: string): array[128, char] =
   let limit = min(value.len, result.len - 1)

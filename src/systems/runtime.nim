@@ -1,12 +1,11 @@
 import std/[math, options]
+import ../config/modifiers
 import ../core/native_layout_codec
 import ../state/engine
 import ../types/projection_values as rv
 from ../types/runtime_values import
   JanetLayoutId, LayoutMode, NativeLayoutId, PointerOpKind
 import focus, layout_projection, overview_geometry, placement, workspaces
-
-const ShiftModifier = 1'u32
 
 proc tickElapsedMs(msgElapsedMs: int32): int32 =
   if msgElapsedMs > 0: msgElapsedMs else: DefaultFrameIntervalMs

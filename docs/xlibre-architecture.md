@@ -211,10 +211,10 @@ commands such as `spawn` are rejected rather than run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. Manage mode installs X11
 passive key grabs for configured key bindings whose commands pass the current
-XLibre allowlist. The Nim-side modifier masks are named after core X11/XCB
-modifier slots, and the C/XCB key resolver derives any required Shift modifier
-from the server keyboard map level for shifted keysyms before installing the
-passive grab. It also installs passive core button grabs for supported
+XLibre allowlist. Modifier parsing and binding-string formatting are centralized
+in the config layer, while the C/XCB key resolver derives any required Shift
+modifier from the server keyboard map level for shifted keysyms before
+installing the passive grab. It also installs passive core button grabs for supported
 command-style pointer bindings after translating Triad's evdev button codes to
 core X11 button details, including left, middle, right, and common extra mouse
 buttons such as back/forward. Core X11 wheel buttons 4, 5, 6, and 7 are also
