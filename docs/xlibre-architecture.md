@@ -194,10 +194,13 @@ threaded tick so IPC snapshots read the live X11 model without introducing
 cross-thread state access. `triad msg --socket PATH ...` can target this socket
 for the supported read-only requests.
 The initial writable exceptions are explicit XLibre-only requests:
-`xlibre-close-window` and `xlibre-focus-window`. Each accepts a live X11 window
-id, verifies it against the current shell snapshot, and lowers directly to one
-existing XCB request record. General Triad command IPC remains disabled on the
-XLibre socket.
+`xlibre-close-window`, `xlibre-focus-window`, `xlibre-focus-workspace`, and
+`xlibre-move-window-to-workspace`. Window-targeted requests accept a live X11
+window id and verify it against the current shell snapshot. Direct window
+requests lower to one existing XCB request record; workspace requests are vetted
+Triad model messages that run through `Model.update`, layout projection, and the
+X11 request executor. General Triad command IPC remains disabled on the XLibre
+socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. This is discovery only:
 the XLibre branch does not grab keys/buttons or dispatch configured bindings
@@ -207,6 +210,7 @@ The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
+- expand the explicit XLibre action set only one command family at a time
 - use XInput/XKB discovery to model a minimal tested binding path before
   enabling normal user bindings
 

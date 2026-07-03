@@ -56,10 +56,12 @@ ipc_windows_log="$root/tests/tx11-probe-smoke-ipc-windows.json"
 ipc_capabilities_log="$root/tests/tx11-probe-smoke-ipc-capabilities.json"
 ipc_status_log="$root/tests/tx11-probe-smoke-ipc-status.json"
 ipc_focus_log="$root/tests/tx11-probe-smoke-ipc-focus.json"
+ipc_focus_workspace_log="$root/tests/tx11-probe-smoke-ipc-focus-workspace.json"
+ipc_move_workspace_log="$root/tests/tx11-probe-smoke-ipc-move-workspace.json"
 ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_close_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -86,7 +88,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_move_workspace_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -314,6 +316,44 @@ for pattern in \
   if ! grep -q "$pattern" "$ipc_focus_log"; then
     printf '%s\n' "tx11_probe_smoke: missing ipc focus pattern: $pattern" >&2
     cat "$ipc_focus_log" >&2
+    exit 1
+  fi
+done
+
+focus_workspace_payload='{"triad":{"version":1,"request":"xlibre-focus-workspace","workspace":1}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$focus_workspace_payload" >"$ipc_focus_workspace_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_focus_workspace_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"xlibre-focus-workspace"' \
+  '"workspace":1' \
+  '"applied":true'; do
+  if ! grep -q "$pattern" "$ipc_focus_workspace_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc focus workspace pattern: $pattern" >&2
+    cat "$ipc_focus_workspace_log" >&2
+    exit 1
+  fi
+done
+
+move_workspace_payload='{"triad":{"version":1,"request":"xlibre-move-window-to-workspace","id":'"$managed_window_dec"',"workspace":2}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$move_workspace_payload" >"$ipc_move_workspace_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_move_workspace_log" >&2
+  exit 1
+fi
+
+for pattern in \
+  '"type":"xlibre-move-window-to-workspace"' \
+  '"window":'"$managed_window_dec" \
+  '"workspace":2' \
+  '"follow":true' \
+  '"applied":true'; do
+  if ! grep -q "$pattern" "$ipc_move_workspace_log"; then
+    printf '%s\n' "tx11_probe_smoke: missing ipc move workspace pattern: $pattern" >&2
+    cat "$ipc_move_workspace_log" >&2
     exit 1
   fi
 done

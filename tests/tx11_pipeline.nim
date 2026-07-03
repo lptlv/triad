@@ -13,10 +13,7 @@ import ../src/x11/request_builder
 
 proc x11Model(): Model =
   initRuntimeStateFromConfig(
-    Config(
-      layout: LayoutConfig(gaps: 10),
-      workspaces: WorkspaceConfig(defaultCount: 3),
-    )
+    Config(layout: LayoutConfig(gaps: 10), workspaces: WorkspaceConfig(defaultCount: 3))
   ).model
 
 suite "X11 admission pipeline":
@@ -31,22 +28,21 @@ suite "X11 admission pipeline":
       )
     )
 
-    let step =
-      model.processEventDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.WindowDiscovered,
-          window: X11WindowSnapshot(
-            id: 0x2a,
-            wmClass: "triad-smoke/triad-smoke",
-            title: "triad smoke",
-            x: 32,
-            y: 48,
-            w: 320,
-            h: 200,
-            mapped: true,
-          ),
-        )
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 0x2a,
+          wmClass: "triad-smoke/triad-smoke",
+          title: "triad smoke",
+          x: 32,
+          y: 48,
+          w: 320,
+          h: 200,
+          mapped: true,
+        ),
       )
+    )
 
     check step.admission.messages.len == 2
     check step.intents.len == 1
@@ -64,25 +60,25 @@ suite "X11 admission pipeline":
 
   test "executor pipeline can run selected admission effects through C dry-run":
     var model = x11Model()
-    let step =
-      model.processEventWithExecutor(
-        X11BackendEvent(
-          kind: X11BackendEventKind.WindowDiscovered,
-          window: X11WindowSnapshot(
-            id: 0x2b, wmClass: "app", title: "App", w: 300, h: 200, mapped: true
-          ),
+    let step = model.processEventWithExecutor(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 0x2b, wmClass: "app", title: "App", w: 300, h: 200, mapped: true
         ),
-        dryRun = true,
-      )
+      ),
+      dryRun = true,
+    )
 
     check step.requests.len == 1
     check step.requests[0].kind == X11RequestKind.XrqSetInputFocus
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
-    check step.xcbRun.logs == @[
-      "dry_run focus window=0x0000002b",
-      "request execution complete dry_run=1 count=1",
-    ]
+    check step.xcbRun.logs ==
+      @[
+        "dry_run focus window=0x0000002b",
+        "request execution complete dry_run=1 count=1",
+      ]
 
   test "map requests add map before focus execution":
     var model = x11Model()
@@ -94,16 +90,14 @@ suite "X11 admission pipeline":
         ),
       )
     )
-    let step =
-      model.processEventWithExecutor(
-        X11BackendEvent(
-          kind: X11BackendEventKind.MapRequested,
-          window: X11WindowSnapshot(
-            id: 0x2c, wmClass: "app", title: "App", w: 300, h: 200
-          ),
-        ),
-        dryRun = true,
-      )
+    let step = model.processEventWithExecutor(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x2c, wmClass: "app", title: "App", w: 300, h: 200),
+      ),
+      dryRun = true,
+    )
 
     check step.admission.messages.len == 2
     check step.layoutRequests.len == 1
@@ -137,18 +131,19 @@ suite "X11 admission pipeline":
     discard model.processEventDryRun(
       X11BackendEvent(
         kind: X11BackendEventKind.MapRequested,
-        window: X11WindowSnapshot(id: 0x30, wmClass: "app", title: "One", w: 300, h: 200),
+        window:
+          X11WindowSnapshot(id: 0x30, wmClass: "app", title: "One", w: 300, h: 200),
       )
     )
 
-    let step =
-      model.processEventWithExecutor(
-        X11BackendEvent(
-          kind: X11BackendEventKind.MapRequested,
-          window: X11WindowSnapshot(id: 0x31, wmClass: "app", title: "Two", w: 300, h: 200),
-        ),
-        dryRun = true,
-      )
+    let step = model.processEventWithExecutor(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x31, wmClass: "app", title: "Two", w: 300, h: 200),
+      ),
+      dryRun = true,
+    )
 
     check step.layoutRequests.len == 2
     check step.layoutRequests.anyIt(it.windowId == 0x30)
@@ -157,7 +152,9 @@ suite "X11 admission pipeline":
     check step.requests[0].windowId == 0x31
     check step.requests[1].kind == X11RequestKind.XrqMapWindow
     check step.requests[1].windowId == 0x31
-    check step.requests.anyIt(it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x30)
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x30
+    )
 
   test "destroyed windows reproject remaining windows without map requests":
     var model = x11Model()
@@ -172,37 +169,39 @@ suite "X11 admission pipeline":
     discard model.processEventDryRun(
       X11BackendEvent(
         kind: X11BackendEventKind.MapRequested,
-        window: X11WindowSnapshot(id: 0x40, wmClass: "app", title: "One", w: 300, h: 200),
+        window:
+          X11WindowSnapshot(id: 0x40, wmClass: "app", title: "One", w: 300, h: 200),
       )
     )
     discard model.processEventDryRun(
       X11BackendEvent(
         kind: X11BackendEventKind.MapRequested,
-        window: X11WindowSnapshot(id: 0x41, wmClass: "app", title: "Two", w: 300, h: 200),
+        window:
+          X11WindowSnapshot(id: 0x41, wmClass: "app", title: "Two", w: 300, h: 200),
       )
     )
 
-    let step =
-      model.processEventWithExecutor(
-        X11BackendEvent(kind: X11BackendEventKind.WindowDestroyed, windowId: 0x41),
-        dryRun = true,
-      )
+    let step = model.processEventWithExecutor(
+      X11BackendEvent(kind: X11BackendEventKind.WindowDestroyed, windowId: 0x41),
+      dryRun = true,
+    )
 
     check step.layoutRequests.len == 1
     check step.layoutRequests[0].windowId == 0x40
-    check step.requests.anyIt(it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x40)
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x40
+    )
     check not step.requests.anyIt(it.kind == X11RequestKind.XrqMapWindow)
 
   test "observed-only events do not invoke the executor boundary":
     var model = x11Model()
-    let step =
-      model.processEventWithExecutor(
-        X11BackendEvent(
-          kind: X11BackendEventKind.ConfigureRequested,
-          configure: X11ConfigureRequest(windowId: 20, valueMask: 0x0f),
-        ),
-        dryRun = true,
-      )
+    let step = model.processEventWithExecutor(
+      X11BackendEvent(
+        kind: X11BackendEventKind.ConfigureRequested,
+        configure: X11ConfigureRequest(windowId: 20, valueMask: 0x0f),
+      ),
+      dryRun = true,
+    )
 
     check step.admission.messages.len == 0
     check step.intents.len == 0
@@ -222,15 +221,12 @@ suite "X11 admission pipeline":
       )
     )
 
-    let step =
-      model.processEventDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.ConfigureRequested,
-          configure: X11ConfigureRequest(
-            windowId: 33, valueMask: 0x0c, w: 640, h: 480
-          ),
-        )
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.ConfigureRequested,
+        configure: X11ConfigureRequest(windowId: 33, valueMask: 0x0c, w: 640, h: 480),
       )
+    )
 
     check step.admission.messages.len == 1
     check step.admission.messages[0].kind == MsgKind.WlWindowDimensions
@@ -259,17 +255,16 @@ suite "X11 admission pipeline":
       )
     )
 
-    let step =
-      model.processEventDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.PropertyChanged,
-          propertyWindowId: 44,
-          propertyAtom: "_NET_WM_STATE",
-          propertyValue:
-            "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
-            "_NET_WM_STATE_DEMANDS_ATTENTION",
-        )
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 44,
+        propertyAtom: "_NET_WM_STATE",
+        propertyValue:
+          "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
+          "_NET_WM_STATE_DEMANDS_ATTENTION",
       )
+    )
 
     check step.admission.messages.len == 1
     check step.admission.messages[0].kind == MsgKind.WlWindowStateChanged
@@ -280,3 +275,39 @@ suite "X11 admission pipeline":
     check step.requests.len == 1
     check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
     check step.dryRunExecutions.len == 1
+
+  test "workspace command pipeline reprojects and reasserts focus":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x60, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+
+    let step = model.processCommandDryRun(
+      Msg(
+        kind: MsgKind.CmdMoveWindowToWorkspaceIndex,
+        moveWorkspaceWindowId: 0x60,
+        moveWorkspaceIndex: 2,
+        moveWorkspaceFollowWindow: true,
+      )
+    )
+
+    check step.layoutRequests.len == 1
+    check step.layoutRequests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.layoutRequests[0].windowId == 0x60
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x60
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun

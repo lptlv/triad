@@ -1,5 +1,6 @@
 import std/[json, options, strutils, unittest]
 
+import ../src/core/msg
 import ../src/ipc/triad_readonly
 import ../src/types/[runtime_values, shell_snapshot]
 import ../src/x11/[ipc_runtime, request_builder, request_executor]
@@ -88,6 +89,56 @@ suite "X11 writable IPC":
     check not reply["ok"].getBool()
     check reply["error"].getStr().contains("xlibre-focus-window requires positive id")
 
+  test "focus-workspace request builds one workspace focus message":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-focus-workspace","workspace":2}}""",
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.reply.len == 0
+    check parsed.requests.len == 0
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
+    check parsed.messages[0].workspaceIndex == 2
+
+  test "move-window-to-workspace request builds one window move message":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-move-window-to-workspace","id":42,"workspace":2,"follow":false}}""",
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.reply.len == 0
+    check parsed.requests.len == 0
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMoveWindowToWorkspaceIndex
+    check parsed.messages[0].moveWorkspaceWindowId == 42
+    check parsed.messages[0].moveWorkspaceIndex == 2
+    check not parsed.messages[0].moveWorkspaceFollowWindow
+
+  test "move-window-to-workspace defaults to following the moved window":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-move-window-to-workspace","id":42,"workspace":2}}""",
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.messages.len == 1
+    check parsed.messages[0].moveWorkspaceFollowWindow
+
+  test "move-window-to-workspace rejects unknown ids":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-move-window-to-workspace","id":99,"workspace":2}}""",
+      x11Snapshot(),
+    )
+    let reply = parseJson(parsed.reply)
+
+    check parsed.handled
+    check parsed.messages.len == 0
+    check not reply["ok"].getBool()
+    check reply["error"].getStr().contains("unknown xlibre window id")
+
   test "read-only handler rejects xlibre close without writable callback":
     let reply = parseJson(
       handleTriadReadOnlyRequest(
@@ -135,4 +186,42 @@ suite "X11 writable IPC":
     check reply["ok"].getBool()
     check reply["triad"]["type"].getStr() == "xlibre-focus-window"
     check reply["triad"]["window"].getInt() == 42
+    check reply["triad"]["applied"].getBool()
+
+  test "executed reply reports successful workspace focus":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-focus-workspace","workspace":2}}""",
+      x11Snapshot(),
+    )
+    let reply = parseJson(
+      replyForExecutedXlibreWritableRequest(
+        parsed,
+        X11RequestRunResult(code: 0, dryRun: false, logs: @["applied focus window=0"]),
+      )
+    )
+
+    check reply["ok"].getBool()
+    check reply["triad"]["type"].getStr() == "xlibre-focus-workspace"
+    check reply["triad"]["workspace"].getInt() == 2
+    check reply["triad"]["applied"].getBool()
+
+  test "executed reply reports successful window workspace move":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"xlibre-move-window-to-workspace","id":42,"workspace":2}}""",
+      x11Snapshot(),
+    )
+    let reply = parseJson(
+      replyForExecutedXlibreWritableRequest(
+        parsed,
+        X11RequestRunResult(
+          code: 0, dryRun: false, logs: @["applied focus window=0x0000002a"]
+        ),
+      )
+    )
+
+    check reply["ok"].getBool()
+    check reply["triad"]["type"].getStr() == "xlibre-move-window-to-workspace"
+    check reply["triad"]["window"].getInt() == 42
+    check reply["triad"]["workspace"].getInt() == 2
+    check reply["triad"]["follow"].getBool()
     check reply["triad"]["applied"].getBool()

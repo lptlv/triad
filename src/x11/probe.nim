@@ -51,12 +51,9 @@ proc waitForX11IpcReady(listener: Future[bool]): bool =
 
 proc modeLabel(mode: X11ProbeMode): string =
   case mode
-  of X11ProbeMode.Observe:
-    "observe"
-  of X11ProbeMode.Admit:
-    "admit"
-  of X11ProbeMode.Manage:
-    "manage"
+  of X11ProbeMode.Observe: "observe"
+  of X11ProbeMode.Admit: "admit"
+  of X11ProbeMode.Manage: "manage"
 
 proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
   if socketPath.len == 0:
@@ -85,7 +82,27 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
       if not request.handled:
         return none(string)
       if request.reply.len > 0:
-        return some(replyForExecutedXlibreWritableRequest(request, X11RequestRunResult()))
+        return
+          some(replyForExecutedXlibreWritableRequest(request, X11RequestRunResult()))
+      if request.messages.len > 0:
+        var run = X11RequestRunResult(code: 0, dryRun: false)
+        for message in request.messages:
+          let step = context.model.processCommandWithActiveProbe(message)
+          for x11Request in step.layoutRequests:
+            stdout.writeLine(
+              "xlibre_ipc_layout_request " & x11Request.executeDryRun().description
+            )
+          for x11Request in step.requests:
+            stdout.writeLine(
+              "xlibre_ipc_request " & x11Request.executeDryRun().description
+            )
+          for line in step.xcbRun.logs:
+            stdout.writeLine("xlibre_ipc_xcb " & line)
+          run = step.xcbRun
+          if run.code != 0:
+            break
+        stdout.flushFile()
+        return some(replyForExecutedXlibreWritableRequest(request, run))
       for x11Request in request.requests:
         stdout.writeLine("xlibre_ipc_request " & x11Request.executeDryRun().description)
       let run = request.requests.executeWithActiveProbe()
@@ -115,13 +132,13 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
 proc dryRunMessageLabel(msg: Msg): string =
   case msg.kind
   of MsgKind.WlWindowCreated:
-    "WlWindowCreated id=" & $msg.windowId & " app_id=\"" & msg.appId &
-      "\" title=\"" & msg.title & "\""
+    "WlWindowCreated id=" & $msg.windowId & " app_id=\"" & msg.appId & "\" title=\"" &
+      msg.title & "\""
   of MsgKind.WlWindowDestroyed:
     "WlWindowDestroyed id=" & $msg.destroyedId
   of MsgKind.WlWindowDimensions:
-    "WlWindowDimensions id=" & $msg.dimensionsWindowId & " size=" &
-      $msg.actualWidth & "x" & $msg.actualHeight
+    "WlWindowDimensions id=" & $msg.dimensionsWindowId & " size=" & $msg.actualWidth &
+      "x" & $msg.actualHeight
   of MsgKind.WlWindowPid:
     "WlWindowPid id=" & $msg.pidWindowId & " pid=" & $msg.windowPid
   of MsgKind.WlWindowAppId:
@@ -133,13 +150,12 @@ proc dryRunMessageLabel(msg: Msg): string =
       $msg.stateFullscreen & " maximized=" & $msg.stateMaximized & " minimized=" &
       $msg.stateMinimized & " urgent=" & $msg.stateUrgent
   of MsgKind.WlOutputDimensions:
-    "WlOutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" &
-      $msg.height
+    "WlOutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" & $msg.height
   of MsgKind.WlOutputName:
     "WlOutputName id=" & $msg.nameOutputId & " name=\"" & msg.outputName & "\""
   of MsgKind.WlOutputPosition:
-    "WlOutputPosition id=" & $msg.positionOutputId & " xy=" & $msg.outputX &
-      "," & $msg.outputY
+    "WlOutputPosition id=" & $msg.positionOutputId & " xy=" & $msg.outputX & "," &
+      $msg.outputY
   of MsgKind.WlOutputRemoved:
     "WlOutputRemoved id=" & $msg.removedOutputId
   of MsgKind.WlFocusChanged:
@@ -150,8 +166,8 @@ proc dryRunMessageLabel(msg: Msg): string =
 proc eventLabel(event: X11BackendEvent): string =
   case event.kind
   of X11BackendEventKind.WindowDiscovered:
-    "WindowDiscovered id=" & $event.window.id & " class=\"" &
-      event.window.wmClass & "\" title=\"" & event.window.title & "\""
+    "WindowDiscovered id=" & $event.window.id & " class=\"" & event.window.wmClass &
+      "\" title=\"" & event.window.title & "\""
   of X11BackendEventKind.MapRequested:
     "MapRequested id=" & $event.window.id & " class=\"" & event.window.wmClass &
       "\" title=\"" & event.window.title & "\""
@@ -166,8 +182,8 @@ proc eventLabel(event: X11BackendEvent): string =
     "ConfigureRequested id=" & $event.configure.windowId & " mask=0x" &
       toHex(event.configure.valueMask, 4).toLowerAscii()
   of X11BackendEventKind.PropertyChanged:
-    "PropertyChanged id=" & $event.propertyWindowId & " atom=\"" &
-      event.propertyAtom & "\""
+    "PropertyChanged id=" & $event.propertyWindowId & " atom=\"" & event.propertyAtom &
+      "\""
   of X11BackendEventKind.FocusChanged:
     "FocusChanged id=" & $event.focusWindowId & " focused=" & $event.focused
   of X11BackendEventKind.PointerEntered:
@@ -193,10 +209,7 @@ proc loadX11Model*(configPath = ""): X11ModelLoadResult =
   result.model = initRuntimeStateFromConfig(loaded.config).model
 
 proc executorPrefix(mode: X11ProbeMode): string =
-  if mode == X11ProbeMode.Manage:
-    "live_xcb "
-  else:
-    "dry_run_xcb "
+  if mode == X11ProbeMode.Manage: "live_xcb " else: "dry_run_xcb "
 
 proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
   if raw == nil:
@@ -213,7 +226,9 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
       if context.mode == X11ProbeMode.Manage:
         context.model.processEventWithActiveProbe(event)
       else:
-        context.model.processEventWithExecutor(event, context.displayName, dryRun = dryRun)
+        context.model.processEventWithExecutor(
+          event, context.displayName, dryRun = dryRun
+        )
     for msg in step.admission.messages:
       stdout.writeLine("model_msg " & msg.dryRunMessageLabel())
     for request in step.layoutRequests:
@@ -233,11 +248,7 @@ proc runX11Probe*(
     configPath = "",
     socketPath = "",
 ): int =
-  let display =
-    if displayName.len == 0:
-      nil
-    else:
-      displayName.cstring
+  let display = if displayName.len == 0: nil else: displayName.cstring
   discard RequiredX11Atoms
   if mode == X11ProbeMode.Observe:
     return int(
@@ -260,7 +271,8 @@ proc runX11Probe*(
   stdout.writeLine("config loaded path=\"" & loaded.path & "\"")
   stdout.flushFile()
 
-  var context = X11ProbeContext(mode: mode, displayName: displayName, model: loaded.model)
+  var context =
+    X11ProbeContext(mode: mode, displayName: displayName, model: loaded.model)
   if mode == X11ProbeMode.Manage and not startReadOnlyIpc(addr context, socketPath):
     return 1
   int(
