@@ -16,14 +16,16 @@ requires "https://github.com/Nimaoth/fsnotify >= 0.1.6"
 requires "chronicles >= 0.10.3"
 requires "pixie >= 5.1.0"
 
+const NimbleCmd = "nimble --useSystemNim"
+
 proc runTestSuite(path: string) =
-  exec "nimble c -r --hints:off --nimcache:tests/nimcache " & path
+  exec NimbleCmd & " c -r --hints:off --nimcache:tests/nimcache " & path
 
 proc buildReleaseBinaries() =
-  exec "env TRIAD_DEV_MODE=0 nimble build -d:release --opt:speed --passL:-s"
+  exec "env TRIAD_DEV_MODE=0 " & NimbleCmd & " build -d:release --opt:speed --passL:-s"
 
 proc buildDebugBinaries() =
-  exec "env TRIAD_DEV_MODE=0 nimble build -d:release --opt:speed --debugger:native --passC:-g --passL:-g --passC:-fno-omit-frame-pointer"
+  exec "env TRIAD_DEV_MODE=0 " & NimbleCmd & " build -d:release --opt:speed --debugger:native --passC:-g --passL:-g --passC:-fno-omit-frame-pointer"
 
 proc runCoreSuites() =
   for path in [
@@ -112,7 +114,7 @@ task verify, "Run tests, build, tidy, and binary hygiene checks":
   exec "sh tools/preflight.sh"
 
 task buildAll, "Build all Triad binaries":
-  exec "nimble build"
+  exec NimbleCmd & " build"
 
 task buildRelease, "Build optimized Triad binaries":
   buildReleaseBinaries()
