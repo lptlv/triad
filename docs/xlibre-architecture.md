@@ -218,12 +218,15 @@ details. Core X11 wheel buttons 4, 5, 6, and 7 are also translated into
 one-tick axis dispatch for supported `axis-bind` commands. Matching `KeyPress`
 and `ButtonPress` events are converted back into the same `dispatch-binding`
 path used by IPC, so real input and synthetic dispatch share command validation
-and execution. The Xvfb smoke test uses XTEST, when available, to fake
-`Super+h`, `Super+middle`, and `Super+wheel-up` and verify the passive grab
-paths reach the binding dispatcher. This first input path is intentionally
-narrow: interactive pointer move/resize, gesture bindings, extra mouse buttons,
-high-resolution wheel deltas, and shifted-symbol normalization still need
-follow-up work.
+and execution. Interactive pointer bindings can also start the existing model
+pointer operation path for floating windows; motion and release events from the
+active X11 grab are translated to `WlPointerDelta` and `WlPointerRelease`, then
+executed as configure-window requests. The Xvfb smoke test uses XTEST, when
+available, to fake `Super+h`, `Super+middle`, `Super+wheel-up`, and a
+`Super+left` drag of a floating synthetic client. This first input path is
+intentionally narrow: richer resize-edge selection, gesture bindings, extra
+mouse buttons, high-resolution wheel deltas, and shifted-symbol normalization
+still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 

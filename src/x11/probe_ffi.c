@@ -45,6 +45,8 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_KEY_BINDING = 10,
     TRIAD_X11_EVENT_POINTER_BINDING = 11,
     TRIAD_X11_EVENT_AXIS_BINDING = 12,
+    TRIAD_X11_EVENT_POINTER_MOTION = 13,
+    TRIAD_X11_EVENT_POINTER_RELEASE = 14,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -239,6 +241,8 @@ static const char *event_name(uint8_t response_type)
         return "ButtonPress";
     case XCB_BUTTON_RELEASE:
         return "ButtonRelease";
+    case XCB_MOTION_NOTIFY:
+        return "MotionNotify";
     case XCB_UNMAP_NOTIFY:
         return "UnmapNotify";
     case XCB_DESTROY_NOTIFY:
@@ -561,7 +565,9 @@ static int grab_button_variants(
             probe->conn,
             0,
             probe->screen->root,
-            XCB_EVENT_MASK_BUTTON_PRESS,
+            XCB_EVENT_MASK_BUTTON_PRESS |
+                XCB_EVENT_MASK_BUTTON_RELEASE |
+                XCB_EVENT_MASK_POINTER_MOTION,
             XCB_GRAB_MODE_ASYNC,
             XCB_GRAB_MODE_ASYNC,
             XCB_NONE,
@@ -1213,6 +1219,9 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             memset(&event, 0, sizeof(event));
             event.kind = TRIAD_X11_EVENT_POINTER_BINDING;
             event.id = ev->detail;
+            event.parent_id = ev->child;
+            event.x = ev->root_x;
+            event.y = ev->root_y;
             event.value_mask = binding_modifier_mask(ev->state);
             copy_text(event.name, sizeof(event.name), grab->binding);
             probe_event(probe, &event);
@@ -1221,10 +1230,55 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             memset(&event, 0, sizeof(event));
             event.kind = TRIAD_X11_EVENT_AXIS_BINDING;
             event.id = ev->detail;
+            event.parent_id = ev->child;
+            event.x = ev->root_x;
+            event.y = ev->root_y;
             event.value_mask = binding_modifier_mask(ev->state);
             copy_text(event.name, sizeof(event.name), axis_grab->binding);
             probe_event(probe, &event);
         }
+        break;
+    }
+    case XCB_MOTION_NOTIFY: {
+        xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)event;
+        probe_log(
+            probe,
+            "event %s root_xy=%d,%d state=0x%04x child=0x%08x",
+            event_name(type),
+            ev->root_x,
+            ev->root_y,
+            ev->state,
+            ev->child);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_POINTER_MOTION;
+        event.id = ev->child;
+        event.x = ev->root_x;
+        event.y = ev->root_y;
+        event.value_mask = binding_modifier_mask(ev->state);
+        probe_event(probe, &event);
+        break;
+    }
+    case XCB_BUTTON_RELEASE: {
+        xcb_button_release_event_t *ev = (xcb_button_release_event_t *)event;
+        probe_log(
+            probe,
+            "event %s button=%u root_xy=%d,%d state=0x%04x child=0x%08x",
+            event_name(type),
+            ev->detail,
+            ev->root_x,
+            ev->root_y,
+            ev->state,
+            ev->child);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_POINTER_RELEASE;
+        event.id = ev->detail;
+        event.parent_id = ev->child;
+        event.x = ev->root_x;
+        event.y = ev->root_y;
+        event.value_mask = binding_modifier_mask(ev->state);
+        probe_event(probe, &event);
         break;
     }
     case XCB_UNMAP_NOTIFY: {

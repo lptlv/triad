@@ -28,6 +28,9 @@ type
     keyGrabSignature: string
     buttonGrabSignature: string
     axisGrabSignature: string
+    pointerGrabStartX: int32
+    pointerGrabStartY: int32
+    pointerGrabActive: bool
 
   X11ModelLoadResult* = object
     ok*: bool
@@ -229,13 +232,18 @@ proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
 proc xlibreButtonGrabs(model: Model): seq[X11ButtonGrab] =
   let snapshot = model.shellSnapshot()
   for binding in model.pointerBindings:
-    if binding.op != PointerOpKind.OpNone:
-      continue
     let button = binding.button.x11ButtonDetail()
     if button == 0:
       continue
     let spec = binding.bindingSpec()
     if spec.len == 0:
+      continue
+    if binding.op != PointerOpKind.OpNone:
+      result.add(
+        X11ButtonGrab(
+          button: button, modifiers: binding.modifiers, binding: spec.bindingText()
+        )
+      )
       continue
     let request = BindingDispatchRequest(
       kind: BindingDispatchKind.BindPointer, binding: spec, ticks: 1'i32
@@ -355,6 +363,83 @@ proc dispatchPointerBinding(context: ptr X11ProbeContext, binding: string) {.gcs
         "xlibre_pointer_binding_reply " & context.executeXlibreWritableRequest(request)
       )
       stdout.flushFile()
+
+proc pointerBindingOp(model: Model, bindingText: string): PointerBindingConfig =
+  let spec = parseKeySpec(bindingText)
+  let button = buttonValue(spec.key)
+  if button == 0:
+    return
+  for binding in model.pointerBindings:
+    if binding.button == button and binding.modifiers == spec.modifiers:
+      return binding
+
+proc runXlibreCommandStep(context: ptr X11ProbeContext, message: Msg) {.gcsafe.} =
+  if context == nil:
+    return
+  {.cast(gcsafe).}:
+    let step = context.model.processCommandWithActiveProbe(message)
+    for x11Request in step.layoutRequests:
+      stdout.writeLine(
+        "xlibre_pointer_layout_request " & x11Request.executeDryRun().description
+      )
+    for x11Request in step.requests:
+      stdout.writeLine(
+        "xlibre_pointer_request " & x11Request.executeDryRun().description
+      )
+    for line in step.xcbRun.logs:
+      stdout.writeLine("xlibre_pointer_xcb " & line)
+    stdout.flushFile()
+
+proc startInteractivePointerBinding(
+    context: ptr X11ProbeContext,
+    bindingText: string,
+    targetWindowId: uint32,
+    rootX, rootY: int32,
+) {.gcsafe.} =
+  if context == nil or bindingText.len == 0:
+    return
+  {.cast(gcsafe).}:
+    let binding = context.model.pointerBindingOp(bindingText)
+    if binding.op == PointerOpKind.OpNone:
+      context.dispatchPointerBinding(bindingText)
+      return
+    if targetWindowId == 0:
+      return
+    case binding.op
+    of PointerOpKind.OpMove:
+      context.runXlibreCommandStep(
+        Msg(kind: MsgKind.WlPointerMoveRequested, moveWinId: targetWindowId)
+      )
+    of PointerOpKind.OpResize:
+      context.runXlibreCommandStep(
+        Msg(
+          kind: MsgKind.WlPointerResizeRequested,
+          resizeWinId: targetWindowId,
+          resizeEdges: 2'u32 or 8'u32,
+        )
+      )
+    of PointerOpKind.OpNone, PointerOpKind.OpOverviewDrag,
+        PointerOpKind.OpOverviewScroll:
+      discard
+    context.pointerGrabActive = context.model.pointerOp.kind != PointerOpKind.OpNone
+    if context.pointerGrabActive:
+      context.pointerGrabStartX = rootX
+      context.pointerGrabStartY = rootY
+
+proc dispatchPointerMotion(
+    context: ptr X11ProbeContext, rootX, rootY: int32
+) {.gcsafe.} =
+  if context == nil or not context.pointerGrabActive:
+    return
+  let dx = rootX - context.pointerGrabStartX
+  let dy = rootY - context.pointerGrabStartY
+  context.runXlibreCommandStep(Msg(kind: MsgKind.WlPointerDelta, dx: dx, dy: dy))
+
+proc dispatchPointerRelease(context: ptr X11ProbeContext) {.gcsafe.} =
+  if context == nil or not context.pointerGrabActive:
+    return
+  context.pointerGrabActive = false
+  context.runXlibreCommandStep(Msg(kind: MsgKind.WlPointerRelease))
 
 proc dispatchAxisBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.} =
   if context == nil or binding.len == 0:
@@ -534,6 +619,15 @@ proc eventLabel(event: X11BackendEvent): string =
     "AxisBinding binding=\"" & event.axisBinding & "\" button=" &
       $event.axisBindingButton & " modifiers=0x" &
       toHex(event.axisBindingModifiers, 4).toLowerAscii()
+  of X11BackendEventKind.PointerMotion:
+    "PointerMotion target=" & $event.pointerMotionTargetWindowId & " root_xy=" &
+      $event.pointerMotionRootX & "," & $event.pointerMotionRootY & " modifiers=0x" &
+      toHex(event.pointerMotionModifiers, 4).toLowerAscii()
+  of X11BackendEventKind.PointerRelease:
+    "PointerRelease button=" & $event.pointerReleaseButton & " target=" &
+      $event.pointerReleaseTargetWindowId & " root_xy=" & $event.pointerReleaseRootX &
+      "," & $event.pointerReleaseRootY & " modifiers=0x" &
+      toHex(event.pointerReleaseModifiers, 4).toLowerAscii()
 
 proc x11ConfigPath*(configPath = ""): string =
   if configPath.len > 0:
@@ -572,7 +666,10 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
         "dry_run_msg X11PointerBinding binding=\"" & event.pointerBinding & "\""
       )
     else:
-      cast[ptr X11ProbeContext](userData).dispatchPointerBinding(event.pointerBinding)
+      cast[ptr X11ProbeContext](userData).startInteractivePointerBinding(
+        event.pointerBinding, event.pointerBindingTargetWindowId,
+        event.pointerBindingRootX, event.pointerBindingRootY,
+      )
     stdout.flushFile()
     return
   if event.kind == X11BackendEventKind.AxisBinding:
@@ -582,6 +679,25 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
       )
     else:
       cast[ptr X11ProbeContext](userData).dispatchAxisBinding(event.axisBinding)
+    stdout.flushFile()
+    return
+  if event.kind == X11BackendEventKind.PointerMotion:
+    if userData == nil:
+      stdout.writeLine(
+        "dry_run_msg X11PointerMotion root_xy=" & $event.pointerMotionRootX & "," &
+          $event.pointerMotionRootY
+      )
+    else:
+      cast[ptr X11ProbeContext](userData).dispatchPointerMotion(
+        event.pointerMotionRootX, event.pointerMotionRootY
+      )
+    stdout.flushFile()
+    return
+  if event.kind == X11BackendEventKind.PointerRelease:
+    if userData == nil:
+      stdout.writeLine("dry_run_msg X11PointerRelease")
+    else:
+      cast[ptr X11ProbeContext](userData).dispatchPointerRelease()
     stdout.flushFile()
     return
   if userData == nil:

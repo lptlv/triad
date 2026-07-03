@@ -134,8 +134,14 @@ suite "X11 event mapping":
     check event.messagesFor().len == 0
 
   test "raw pointer binding event preserves binding identity without model messages":
-    var raw =
-      X11ProbeEvent(kind: X11ProbeEventKind.XpePointerBinding, id: 2, valueMask: 64'u32)
+    var raw = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpePointerBinding,
+      id: 2,
+      parentId: 0x31,
+      x: 120,
+      y: 140,
+      valueMask: 64'u32,
+    )
     for idx, ch in "Super+middle":
       raw.name[idx] = ch
 
@@ -144,6 +150,9 @@ suite "X11 event mapping":
     check event.pointerBinding == "Super+middle"
     check event.pointerBindingButton == 2
     check event.pointerBindingModifiers == 64'u32
+    check event.pointerBindingTargetWindowId == 0x31
+    check event.pointerBindingRootX == 120
+    check event.pointerBindingRootY == 140
     check event.messagesFor().len == 0
 
   test "raw axis binding event preserves binding identity without model messages":
@@ -158,6 +167,37 @@ suite "X11 event mapping":
     check event.axisBindingButton == 4
     check event.axisBindingModifiers == 64'u32
     check event.messagesFor().len == 0
+
+  test "raw pointer motion and release events preserve root coordinates":
+    let motion = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpePointerMotion,
+      id: 0x32,
+      x: 170,
+      y: 155,
+      valueMask: 64'u32,
+    ).backendEventFromProbe()
+    check motion.kind == X11BackendEventKind.PointerMotion
+    check motion.pointerMotionTargetWindowId == 0x32
+    check motion.pointerMotionRootX == 170
+    check motion.pointerMotionRootY == 155
+    check motion.pointerMotionModifiers == 64'u32
+    check motion.messagesFor().len == 0
+
+    let release = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpePointerRelease,
+      id: 1,
+      parentId: 0x32,
+      x: 170,
+      y: 155,
+      valueMask: 64'u32,
+    ).backendEventFromProbe()
+    check release.kind == X11BackendEventKind.PointerRelease
+    check release.pointerReleaseButton == 1
+    check release.pointerReleaseTargetWindowId == 0x32
+    check release.pointerReleaseRootX == 170
+    check release.pointerReleaseRootY == 155
+    check release.pointerReleaseModifiers == 64'u32
+    check release.messagesFor().len == 0
 
   test "window discovery maps to creation, dimensions, and pid messages":
     let messages = X11BackendEvent(

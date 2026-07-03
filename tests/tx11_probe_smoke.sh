@@ -72,12 +72,13 @@ ipc_binding_dispatch_log="$root/tests/tx11-probe-smoke-ipc-binding-dispatch.json
 key_press_log="$root/tests/tx11-probe-smoke-key-press.log"
 button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 axis_press_log="$root/tests/tx11-probe-smoke-axis-press.log"
+pointer_drag_log="$root/tests/tx11-probe-smoke-pointer-drag.log"
 ipc_move_workspace_log="$root/tests/tx11-probe-smoke-ipc-move-workspace.json"
 ipc_close_log="$root/tests/tx11-probe-smoke-ipc-close.json"
 ipc_stop_log="$root/tests/tx11-probe-smoke-ipc-stop.json"
 config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$button_press_log" "$axis_press_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$button_press_log" "$axis_press_log" "$pointer_drag_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -104,7 +105,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$button_press_log" "$axis_press_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$button_press_log" "$axis_press_log" "$pointer_drag_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
 trap cleanup EXIT INT TERM
@@ -192,8 +193,18 @@ workspaces {
   default-count 3
 }
 
+window-rule {
+  match app-id="triad-smoke"
+  open-floating #true
+  floating {
+    width 320
+    height 200
+  }
+}
+
 bindings {
   bind "Super+h" "focus-workspace 1"
+  pointer-bind "Super+left" "move"
   pointer-bind "Super+middle" "focus-workspace 2"
   axis-bind "Super+wheel-up" "focus-workspace 3"
 }
@@ -411,6 +422,30 @@ if [ "$xtest_available" -eq 1 ]; then
     exit 1
   fi
 
+  if ! "$client" "$display" --fake-drag 1 64 220 170 270 205 >"$pointer_drag_log" 2>&1; then
+    cat "$manager_log" >&2
+    cat "$pointer_drag_log" >&2
+    exit 1
+  fi
+
+  pointer_dragged=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q 'backend_event PointerBinding binding="Super+left"' "$manager_log" &&
+        grep -q 'backend_event PointerMotion' "$manager_log" &&
+        grep -q 'backend_event PointerRelease' "$manager_log" &&
+        grep -q 'xlibre_pointer_xcb applied configure window=' "$manager_log"; then
+      pointer_dragged=1
+      break
+    fi
+    sleep 0.2
+  done
+  if [ "$pointer_dragged" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: fake Super+left drag did not move floating window" >&2
+    cat "$manager_log" >&2
+    cat "$pointer_drag_log" >&2
+    exit 1
+  fi
+
   if ! "$client" "$display" --fake-button 2 64 >"$button_press_log" 2>&1; then
     cat "$manager_log" >&2
     cat "$button_press_log" >&2
@@ -454,6 +489,7 @@ if [ "$xtest_available" -eq 1 ]; then
     cat "$axis_press_log" >&2
     exit 1
   fi
+
 else
   printf '%s\n' "tx11_probe_smoke: xcb-xtest unavailable; skipping fake input"
 fi

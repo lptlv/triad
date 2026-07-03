@@ -89,14 +89,16 @@ static xcb_screen_t *screen_for_connection(xcb_connection_t *conn, int screen_nu
 }
 
 #ifdef TRIAD_X11_XTEST
-static int fake_input(
+static int fake_input_at(
     xcb_connection_t *conn,
     xcb_screen_t *screen,
     uint8_t type,
-    xcb_keycode_t keycode)
+    xcb_keycode_t keycode,
+    int16_t x,
+    int16_t y)
 {
     xcb_void_cookie_t cookie = xcb_test_fake_input_checked(
-        conn, type, keycode, XCB_CURRENT_TIME, screen->root, 0, 0, 0);
+        conn, type, keycode, XCB_CURRENT_TIME, screen->root, x, y, 0);
     xcb_generic_error_t *error = xcb_request_check(conn, cookie);
     if (error != NULL) {
         fprintf(stderr, "tx11_synthetic_client: fake input error=%u\n", error->error_code);
@@ -106,6 +108,15 @@ static int fake_input(
     xcb_flush(conn);
     usleep(20000);
     return 0;
+}
+
+static int fake_input(
+    xcb_connection_t *conn,
+    xcb_screen_t *screen,
+    uint8_t type,
+    xcb_keycode_t keycode)
+{
+    return fake_input_at(conn, screen, type, keycode, 0, 0);
 }
 
 static int modifier_keysyms(uint32_t modifiers, uint32_t keysyms[6])
@@ -212,6 +223,64 @@ static int fake_button_press(
     fflush(stdout);
     return 0;
 }
+
+static int fake_drag(
+    xcb_connection_t *conn,
+    xcb_screen_t *screen,
+    uint32_t button,
+    uint32_t modifiers,
+    int16_t start_x,
+    int16_t start_y,
+    int16_t end_x,
+    int16_t end_y)
+{
+    if (button == 0 || button > UINT8_MAX) {
+        fprintf(stderr, "tx11_synthetic_client: invalid button=%u\n", button);
+        return 1;
+    }
+
+    uint32_t mod_keysyms[6];
+    xcb_keycode_t mod_keycodes[6];
+    int mod_count = modifier_keysyms(modifiers, mod_keysyms);
+    for (int i = 0; i < mod_count; i++) {
+        mod_keycodes[i] = keycode_for_keysym(conn, mod_keysyms[i]);
+        if (mod_keycodes[i] == 0) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: modifier keysym unavailable=0x%08x\n",
+                mod_keysyms[i]);
+            return 1;
+        }
+    }
+
+    if (fake_input_at(conn, screen, XCB_MOTION_NOTIFY, 0, start_x, start_y) != 0)
+        return 1;
+    for (int i = 0; i < mod_count; i++) {
+        if (fake_input_at(conn, screen, XCB_KEY_PRESS, mod_keycodes[i], start_x, start_y) != 0)
+            return 1;
+    }
+    if (fake_input_at(conn, screen, XCB_BUTTON_PRESS, (xcb_keycode_t)button, start_x, start_y) != 0)
+        return 1;
+    if (fake_input_at(conn, screen, XCB_MOTION_NOTIFY, 0, end_x, end_y) != 0)
+        return 1;
+    if (fake_input_at(conn, screen, XCB_BUTTON_RELEASE, (xcb_keycode_t)button, end_x, end_y) != 0)
+        return 1;
+    for (int i = mod_count - 1; i >= 0; i--) {
+        if (fake_input_at(conn, screen, XCB_KEY_RELEASE, mod_keycodes[i], end_x, end_y) != 0)
+            return 1;
+    }
+
+    printf(
+        "fake-drag button=%u modifiers=0x%04x start=%d,%d end=%d,%d\n",
+        button,
+        modifiers,
+        start_x,
+        start_y,
+        end_x,
+        end_y);
+    fflush(stdout);
+    return 0;
+}
 #endif
 
 static int wait_for_close(
@@ -261,6 +330,7 @@ int main(int argc, char **argv)
     const char *display = argc > 1 ? argv[1] : NULL;
     int fake_key = argc > 2 && strcmp(argv[2], "--fake-key") == 0;
     int fake_button = argc > 2 && strcmp(argv[2], "--fake-button") == 0;
+    int fake_drag_requested = argc > 2 && strcmp(argv[2], "--fake-drag") == 0;
     int hold = argc > 2 &&
         (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
     int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
@@ -307,6 +377,31 @@ int main(int argc, char **argv)
         uint32_t button = (uint32_t)strtoul(argv[3], NULL, 0);
         uint32_t modifiers = (uint32_t)strtoul(argv[4], NULL, 0);
         int status = fake_button_press(conn, screen, button, modifiers);
+        xcb_disconnect(conn);
+        return status;
+#else
+        fprintf(stderr, "tx11_synthetic_client: XTEST support not compiled\n");
+        xcb_disconnect(conn);
+        return 1;
+#endif
+    }
+    if (fake_drag_requested) {
+        if (argc < 9) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: --fake-drag requires button modifiers start-x start-y end-x end-y\n");
+            xcb_disconnect(conn);
+            return 1;
+        }
+#ifdef TRIAD_X11_XTEST
+        uint32_t button = (uint32_t)strtoul(argv[3], NULL, 0);
+        uint32_t modifiers = (uint32_t)strtoul(argv[4], NULL, 0);
+        int16_t start_x = (int16_t)strtol(argv[5], NULL, 0);
+        int16_t start_y = (int16_t)strtol(argv[6], NULL, 0);
+        int16_t end_x = (int16_t)strtol(argv[7], NULL, 0);
+        int16_t end_y = (int16_t)strtol(argv[8], NULL, 0);
+        int status = fake_drag(
+            conn, screen, button, modifiers, start_x, start_y, end_x, end_y);
         xcb_disconnect(conn);
         return status;
 #else

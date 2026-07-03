@@ -26,6 +26,8 @@ type
     XpeKeyBinding = 10
     XpePointerBinding = 11
     XpeAxisBinding = 12
+    XpePointerMotion = 13
+    XpePointerRelease = 14
 
   X11ProbeEvent* {.bycopy.} = object
     kind*: X11ProbeEventKind
@@ -58,6 +60,8 @@ type
     KeyBinding
     PointerBinding
     AxisBinding
+    PointerMotion
+    PointerRelease
 
   X11WindowSnapshot* = object
     id*: uint32
@@ -113,10 +117,21 @@ type
       pointerBinding*: string
       pointerBindingButton*: uint32
       pointerBindingModifiers*: uint32
+      pointerBindingTargetWindowId*: uint32
+      pointerBindingRootX*, pointerBindingRootY*: int32
     of X11BackendEventKind.AxisBinding:
       axisBinding*: string
       axisBindingButton*: uint32
       axisBindingModifiers*: uint32
+    of X11BackendEventKind.PointerMotion:
+      pointerMotionTargetWindowId*: uint32
+      pointerMotionRootX*, pointerMotionRootY*: int32
+      pointerMotionModifiers*: uint32
+    of X11BackendEventKind.PointerRelease:
+      pointerReleaseButton*: uint32
+      pointerReleaseTargetWindowId*: uint32
+      pointerReleaseRootX*, pointerReleaseRootY*: int32
+      pointerReleaseModifiers*: uint32
 
 proc x11WindowIdentifier*(id: uint32): string =
   "x11:0x" & toHex(id, 8).toLowerAscii()
@@ -248,6 +263,9 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       pointerBinding: event.name.cArrayString(),
       pointerBindingButton: event.id,
       pointerBindingModifiers: event.valueMask,
+      pointerBindingTargetWindowId: event.parentId,
+      pointerBindingRootX: event.x,
+      pointerBindingRootY: event.y,
     )
   of X11ProbeEventKind.XpeAxisBinding:
     X11BackendEvent(
@@ -255,6 +273,23 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       axisBinding: event.name.cArrayString(),
       axisBindingButton: event.id,
       axisBindingModifiers: event.valueMask,
+    )
+  of X11ProbeEventKind.XpePointerMotion:
+    X11BackendEvent(
+      kind: X11BackendEventKind.PointerMotion,
+      pointerMotionTargetWindowId: event.id,
+      pointerMotionRootX: event.x,
+      pointerMotionRootY: event.y,
+      pointerMotionModifiers: event.valueMask,
+    )
+  of X11ProbeEventKind.XpePointerRelease:
+    X11BackendEvent(
+      kind: X11BackendEventKind.PointerRelease,
+      pointerReleaseButton: event.id,
+      pointerReleaseTargetWindowId: event.parentId,
+      pointerReleaseRootX: event.x,
+      pointerReleaseRootY: event.y,
+      pointerReleaseModifiers: event.valueMask,
     )
 
 proc messagesFor*(event: X11BackendEvent): seq[Msg] =
@@ -383,5 +418,6 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       discard
   of X11BackendEventKind.PointerEntered, X11BackendEventKind.RandrChanged,
       X11BackendEventKind.KeyBinding, X11BackendEventKind.PointerBinding,
-      X11BackendEventKind.AxisBinding:
+      X11BackendEventKind.AxisBinding, X11BackendEventKind.PointerMotion,
+      X11BackendEventKind.PointerRelease:
     discard
