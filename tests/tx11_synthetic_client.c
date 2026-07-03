@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <xcb/xcb.h>
+#include <xcb/xkb.h>
 
 #ifdef TRIAD_X11_XTEST
 #include <xcb/xtest.h>
@@ -332,6 +333,7 @@ int main(int argc, char **argv)
     int fake_button = argc > 2 && strcmp(argv[2], "--fake-button") == 0;
     int fake_drag_requested = argc > 2 && strcmp(argv[2], "--fake-drag") == 0;
     int send_mapping_notify = argc > 2 && strcmp(argv[2], "--send-mapping-notify") == 0;
+    int send_xkb_state = argc > 2 && strcmp(argv[2], "--send-xkb-state") == 0;
     int hold = argc > 2 &&
         (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
     int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
@@ -379,6 +381,82 @@ int main(int argc, char **argv)
             event.request,
             event.first_keycode,
             event.count);
+        xcb_disconnect(conn);
+        return 0;
+    }
+    if (send_xkb_state) {
+        const xcb_query_extension_reply_t *xkb_ext =
+            xcb_get_extension_data(conn, &xcb_xkb_id);
+        if (xkb_ext == NULL || !xkb_ext->present) {
+            fprintf(stderr, "tx11_synthetic_client: xkb unavailable\n");
+            xcb_disconnect(conn);
+            return 1;
+        }
+        xcb_xkb_use_extension_cookie_t use_cookie =
+            xcb_xkb_use_extension(conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
+        xcb_generic_error_t *use_error = NULL;
+        xcb_xkb_use_extension_reply_t *use_reply =
+            xcb_xkb_use_extension_reply(conn, use_cookie, &use_error);
+        if (use_error != NULL) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: xkb use-extension error=%u\n",
+                use_error->error_code);
+            free(use_error);
+            xcb_disconnect(conn);
+            return 1;
+        }
+        if (use_reply == NULL || !use_reply->supported) {
+            fprintf(stderr, "tx11_synthetic_client: xkb unsupported\n");
+            free(use_reply);
+            xcb_disconnect(conn);
+            return 1;
+        }
+        free(use_reply);
+
+        xcb_void_cookie_t lock_cookie = xcb_xkb_latch_lock_state_checked(
+            conn,
+            XCB_XKB_ID_USE_CORE_KBD,
+            XCB_MOD_MASK_LOCK,
+            XCB_MOD_MASK_LOCK,
+            0,
+            0,
+            0,
+            0,
+            0);
+        xcb_generic_error_t *lock_error = xcb_request_check(conn, lock_cookie);
+        if (lock_error != NULL) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: xkb lock-state error=%u\n",
+                lock_error->error_code);
+            free(lock_error);
+            xcb_disconnect(conn);
+            return 1;
+        }
+
+        xcb_void_cookie_t unlock_cookie = xcb_xkb_latch_lock_state_checked(
+            conn,
+            XCB_XKB_ID_USE_CORE_KBD,
+            XCB_MOD_MASK_LOCK,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0);
+        xcb_generic_error_t *unlock_error = xcb_request_check(conn, unlock_cookie);
+        if (unlock_error != NULL) {
+            fprintf(
+                stderr,
+                "tx11_synthetic_client: xkb unlock-state error=%u\n",
+                unlock_error->error_code);
+            free(unlock_error);
+            xcb_disconnect(conn);
+            return 1;
+        }
+        xcb_flush(conn);
+        printf("send-xkb-state affect_mod_locks=0x%02x\n", XCB_MOD_MASK_LOCK);
         xcb_disconnect(conn);
         return 0;
     }

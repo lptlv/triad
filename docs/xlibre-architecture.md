@@ -238,19 +238,19 @@ through the same explicit close-window request used by XLibre IPC, the
 focus pipeline, and the `Super+x` and `Super+t` paths exercise argv-style
 configured `spawn` and `spawn-terminal` bindings without enabling general
 command IPC. Resize chooses top/bottom and left/right edges from the pointer's
-initial position in the floating window. Core `MappingNotify` events invalidate
-the configured key, button, and axis grab signatures so the next manage tick
-rebuilds grabs against the server's current keyboard and button mapping. This
-first input path is intentionally narrow: gesture bindings, high-resolution
-wheel deltas, and full XKB group/layout-specific handling still need follow-up
-work.
+initial position in the floating window. Core `MappingNotify` and XKB
+new-keyboard, keymap, and state notifications invalidate the configured key,
+button, and axis grab signatures so the next manage tick rebuilds grabs against
+the server's current keyboard, modifier, group, and button state. This first
+input path is intentionally narrow: gesture bindings, high-resolution wheel
+deltas, and full per-layout keysym resolution still need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
 - keep general command IPC disabled until additional X11-side action semantics
   are modeled and tested as request intents
 - expand the explicit XLibre action set only one command family at a time
-- use XInput/XKB discovery to add high-resolution wheel, device-specific button, and gesture dispatch
+- use XInput discovery to add high-resolution wheel, device-specific button, and gesture dispatch
 
 Only after this subset works should the branch attempt bindings, overlays, shell
 compatibility, or live-session packaging.

@@ -212,6 +212,23 @@ suite "X11 event mapping":
     check event.mappingCount == 4'u32
     check event.messagesFor().len == 0
 
+  test "raw XKB event requests input grab refresh":
+    let event = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeXkbChanged,
+      id: 2,
+      valueMask: 0x0090'u32,
+      root: (2'u32 shl 16) or 1'u32,
+      sibling: 38,
+    ).backendEventFromProbe()
+
+    check event.kind == X11BackendEventKind.XkbChanged
+    check event.xkbEventType == 2'u32
+    check event.xkbChanged == 0x0090'u32
+    check event.xkbGroup == 2'u32
+    check event.xkbLockedGroup == 1'u32
+    check event.xkbKeycode == 38'u32
+    check event.messagesFor().len == 0
+
   test "window discovery maps to creation, dimensions, and pid messages":
     let messages = X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,

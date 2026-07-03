@@ -48,6 +48,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_POINTER_MOTION = 13,
     TRIAD_X11_EVENT_POINTER_RELEASE = 14,
     TRIAD_X11_EVENT_MAPPING_CHANGED = 15,
+    TRIAD_X11_EVENT_XKB_CHANGED = 16,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -267,8 +268,24 @@ static const char *event_name(uint8_t response_type)
         return "EnterNotify";
     case XCB_CLIENT_MESSAGE:
         return "ClientMessage";
+    case XCB_MAPPING_NOTIFY:
+        return "MappingNotify";
     default:
         return "Unknown";
+    }
+}
+
+static const char *xkb_event_name(uint8_t xkb_type)
+{
+    switch (xkb_type) {
+    case XCB_XKB_NEW_KEYBOARD_NOTIFY:
+        return "XkbNewKeyboardNotify";
+    case XCB_XKB_MAP_NOTIFY:
+        return "XkbMapNotify";
+    case XCB_XKB_STATE_NOTIFY:
+        return "XkbStateNotify";
+    default:
+        return "XkbUnknown";
     }
 }
 
@@ -981,6 +998,60 @@ static void query_xinput_devices(TriadX11Probe *probe)
     free(devices);
 }
 
+static void select_xkb_events(TriadX11Probe *probe)
+{
+    uint16_t xkb_events =
+        XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
+        XCB_XKB_EVENT_TYPE_MAP_NOTIFY |
+        XCB_XKB_EVENT_TYPE_STATE_NOTIFY;
+    uint16_t map_parts =
+        XCB_XKB_MAP_PART_KEY_TYPES |
+        XCB_XKB_MAP_PART_KEY_SYMS |
+        XCB_XKB_MAP_PART_MODIFIER_MAP |
+        XCB_XKB_MAP_PART_VIRTUAL_MODS |
+        XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP;
+    uint16_t state_parts =
+        XCB_XKB_STATE_PART_MODIFIER_STATE |
+        XCB_XKB_STATE_PART_MODIFIER_BASE |
+        XCB_XKB_STATE_PART_MODIFIER_LATCH |
+        XCB_XKB_STATE_PART_MODIFIER_LOCK |
+        XCB_XKB_STATE_PART_GROUP_STATE |
+        XCB_XKB_STATE_PART_GROUP_BASE |
+        XCB_XKB_STATE_PART_GROUP_LATCH |
+        XCB_XKB_STATE_PART_GROUP_LOCK;
+    uint16_t new_keyboard_details =
+        XCB_XKB_NKN_DETAIL_KEYCODES | XCB_XKB_NKN_DETAIL_DEVICE_ID;
+
+    xcb_xkb_select_events_details_t details;
+    memset(&details, 0, sizeof(details));
+    details.affectNewKeyboard = new_keyboard_details;
+    details.newKeyboardDetails = new_keyboard_details;
+    details.affectState = state_parts;
+    details.stateDetails = state_parts;
+
+    xcb_void_cookie_t cookie = xcb_xkb_select_events_aux_checked(
+        probe->conn,
+        XCB_XKB_ID_USE_CORE_KBD,
+        xkb_events,
+        0,
+        xkb_events,
+        map_parts,
+        map_parts,
+        &details);
+    xcb_generic_error_t *error = xcb_request_check(probe->conn, cookie);
+    if (error != NULL) {
+        probe_log(probe, "xkb event selection failed error_code=%u", error->error_code);
+        free(error);
+        return;
+    }
+    probe_log(
+        probe,
+        "xkb events selected events=0x%04x map=0x%04x state=0x%04x",
+        xkb_events,
+        map_parts,
+        state_parts);
+}
+
 static void query_input_extensions(TriadX11Probe *probe)
 {
     probe->xkb_ext = xcb_get_extension_data(probe->conn, &xcb_xkb_id);
@@ -1005,6 +1076,8 @@ static void query_input_extensions(TriadX11Probe *probe)
                 xkb->serverMinor,
                 xkb->supported,
                 probe->xkb_ext->first_event);
+            if (xkb->supported)
+                select_xkb_events(probe);
             free(xkb);
         }
     }
@@ -1148,9 +1221,107 @@ static void query_randr(TriadX11Probe *probe)
     free(resources);
 }
 
+static void emit_xkb_changed(
+    TriadX11Probe *probe,
+    uint8_t xkb_type,
+    uint16_t changed,
+    uint8_t group,
+    uint8_t locked_group,
+    uint8_t keycode)
+{
+    TriadX11Event emitted;
+    memset(&emitted, 0, sizeof(emitted));
+    emitted.kind = TRIAD_X11_EVENT_XKB_CHANGED;
+    emitted.id = xkb_type;
+    emitted.value_mask = changed;
+    emitted.root = ((uint32_t)group << 16) | locked_group;
+    emitted.sibling = keycode;
+    probe_event(probe, &emitted);
+}
+
+static void log_xkb_event(TriadX11Probe *probe, xcb_generic_event_t *event)
+{
+    uint8_t xkb_type = ((xcb_xkb_state_notify_event_t *)event)->xkbType;
+    switch (xkb_type) {
+    case XCB_XKB_NEW_KEYBOARD_NOTIFY: {
+        xcb_xkb_new_keyboard_notify_event_t *ev =
+            (xcb_xkb_new_keyboard_notify_event_t *)event;
+        probe_log(
+            probe,
+            "event %s device=%u changed=0x%04x min_keycode=%u max_keycode=%u",
+            xkb_event_name(xkb_type),
+            ev->deviceID,
+            ev->changed,
+            ev->minKeyCode,
+            ev->maxKeyCode);
+        emit_xkb_changed(
+            probe,
+            xkb_type,
+            ev->changed,
+            0,
+            0,
+            ev->minKeyCode);
+        break;
+    }
+    case XCB_XKB_MAP_NOTIFY: {
+        xcb_xkb_map_notify_event_t *ev = (xcb_xkb_map_notify_event_t *)event;
+        probe_log(
+            probe,
+            "event %s device=%u changed=0x%04x min_keycode=%u max_keycode=%u first_keysym=%u n_keysyms=%u",
+            xkb_event_name(xkb_type),
+            ev->deviceID,
+            ev->changed,
+            ev->minKeyCode,
+            ev->maxKeyCode,
+            ev->firstKeySym,
+            ev->nKeySyms);
+        emit_xkb_changed(
+            probe,
+            xkb_type,
+            ev->changed,
+            0,
+            0,
+            ev->minKeyCode);
+        break;
+    }
+    case XCB_XKB_STATE_NOTIFY: {
+        xcb_xkb_state_notify_event_t *ev = (xcb_xkb_state_notify_event_t *)event;
+        probe_log(
+            probe,
+            "event %s device=%u changed=0x%04x group=%u base_group=%d latched_group=%d locked_group=%u mods=0x%02x locked_mods=0x%02x keycode=%u",
+            xkb_event_name(xkb_type),
+            ev->deviceID,
+            ev->changed,
+            ev->group,
+            ev->baseGroup,
+            ev->latchedGroup,
+            ev->lockedGroup,
+            ev->mods,
+            ev->lockedMods,
+            ev->keycode);
+        emit_xkb_changed(
+            probe,
+            xkb_type,
+            ev->changed,
+            ev->group,
+            ev->lockedGroup,
+            ev->keycode);
+        break;
+    }
+    default:
+        probe_log(probe, "event %s type=%u", xkb_event_name(xkb_type), xkb_type);
+        break;
+    }
+}
+
 static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
 {
     uint8_t type = event->response_type & 0x7f;
+    if (probe->xkb_ext != NULL && probe->xkb_ext->present &&
+        type == probe->xkb_ext->first_event) {
+        log_xkb_event(probe, event);
+        return;
+    }
     if (probe->randr_ext != NULL && probe->randr_ext->present &&
         type == probe->randr_ext->first_event + XCB_RANDR_SCREEN_CHANGE_NOTIFY) {
         xcb_randr_screen_change_notify_event_t *ev =

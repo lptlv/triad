@@ -39,7 +39,7 @@ if ! command -v cc >/dev/null 2>&1; then
   exit 0
 fi
 
-if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists xcb; then
+if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists xcb xcb-xkb; then
   printf '%s\n' "tx11_probe_smoke: xcb build flags unavailable; skipping"
   exit 0
 fi
@@ -57,8 +57,8 @@ x11_mod_super=64
 x11_mod_super_shift=$((x11_mod_super | x11_mod_shift))
 
 cc -Wall -Wextra -Werror -o "$client" "$client_src" \
-  $(pkg-config --cflags xcb) $xtest_cflags \
-  $(pkg-config --libs xcb) $xtest_libs
+  $(pkg-config --cflags xcb xcb-xkb) $xtest_cflags \
+  $(pkg-config --libs xcb xcb-xkb) $xtest_libs
 
 log="$root/tests/tx11-probe-smoke.log"
 event_log="$root/tests/tx11-probe-smoke-events.log"
@@ -85,6 +85,7 @@ button_press_log="$root/tests/tx11-probe-smoke-button-press.log"
 back_button_press_log="$root/tests/tx11-probe-smoke-back-button-press.log"
 device_button_press_log="$root/tests/tx11-probe-smoke-device-button-press.log"
 mapping_notify_log="$root/tests/tx11-probe-smoke-mapping-notify.log"
+xkb_state_log="$root/tests/tx11-probe-smoke-xkb-state.log"
 axis_press_log="$root/tests/tx11-probe-smoke-axis-press.log"
 pointer_drag_log="$root/tests/tx11-probe-smoke-pointer-drag.log"
 pointer_resize_log="$root/tests/tx11-probe-smoke-pointer-resize.log"
@@ -132,7 +133,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
 }
 
 trap cleanup EXIT INT TERM
@@ -306,6 +307,29 @@ if [ "$mapping_refresh_observed" -ne 1 ]; then
   printf '%s\n' "tx11_probe_smoke: mapping notify did not invalidate input grabs" >&2
   cat "$manager_log" >&2
   cat "$mapping_notify_log" >&2
+  exit 1
+fi
+
+if ! "$client" "$display" --send-xkb-state >"$xkb_state_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$xkb_state_log" >&2
+  exit 1
+fi
+
+xkb_refresh_observed=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q 'backend_event XkbChanged' "$manager_log" &&
+      grep -q 'xlibre_input_grabs invalidated reason=xkb-changed' "$manager_log"; then
+    xkb_refresh_observed=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$xkb_refresh_observed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: XKB state change did not invalidate input grabs" >&2
+  cat "$manager_log" >&2
+  cat "$xkb_state_log" >&2
   exit 1
 fi
 
