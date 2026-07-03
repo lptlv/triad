@@ -73,6 +73,12 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "n",
+          modifiers: 64'u32,
+          command: "switch-layout",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "x",
           modifiers: 64'u32,
           command: "spawn touch /tmp/triad-xlibre-spawn-test",
@@ -266,6 +272,19 @@ suite "X11 writable IPC":
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdFocusDirection
     check parsed.messages[0].direction == Direction.DirRight
+
+  test "binding dispatch resolves switch-layout key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+n"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "switch-layout"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSwitchLayout
 
   test "binding dispatch resolves configured spawn key binding":
     let parsed = xlibreWritableRequestFor(

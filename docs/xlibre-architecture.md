@@ -207,7 +207,7 @@ disabled on the XLibre socket. The socket also accepts the existing
 configured key, pointer, axis, or gesture binding against the live model, but it
 only executes the current XLibre allowlist: focus, directional focus,
 column focus, close-window, focus-workspace, move-to-workspace,
-move-window-to-workspace, and argv-style `spawn` commands.
+move-window-to-workspace, switch-layout, and argv-style `spawn` commands.
 Unsupported configured commands outside that allowlist are rejected rather than
 run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server

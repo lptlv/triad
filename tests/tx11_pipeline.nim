@@ -311,3 +311,33 @@ suite "X11 admission pipeline":
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
+
+  test "switch-layout command pipeline reprojects managed windows":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x61, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdSwitchLayout))
+
+    check step.message.kind == MsgKind.CmdSwitchLayout
+    check step.layoutRequests.len == 1
+    check step.layoutRequests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.layoutRequests[0].windowId == 0x61
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x61
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
