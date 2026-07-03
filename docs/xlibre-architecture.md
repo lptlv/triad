@@ -129,6 +129,16 @@ C/XCB boundary: dry-run mode does not connect to a display, while live mode
 connects only when explicitly called with `dryRun = false` or from the active
 WM-owned probe connection.
 
+When XLibre is already installed locally, the smoke harness can attach to an
+externally started, isolated XLibre display instead of launching `Xvfb`:
+
+```sh
+TRIAD_X11_EXTERNAL_DISPLAY=1 TRIAD_X11_DISPLAY=:73 sh tests/tx11_probe_smoke.sh
+```
+
+The target display must not already have another window manager, because
+`triad_xlibre` claims WM ownership during the smoke run.
+
 ### Phase 1: Inventory and Vocabulary
 
 Keep the current River daemon intact where possible, but document and isolate

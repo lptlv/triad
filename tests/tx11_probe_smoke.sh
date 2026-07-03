@@ -7,11 +7,17 @@ probe="$root/src/triad_xlibre"
 executor="$root/tests/tx11_live_executor"
 client_src="$root/tests/tx11_synthetic_client.c"
 client="$root/tests/tx11_synthetic_client"
+display="${TRIAD_X11_DISPLAY:-:73}"
+external_display="${TRIAD_X11_EXTERNAL_DISPLAY:-0}"
 
-if ! command -v Xvfb >/dev/null 2>&1; then
-  printf '%s\n' "tx11_probe_smoke: Xvfb not found; skipping"
-  exit 0
-fi
+case "$external_display" in
+  1|true|TRUE|yes|YES|on|ON)
+    external_display=1
+    ;;
+  *)
+    external_display=0
+    ;;
+esac
 
 if [ ! -x "$probe" ]; then
   printf '%s\n' "tx11_probe_smoke: probe binary missing: $probe" >&2
@@ -40,7 +46,6 @@ fi
 
 cc -Wall -Wextra -Werror -o "$client" "$client_src" $(pkg-config --cflags --libs xcb)
 
-display=":73"
 log="$root/tests/tx11-probe-smoke.log"
 event_log="$root/tests/tx11-probe-smoke-events.log"
 manager_log="$root/tests/tx11-probe-smoke-manager.log"
@@ -55,8 +60,15 @@ config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
 rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_close_log" "$config" "$ipc_socket"
 
-Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
-xvfb_pid="$!"
+xvfb_pid=""
+if [ "$external_display" -eq 0 ]; then
+  if ! command -v Xvfb >/dev/null 2>&1; then
+    printf '%s\n' "tx11_probe_smoke: Xvfb not found; skipping"
+    exit 0
+  fi
+  Xvfb "$display" -screen 0 800x600x24 >"$log.xvfb" 2>&1 &
+  xvfb_pid="$!"
+fi
 probe_pid=""
 client_pid=""
 
@@ -69,8 +81,10 @@ cleanup() {
     kill "$probe_pid" 2>/dev/null || true
     wait "$probe_pid" 2>/dev/null || true
   fi
-  kill "$xvfb_pid" 2>/dev/null || true
-  wait "$xvfb_pid" 2>/dev/null || true
+  if [ -n "$xvfb_pid" ]; then
+    kill "$xvfb_pid" 2>/dev/null || true
+    wait "$xvfb_pid" 2>/dev/null || true
+  fi
   rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_close_log" "$log.xvfb" "$client" "$config" "$ipc_socket"
 }
 
