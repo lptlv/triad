@@ -1160,6 +1160,24 @@ if [ "$xtest_available" -eq 1 ]; then
     cat "$focus_next_press_log" >&2
     exit 1
   fi
+
+  frame_tick_observed=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if grep -q 'xlibre_frame_xcb applied configure window=' "$manager_log"; then
+      frame_tick_observed=1
+      break
+    fi
+    sleep 0.2
+  done
+
+  if [ "$frame_tick_observed" -ne 1 ]; then
+    printf '%s\n' "tx11_probe_smoke: animated scroller focus did not produce frame configure" >&2
+    cat "$manager_log" >&2
+    cat "$focus_next_a_client_log" >&2
+    cat "$focus_next_b_client_log" >&2
+    cat "$focus_next_press_log" >&2
+    exit 1
+  fi
 fi
 
 stop_payload='{"triad":{"version":1,"request":"xlibre-stop"}}'

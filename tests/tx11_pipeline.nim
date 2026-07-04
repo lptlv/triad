@@ -3,7 +3,9 @@ import std/[sequtils, strutils, unittest]
 import ../src/config/parser
 import ../src/core/[effects, layout_selection_codec]
 import ../src/core/msg
+import ../src/entities/tag_ops
 import ../src/state/engine
+import ../src/state/snapshot
 import ../src/systems/runtime_facade
 import ../src/types/model
 import ../src/types/runtime_values
@@ -14,6 +16,19 @@ import ../src/x11/request_builder
 proc x11Model(): Model =
   initRuntimeStateFromConfig(
     Config(layout: LayoutConfig(gaps: 10), workspaces: WorkspaceConfig(defaultCount: 3))
+  ).model
+
+proc x11AnimatedModel(): Model =
+  initRuntimeStateFromConfig(
+    Config(
+      layout: LayoutConfig(
+        gaps: 10,
+        enableAnimations: true,
+        animationSpeed: 0.5,
+        animationSnapThreshold: 0.5,
+      ),
+      workspaces: WorkspaceConfig(defaultCount: 3),
+    )
   ).model
 
 proc x11ModelWithMappedWindows(windowIds: openArray[uint32]): Model =
@@ -809,6 +824,44 @@ suite "X11 admission pipeline":
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
+
+  test "tick command pipeline advances animated scroller viewport":
+    var model = x11AnimatedModel()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    for windowId in [0x90'u32, 0x91'u32, 0x92'u32]:
+      discard model.processEventDryRun(
+        X11BackendEvent(
+          kind: X11BackendEventKind.MapRequested,
+          window: X11WindowSnapshot(
+            id: windowId, wmClass: "app", title: "App", w: 300, h: 200
+          ),
+        )
+      )
+
+    discard model.setTagViewportTarget(model.activeTag, 390.0'f32, 0.0'f32)
+    let before = model.shellSnapshot().workspaces[0]
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdTick, tickElapsedMs: 16))
+    let after = model.shellSnapshot().workspaces[0]
+
+    check before.targetViewportXOffset > before.currentViewportXOffset
+    check after.currentViewportXOffset > before.currentViewportXOffset
+    check after.currentViewportXOffset < before.targetViewportXOffset
+    check step.message.kind == MsgKind.CmdTick
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x90 and
+        it.values[0] < 0
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x92 and
+        it.values[0] < 790
+    )
 
   test "set bundled algorithmic layout command pipeline reprojects managed windows":
     var model = x11ModelWithMappedWindows([0x80'u32, 0x81'u32])

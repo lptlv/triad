@@ -1,13 +1,14 @@
 import std/[asyncdispatch, json, options, strutils, times]
 
 import ../config/keysyms
+import ../core/defaults
 import ../core/msg
 import ../config/loading
 import ../config/parser
 import ../ipc/binding_dispatch
 import ../ipc/socket
 import ../state/snapshot
-import ../systems/[binding_profiles, runtime_facade]
+import ../systems/[binding_profiles, runtime, runtime_facade]
 import ../types/[model, runtime_values, shell_snapshot]
 import atoms, events, ipc_runtime, pipeline, request_executor, spawn_runner, xcb_ffi
 
@@ -31,6 +32,7 @@ type
     model: Model
     stopRequested: bool
     stopPolls: int
+    lastFrameTickMs: int64
     keyGrabSignature: string
     buttonGrabSignature: string
     axisGrabSignature: string
@@ -56,11 +58,52 @@ proc discardIpcMsg(msg: Msg) {.gcsafe.} =
 
 proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.}
 
+proc xlibreUnixMs(): int64 =
+  int64(epochTime() * 1000.0)
+
+proc xlibreFrameIntervalMs(model: Model): int64 =
+  if model.frameRate <= 0:
+    return int64(DefaultFrameIntervalMs)
+  let fps = min(MaxFrameRate, max(MinFrameRate, model.frameRate))
+  int64(max(1, int(1000.0 / float(max(1'i32, fps)) + 0.5)))
+
+proc runFrameTickIfDue(context: ptr X11ProbeContext) {.gcsafe.} =
+  if context == nil or context.mode != X11ProbeMode.Manage or context.stopRequested:
+    return
+  {.cast(gcsafe).}:
+    let nowMs = xlibreUnixMs()
+    if not context.model.needsFrameTick():
+      context.lastFrameTickMs = nowMs
+      return
+    if context.lastFrameTickMs <= 0:
+      context.lastFrameTickMs = nowMs
+    let elapsedMs = nowMs - context.lastFrameTickMs
+    let intervalMs = context.model.xlibreFrameIntervalMs()
+    if elapsedMs < intervalMs:
+      return
+    context.lastFrameTickMs = nowMs
+    let step = context.model.processCommandWithActiveProbe(
+      Msg(
+        kind: MsgKind.CmdTick,
+        tickElapsedMs: int32(max(1'i64, min(1000'i64, elapsedMs))),
+      )
+    )
+    for x11Request in step.layoutRequests:
+      stdout.writeLine(
+        "xlibre_frame_layout_request " & x11Request.executeDryRun().description
+      )
+    for x11Request in step.requests:
+      stdout.writeLine("xlibre_frame_request " & x11Request.executeDryRun().description)
+    for line in step.xcbRun.logs:
+      stdout.writeLine("xlibre_frame_xcb " & line)
+    stdout.flushFile()
+
 proc probeTickCallback(userData: pointer) {.cdecl.} =
   asyncdispatch.poll(0)
   if userData != nil:
     let context = cast[ptr X11ProbeContext](userData)
     context.configureInputGrabs()
+    context.runFrameTickIfDue()
     if context.stopRequested:
       inc context.stopPolls
       if context.stopPolls >= 2:
