@@ -137,7 +137,13 @@ proc shouldSyncProjectionVisibility(kind: MsgKind): bool =
     MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup,
     MsgKind.CmdMoveToScratchpad, MsgKind.CmdMoveToNamedScratchpad,
     MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
-    MsgKind.CmdRestoreScratchpad,
+    MsgKind.CmdRestoreScratchpad, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
+    MsgKind.CmdFocusTagRight, MsgKind.CmdFocusOccupiedTagLeft,
+    MsgKind.CmdFocusOccupiedTagRight, MsgKind.CmdFocusWorkspaceIndex,
+    MsgKind.CmdMoveToTag, MsgKind.CmdMoveToTagLeft, MsgKind.CmdMoveToTagRight,
+    MsgKind.CmdMoveWindowToTag, MsgKind.CmdSwapWindowToTag,
+    MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex,
+    MsgKind.CmdFocusOutput, MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToOutput,
   }
 
 proc hasFocusRequest(requests: openArray[X11Request], windowId: uint32): bool =

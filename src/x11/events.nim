@@ -22,6 +22,9 @@ const
   X11StateActionRemove = 0'u32
   X11StateActionAdd = 1'u32
   X11StateActionToggle = 2'u32
+  X11XkbNewKeyboardNotify* = 0'u32
+  X11XkbMapNotify* = 1'u32
+  X11XkbStateNotify* = 2'u32
 
 type
   X11ProbeEventKind* {.pure, size: sizeof(cuint).} = enum
@@ -197,6 +200,16 @@ proc appIdFromWmClass*(wmClass: string): string =
   if slash >= 0 and slash + 1 < cleaned.len:
     return cleaned[slash + 1 .. ^1]
   cleaned
+
+proc invalidatesInputGrabs*(event: X11BackendEvent): bool =
+  case event.kind
+  of X11BackendEventKind.MappingChanged:
+    true
+  of X11BackendEventKind.XkbChanged:
+    event.xkbEventType == X11XkbNewKeyboardNotify or
+      event.xkbEventType == X11XkbMapNotify
+  else:
+    false
 
 proc stateTokenSet(value: string): seq[string] =
   for token in value.splitWhitespace():

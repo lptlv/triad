@@ -513,6 +513,39 @@ suite "X11 admission pipeline":
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
 
+  test "workspace focus pipeline maps target workspace and unmaps previous workspace":
+    var model = x11ModelWithMappedWindows([0x74'u32])
+    discard model.processCommandDryRun(
+      Msg(
+        kind: MsgKind.CmdMoveWindowToWorkspaceIndex,
+        moveWorkspaceWindowId: 0x74,
+        moveWorkspaceIndex: 2,
+        moveWorkspaceFollowWindow: false,
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x75, wmClass: "app", title: "Two", w: 300, h: 200),
+      )
+    )
+
+    let step = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2)
+    )
+
+    check step.message.kind == MsgKind.CmdFocusWorkspaceIndex
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqMapWindow and it.windowId == 0x74
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqUnmapWindow and it.windowId == 0x75
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x74
+    )
+
   test "output command pipeline reprojects and reasserts focus":
     var model = x11ModelWithTwoOutputs()
     discard model.processEventDryRun(

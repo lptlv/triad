@@ -824,7 +824,7 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
     return
   let event = backendEventFromProbe(raw[])
   stdout.writeLine("backend_event " & event.eventLabel())
-  if event.kind in {X11BackendEventKind.MappingChanged, X11BackendEventKind.XkbChanged}:
+  if event.invalidatesInputGrabs():
     if userData != nil:
       let context = cast[ptr X11ProbeContext](userData)
       context.keyGrabSignature = ""
@@ -835,8 +835,11 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
         if event.kind == X11BackendEventKind.MappingChanged:
           "mapping-changed"
         else:
-          "xkb-changed"
+          "xkb-changed type=" & $event.xkbEventType
       stdout.writeLine("xlibre_input_grabs invalidated reason=" & reason)
+    stdout.flushFile()
+    return
+  if event.kind == X11BackendEventKind.XkbChanged:
     stdout.flushFile()
     return
   if event.kind == X11BackendEventKind.KeyBinding:
