@@ -16,6 +16,25 @@ proc x11Model(): Model =
     Config(layout: LayoutConfig(gaps: 10), workspaces: WorkspaceConfig(defaultCount: 3))
   ).model
 
+proc x11ModelWithMappedWindows(windowIds: openArray[uint32]): Model =
+  result = x11Model()
+  discard result.processEventDryRun(
+    X11BackendEvent(
+      kind: X11BackendEventKind.OutputDiscovered,
+      output: X11OutputSnapshot(
+        id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+      ),
+    )
+  )
+  for windowId in windowIds:
+    discard result.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: windowId, wmClass: "app", title: "App", w: 300, h: 200),
+      )
+    )
+
 suite "X11 admission pipeline":
   test "dry-run pipeline routes supported admission effects to request records":
     var model = x11Model()
@@ -368,6 +387,52 @@ suite "X11 admission pipeline":
     check step.layoutRequests[0].windowId == 0x62
     check step.requests.anyIt(
       it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x62
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "move-window command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x68'u32, 0x69'u32])
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdMoveWindowLeft))
+
+    check step.message.kind == MsgKind.CmdMoveWindowLeft
+    check step.layoutRequests.len == 2
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x68
+    )
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x69
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x68
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x69
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "resize-width command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x6a'u32, 0x6b'u32])
+
+    let step =
+      model.processCommandDryRun(Msg(kind: MsgKind.CmdResizeWidth, deltaW: 0.1'f32))
+
+    check step.message.kind == MsgKind.CmdResizeWidth
+    check step.message.deltaW == 0.1'f32
+    check step.layoutRequests.len == 2
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6a
+    )
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6b
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6a
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6b
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun

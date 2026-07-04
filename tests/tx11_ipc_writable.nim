@@ -85,6 +85,48 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "h",
+          modifiers: 68'u32,
+          command: "move-window-left",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "l",
+          modifiers: 72'u32,
+          command: "move-column-right",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "j",
+          modifiers: 68'u32,
+          command: "swap-window-down",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "r",
+          modifiers: 64'u32,
+          command: "resize-width 0.1",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "t",
+          modifiers: 64'u32,
+          command: "resize-height -0.1",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "u",
+          modifiers: 64'u32,
+          command: "set-column-width 0.5",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "p",
+          modifiers: 64'u32,
+          command: "switch-proportion-preset -1",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -328,6 +370,101 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "maximize-column"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdMaximizeColumn
+
+  test "binding dispatch resolves move-window key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+h"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "move-window-left"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMoveWindowLeft
+
+  test "binding dispatch resolves move-column key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Alt+l"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "move-column-right"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMoveColumnRight
+
+  test "binding dispatch resolves swap-window key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+j"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "swap-window-down"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSwapWindowDown
+
+  test "binding dispatch resolves resize-width key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+r"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "resize-width 0.1"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdResizeWidth
+    check parsed.messages[0].deltaW == 0.1'f32
+
+  test "binding dispatch resolves resize-height key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+t"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "resize-height -0.1"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdResizeHeight
+    check parsed.messages[0].deltaH == -0.1'f32
+
+  test "binding dispatch resolves set-column-width key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+u"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "set-column-width 0.5"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSetColumnWidth
+    check parsed.messages[0].targetWidth == 0.5'f32
+
+  test "binding dispatch resolves switch-proportion-preset key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+p"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "switch-proportion-preset -1"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSwitchProportionPreset
+    check parsed.messages[0].proportionPresetDelta == -1
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(
