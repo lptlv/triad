@@ -1,4 +1,4 @@
-import std/options
+import std/[math, options]
 
 import ../core/effects
 import ../core/msg
@@ -179,6 +179,27 @@ proc minimizedStateRequestsFor(before, after: ShellSnapshot): seq[X11Request] =
     else:
       result.add(x11MapWindowRequest(win.id))
 
+proc roundedViewportChanged(before, after: ShellSnapshot): bool =
+  for workspace in after.workspaces:
+    for previous in before.workspaces:
+      if previous.tagId != workspace.tagId:
+        continue
+      if int32(round(previous.currentViewportXOffset)) !=
+          int32(round(workspace.currentViewportXOffset)):
+        return true
+      if int32(round(previous.currentViewportYOffset)) !=
+          int32(round(workspace.currentViewportYOffset)):
+        return true
+      break
+  false
+
+proc shouldProjectCommandLayout(
+    message: Msg, before, after: ShellSnapshot, effects: openArray[Effect]
+): bool =
+  if message.kind != MsgKind.CmdTick:
+    return true
+  effects.len > 0 or before.roundedViewportChanged(after)
+
 proc combineEventRequests*(
     event: X11BackendEvent, layoutRequests, effectRequests: openArray[X11Request]
 ): seq[X11Request] =
@@ -248,7 +269,11 @@ proc processCommandWithActiveProbe*(model: var Model, message: Msg): X11CommandS
   result.effects = model.updateInPlace(message)
   let after = model.shellSnapshot()
   let stateRequests = before.minimizedStateRequestsFor(after)
-  result.layoutRequests = model.layoutRequestsForProjection()
+  result.layoutRequests =
+    if message.shouldProjectCommandLayout(before, after, result.effects):
+      model.layoutRequestsForProjection()
+    else:
+      @[]
   let visibilityRequests =
     if message.kind.shouldSyncProjectionVisibility():
       projectionVisibilityRequestsFor(
@@ -273,7 +298,11 @@ proc processCommandDryRun*(model: var Model, message: Msg): X11CommandStep =
   result.effects = model.updateInPlace(message)
   let after = model.shellSnapshot()
   let stateRequests = before.minimizedStateRequestsFor(after)
-  result.layoutRequests = model.layoutRequestsForProjection()
+  result.layoutRequests =
+    if message.shouldProjectCommandLayout(before, after, result.effects):
+      model.layoutRequestsForProjection()
+    else:
+      @[]
   let visibilityRequests =
     if message.kind.shouldSyncProjectionVisibility():
       projectionVisibilityRequestsFor(
@@ -297,7 +326,11 @@ proc processCommandWithExecutor*(
   result.effects = model.updateInPlace(message)
   let after = model.shellSnapshot()
   let stateRequests = before.minimizedStateRequestsFor(after)
-  result.layoutRequests = model.layoutRequestsForProjection()
+  result.layoutRequests =
+    if message.shouldProjectCommandLayout(before, after, result.effects):
+      model.layoutRequestsForProjection()
+    else:
+      @[]
   let visibilityRequests =
     if message.kind.shouldSyncProjectionVisibility():
       projectionVisibilityRequestsFor(

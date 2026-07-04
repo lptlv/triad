@@ -863,6 +863,31 @@ suite "X11 admission pipeline":
         it.values[0] < 790
     )
 
+  test "subpixel tick command skips redundant configure requests":
+    var model = x11AnimatedModel()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x93, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+    discard model.setTagViewportTarget(model.activeTag, 0.4'f32, 0.0'f32)
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdTick, tickElapsedMs: 16))
+
+    check step.message.kind == MsgKind.CmdTick
+    check step.layoutRequests.len == 0
+    check not step.requests.anyIt(it.kind == X11RequestKind.XrqConfigureWindow)
+
   test "set bundled algorithmic layout command pipeline reprojects managed windows":
     var model = x11ModelWithMappedWindows([0x80'u32, 0x81'u32])
 
