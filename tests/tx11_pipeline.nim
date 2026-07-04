@@ -1,7 +1,7 @@
 import std/[sequtils, strutils, unittest]
 
 import ../src/config/parser
-import ../src/core/effects
+import ../src/core/[effects, layout_selection_codec]
 import ../src/core/msg
 import ../src/state/engine
 import ../src/systems/runtime_facade
@@ -560,6 +560,25 @@ suite "X11 admission pipeline":
     check step.layoutRequests[0].windowId == 0x63
     check step.requests.anyIt(
       it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x63
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "set bundled algorithmic layout command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x80'u32, 0x81'u32])
+
+    let step = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("grid"))
+    )
+
+    check step.message.kind == MsgKind.CmdSetCustomLayout
+    check step.message.customLayout.layoutIdString() == "grid"
+    check step.layoutRequests.len == 2
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x80
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x81
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun

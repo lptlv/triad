@@ -1,7 +1,7 @@
 import std/[json, options, strutils]
 
 import ../config/[keysyms, parser]
-import ../core/msg
+import ../core/[layout_descriptor_codec, layout_selection_codec, msg]
 import ../ipc/[binding_dispatch, commands]
 import ../systems/[binding_profiles, runtime]
 import ../types/[model, runtime_values]
@@ -208,6 +208,8 @@ proc xlibreCommandSupported(msg: Msg): bool =
   case msg.kind
   of MsgKind.CmdSetLayout:
     msg.newLayout in {LayoutMode.Scroller, LayoutMode.VerticalScroller}
+  of MsgKind.CmdSetCustomLayout:
+    msg.customLayout.layoutIdString().isBundledAlgorithmicLayoutId()
   of MsgKind.CmdCloseWindow, MsgKind.CmdCloseWindowById, MsgKind.CmdFocusNext,
       MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection, MsgKind.CmdFocusLast,
       MsgKind.CmdFocusTagLeft, MsgKind.CmdFocusTagRight,

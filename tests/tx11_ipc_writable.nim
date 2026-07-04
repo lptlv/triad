@@ -1,7 +1,7 @@
 import std/[json, options, sequtils, strutils, unittest]
 
 import ../src/config/parser
-import ../src/core/msg
+import ../src/core/[layout_selection_codec, msg]
 import ../src/ipc/triad_readonly
 import ../src/systems/runtime_facade
 import ../src/types/model
@@ -242,6 +242,12 @@ proc bindingModel(): Model =
           modifiers: 64'u32,
           command: "vertical-scroller",
           mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "d", modifiers: 65'u32, command: "grid", mode: BindingMode.BindAlways
+        ),
+        KeyBindingConfig(
+          key: "d", modifiers: 68'u32, command: "notion", mode: BindingMode.BindAlways
         ),
         KeyBindingConfig(
           key: "x",
@@ -841,6 +847,33 @@ suite "X11 writable IPC":
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdSetLayout
     check parsed.messages[0].newLayout == LayoutMode.VerticalScroller
+
+  test "binding dispatch resolves bundled algorithmic layout key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+d"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "grid"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSetCustomLayout
+    check parsed.messages[0].customLayout.layoutIdString() == "grid"
+
+  test "binding dispatch rejects non-algorithmic custom layout key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+d"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let reply = parseJson(parsed.reply)
+
+    check parsed.handled
+    check parsed.messages.len == 0
+    check not reply["ok"].getBool()
+    check reply["error"].getStr().contains("not supported by XLibre")
 
   test "binding dispatch resolves configured spawn key binding":
     let parsed = xlibreWritableRequestFor(
