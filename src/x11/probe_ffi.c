@@ -77,6 +77,7 @@ typedef struct TriadX11Event {
     uint32_t sibling;
     uint32_t stack_mode;
     uint32_t root;
+    int32_t ticks;
     uint32_t client_data[5];
     uint8_t override_redirect;
     uint8_t mapped;
@@ -1989,6 +1990,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             event.x = ev->root_x;
             event.y = ev->root_y;
             event.value_mask = binding_modifier_mask(probe, ev->state);
+            event.ticks = 1;
             copy_text(event.name, sizeof(event.name), axis_grab->binding);
             probe_event(probe, &event);
         }

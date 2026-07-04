@@ -238,8 +238,10 @@ translating Triad's evdev button codes to core X11 button details, including
 left, middle, right, and common extra mouse buttons such as back/forward.
 Bindings can also use exact `buttonN`/`btnN` core button details for
 device-specific buttons that do not have a semantic name. Core X11 wheel buttons
-4, 5, 6, and 7 are also
-translated into one-tick axis dispatch for supported `axis-bind` commands.
+4, 5, 6, and 7 are also translated into axis dispatch for supported `axis-bind`
+commands. Current core button events report one tick; the backend event path
+already carries bounded tick counts so later XI2 high-resolution scroll dispatch
+can report multiple ticks without changing the binding IPC contract.
 Matching `KeyPress` and `ButtonPress` events are converted back into the same
 `dispatch-binding` path used by IPC, so real input and synthetic dispatch share
 command validation and execution. Interactive pointer bindings can also start

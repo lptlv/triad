@@ -203,8 +203,9 @@ suite "X11 event mapping":
     check event.messagesFor().len == 0
 
   test "raw axis binding event preserves binding identity without model messages":
-    var raw =
-      X11ProbeEvent(kind: X11ProbeEventKind.XpeAxisBinding, id: 4, valueMask: 64'u32)
+    var raw = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeAxisBinding, id: 4, valueMask: 64'u32, ticks: 3'i32
+    )
     for idx, ch in "Super+wheel-up":
       raw.name[idx] = ch
 
@@ -213,6 +214,7 @@ suite "X11 event mapping":
     check event.axisBinding == "Super+wheel-up"
     check event.axisBindingButton == 4
     check event.axisBindingModifiers == 64'u32
+    check event.axisBindingTicks == 3'i32
     check event.messagesFor().len == 0
 
   test "raw pointer motion and release events preserve root coordinates":

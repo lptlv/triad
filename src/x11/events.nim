@@ -55,6 +55,7 @@ type
     sibling*: uint32
     stackMode*: uint32
     root*: uint32
+    ticks*: int32
     clientData*: array[5, uint32]
     overrideRedirect*: uint8
     mapped*: uint8
@@ -151,6 +152,7 @@ type
       axisBinding*: string
       axisBindingButton*: uint32
       axisBindingModifiers*: uint32
+      axisBindingTicks*: int32
     of X11BackendEventKind.PointerMotion:
       pointerMotionTargetWindowId*: uint32
       pointerMotionRootX*, pointerMotionRootY*: int32
@@ -346,6 +348,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       axisBinding: event.name.cArrayString(),
       axisBindingButton: event.id,
       axisBindingModifiers: event.valueMask,
+      axisBindingTicks: max(1'i32, min(event.ticks, 100'i32)),
     )
   of X11ProbeEventKind.XpePointerMotion:
     X11BackendEvent(

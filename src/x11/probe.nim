@@ -452,12 +452,16 @@ proc dispatchPointerRelease(context: ptr X11ProbeContext) {.gcsafe.} =
   context.pointerGrabActive = false
   context.runXlibreCommandStep(Msg(kind: MsgKind.PointerRelease))
 
-proc dispatchAxisBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.} =
+proc dispatchAxisBinding(
+    context: ptr X11ProbeContext, binding: string, ticks: int32
+) {.gcsafe.} =
   if context == nil or binding.len == 0:
     return
   {.cast(gcsafe).}:
     let dispatch = BindingDispatchRequest(
-      kind: BindingDispatchKind.BindAxis, binding: binding, ticks: 1'i32
+      kind: BindingDispatchKind.BindAxis,
+      binding: binding,
+      ticks: max(1'i32, min(ticks, 100'i32)),
     )
     let request = xlibreWritableRequestFor(
       bindingDispatchPayload(dispatch), context.model, context.model.shellSnapshot()
@@ -648,7 +652,8 @@ proc eventLabel(event: X11BackendEvent): string =
   of X11BackendEventKind.AxisBinding:
     "AxisBinding binding=\"" & event.axisBinding & "\" button=" &
       $event.axisBindingButton & " modifiers=0x" &
-      toHex(event.axisBindingModifiers, 4).toLowerAscii()
+      toHex(event.axisBindingModifiers, 4).toLowerAscii() & " ticks=" &
+      $event.axisBindingTicks
   of X11BackendEventKind.PointerMotion:
     "PointerMotion target=" & $event.pointerMotionTargetWindowId & " root_xy=" &
       $event.pointerMotionRootX & "," & $event.pointerMotionRootY & " modifiers=0x" &
@@ -729,10 +734,13 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
   if event.kind == X11BackendEventKind.AxisBinding:
     if userData == nil:
       stdout.writeLine(
-        "dry_run_msg X11AxisBinding binding=\"" & event.axisBinding & "\""
+        "dry_run_msg X11AxisBinding binding=\"" & event.axisBinding & "\" ticks=" &
+          $event.axisBindingTicks
       )
     else:
-      cast[ptr X11ProbeContext](userData).dispatchAxisBinding(event.axisBinding)
+      cast[ptr X11ProbeContext](userData).dispatchAxisBinding(
+        event.axisBinding, event.axisBindingTicks
+      )
     stdout.flushFile()
     return
   if event.kind == X11BackendEventKind.PointerMotion:
