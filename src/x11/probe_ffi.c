@@ -1241,6 +1241,18 @@ static int device_has_class(
     return 0;
 }
 
+static const char *xinput_scroll_type_name(uint16_t scroll_type)
+{
+    switch (scroll_type) {
+    case XCB_INPUT_SCROLL_TYPE_VERTICAL:
+        return "vertical";
+    case XCB_INPUT_SCROLL_TYPE_HORIZONTAL:
+        return "horizontal";
+    default:
+        return "unknown";
+    }
+}
+
 static void query_xinput_devices(TriadX11Probe *probe)
 {
     xcb_input_xi_query_device_cookie_t device_cookie =
@@ -1267,7 +1279,16 @@ static void query_xinput_devices(TriadX11Probe *probe)
     int slave_pointers = 0;
     int key_class_devices = 0;
     int button_class_devices = 0;
+    int valuator_class_devices = 0;
+    int scroll_class_devices = 0;
     int touch_class_devices = 0;
+    int gesture_class_devices = 0;
+    int valuator_classes = 0;
+    int scroll_classes = 0;
+    int vertical_scroll_classes = 0;
+    int horizontal_scroll_classes = 0;
+    int preferred_scroll_classes = 0;
+    int no_emulation_scroll_classes = 0;
 
     xcb_input_xi_device_info_iterator_t iter =
         xcb_input_xi_query_device_infos_iterator(devices);
@@ -1293,15 +1314,74 @@ static void query_xinput_devices(TriadX11Probe *probe)
             key_class_devices++;
         if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_BUTTON))
             button_class_devices++;
+        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR))
+            valuator_class_devices++;
+        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL))
+            scroll_class_devices++;
         if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_TOUCH))
             touch_class_devices++;
+        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_GESTURE))
+            gesture_class_devices++;
+
+        int device_name_len = xcb_input_xi_device_info_name_length(device);
+        char device_name[128];
+        int device_name_copy_len =
+            device_name_len < (int)sizeof(device_name) - 1
+                ? device_name_len
+                : (int)sizeof(device_name) - 1;
+        memcpy(
+            device_name,
+            xcb_input_xi_device_info_name(device),
+            (size_t)device_name_copy_len);
+        device_name[device_name_copy_len] = '\0';
+
+        xcb_input_device_class_iterator_t class_iter =
+            xcb_input_xi_device_info_classes_iterator(device);
+        while (class_iter.rem > 0) {
+            switch (class_iter.data->type) {
+            case XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR:
+                valuator_classes++;
+                break;
+            case XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL: {
+                xcb_input_scroll_class_t *scroll =
+                    (xcb_input_scroll_class_t *)class_iter.data;
+                scroll_classes++;
+                if (scroll->scroll_type == XCB_INPUT_SCROLL_TYPE_VERTICAL)
+                    vertical_scroll_classes++;
+                else if (scroll->scroll_type == XCB_INPUT_SCROLL_TYPE_HORIZONTAL)
+                    horizontal_scroll_classes++;
+                if ((scroll->flags & XCB_INPUT_SCROLL_FLAGS_PREFERRED) != 0)
+                    preferred_scroll_classes++;
+                if ((scroll->flags & XCB_INPUT_SCROLL_FLAGS_NO_EMULATION) != 0)
+                    no_emulation_scroll_classes++;
+                probe_log(
+                    probe,
+                    "xinput scroll device=%u source=%u name=\"%s\" number=%u type=%s flags=0x%08x increment=%d.%08x",
+                    device->deviceid,
+                    scroll->sourceid,
+                    device_name,
+                    scroll->number,
+                    xinput_scroll_type_name(scroll->scroll_type),
+                    scroll->flags,
+                    scroll->increment.integral,
+                    scroll->increment.frac);
+                break;
+            }
+            default:
+                break;
+            }
+            xcb_input_device_class_next(&class_iter);
+        }
         xcb_input_xi_device_info_next(&iter);
     }
 
     probe_log(
         probe,
         "xinput devices count=%u master_keyboards=%d master_pointers=%d "
-        "slave_keyboards=%d slave_pointers=%d key_class=%d button_class=%d touch_class=%d",
+        "slave_keyboards=%d slave_pointers=%d key_class=%d button_class=%d "
+        "valuator_class=%d scroll_class=%d touch_class=%d gesture_class=%d "
+        "valuators=%d scroll_axes=%d vertical_scroll_axes=%d horizontal_scroll_axes=%d "
+        "preferred_scroll_axes=%d no_emulation_scroll_axes=%d",
         devices->num_infos,
         master_keyboards,
         master_pointers,
@@ -1309,7 +1389,16 @@ static void query_xinput_devices(TriadX11Probe *probe)
         slave_pointers,
         key_class_devices,
         button_class_devices,
-        touch_class_devices);
+        valuator_class_devices,
+        scroll_class_devices,
+        touch_class_devices,
+        gesture_class_devices,
+        valuator_classes,
+        scroll_classes,
+        vertical_scroll_classes,
+        horizontal_scroll_classes,
+        preferred_scroll_classes,
+        no_emulation_scroll_classes);
     free(devices);
 }
 

@@ -159,6 +159,8 @@ for pattern in \
   "xkb version=" \
   "xinput version=" \
   "xinput devices count=" \
+  "scroll_axes=" \
+  "gesture_class=" \
   "windows count=" \
   "backend_event OutputDiscovered" \
   "dry_run_msg Output" \
