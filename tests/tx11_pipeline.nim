@@ -357,6 +357,29 @@ suite "X11 admission pipeline":
     )
     check step.dryRunExecutions.len == step.requests.len
 
+  test "wm hints urgency updates trigger layout projection requests":
+    var model = x11ModelWithMappedWindows([0x53'u32])
+
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 0x53,
+        propertyAtom: "WM_HINTS",
+        propertyValue: "_NET_WM_STATE_FULLSCREEN",
+        propertyUrgent: true,
+      )
+    )
+
+    check step.admission.messages.len == 1
+    check step.admission.messages[0].kind == MsgKind.WlWindowStateChanged
+    check step.admission.messages[0].stateFullscreen
+    check step.admission.messages[0].stateUrgent
+    check step.layoutRequests.len > 0
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x53
+    )
+    check step.dryRunExecutions.len == step.requests.len
+
   test "client messages produce EWMH command requests":
     var model = x11ModelWithMappedWindows([0x90'u32, 0x91'u32])
 

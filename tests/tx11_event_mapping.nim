@@ -105,6 +105,7 @@ suite "X11 event mapping":
     propertyRaw.minH = 80
     propertyRaw.maxW = 800
     propertyRaw.maxH = 600
+    propertyRaw.urgent = 1
     let property = propertyRaw.backendEventFromProbe()
     check property.kind == X11BackendEventKind.PropertyChanged
     check property.propertyWindowId == 9
@@ -116,6 +117,7 @@ suite "X11 event mapping":
     check property.propertyMinHeight == 80
     check property.propertyMaxWidth == 800
     check property.propertyMaxHeight == 600
+    check property.propertyUrgent
 
     let configure = X11ProbeEvent(
       kind: X11ProbeEventKind.XpeConfigureRequested,
@@ -457,6 +459,20 @@ suite "X11 event mapping":
       propertyMaxWidth: 1280,
       propertyMaxHeight: 900,
     ).messagesFor()
+    let wmHints = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 4,
+      propertyAtom: "WM_HINTS",
+      propertyValue: "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_HIDDEN",
+      propertyUrgent: true,
+    ).messagesFor()
+    let wmHintsCleared = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 4,
+      propertyAtom: "WM_HINTS",
+      propertyValue: "_NET_WM_STATE_FULLSCREEN",
+      propertyUrgent: false,
+    ).messagesFor()
 
     check title.len == 1
     check title[0].kind == MsgKind.WlWindowTitle
@@ -481,6 +497,17 @@ suite "X11 event mapping":
     check normalHints[0].minHeight == 200
     check normalHints[0].maxWidth == 1280
     check normalHints[0].maxHeight == 900
+    check wmHints.len == 1
+    check wmHints[0].kind == MsgKind.WlWindowStateChanged
+    check wmHints[0].stateWindowId == 4
+    check wmHints[0].stateFullscreen
+    check not wmHints[0].stateMaximized
+    check wmHints[0].stateMinimized
+    check wmHints[0].stateUrgent
+    check wmHintsCleared.len == 1
+    check wmHintsCleared[0].kind == MsgKind.WlWindowStateChanged
+    check wmHintsCleared[0].stateFullscreen
+    check not wmHintsCleared[0].stateUrgent
 
   test "net wm state changes map to observed window state":
     let messages = X11BackendEvent(

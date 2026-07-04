@@ -12,6 +12,7 @@ const
   X11StateDemandsAttention = "_NET_WM_STATE_DEMANDS_ATTENTION"
   X11WmTransientFor = "WM_TRANSIENT_FOR"
   X11WmNormalHints = "WM_NORMAL_HINTS"
+  X11WmHints = "WM_HINTS"
   X11StateActionRemove = 0'u32
   X11StateActionAdd = 1'u32
   X11StateActionToggle = 2'u32
@@ -53,6 +54,7 @@ type
     mapped*: uint8
     connected*: uint8
     focused*: uint8
+    urgent*: uint8
     name*: array[256, char]
     title*: array[512, char]
 
@@ -118,6 +120,7 @@ type
       propertyPid*: int32
       propertyMinWidth*, propertyMinHeight*, propertyMaxWidth*, propertyMaxHeight*:
         int32
+      propertyUrgent*: bool
     of X11BackendEventKind.FocusChanged:
       focusWindowId*: uint32
       focused*: bool
@@ -280,6 +283,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       propertyMinHeight: event.minH,
       propertyMaxWidth: event.maxW,
       propertyMaxHeight: event.maxH,
+      propertyUrgent: event.urgent != 0,
     )
   of X11ProbeEventKind.XpeFocusChanged:
     X11BackendEvent(
@@ -549,6 +553,20 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
           minHeight: event.propertyMinHeight,
           maxWidth: event.propertyMaxWidth,
           maxHeight: event.propertyMaxHeight,
+        )
+      )
+    of X11WmHints:
+      let tokens = event.propertyValue.stateTokenSet()
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowStateChanged,
+          stateWindowId: event.propertyWindowId,
+          stateFullscreen: tokens.hasState(X11StateFullscreen),
+          stateMaximized:
+            tokens.hasState(X11StateMaximizedHorz) or
+            tokens.hasState(X11StateMaximizedVert),
+          stateMinimized: tokens.hasState(X11StateHidden),
+          stateUrgent: event.propertyUrgent,
         )
       )
     of "_NET_WM_STATE":

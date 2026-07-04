@@ -301,6 +301,58 @@ suite "X11 model admission":
     check cleared.get().maxWidth == 0
     check cleared.get().maxHeight == 0
 
+  test "admits wm hints urgency while preserving observed net wm state":
+    var model = x11Model()
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 33, wmClass: "app", title: "Urgent", w: 400, h: 300, mapped: true
+        ),
+      )
+    )
+
+    let urgent = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 33,
+        propertyAtom: "WM_HINTS",
+        propertyValue: "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_HIDDEN",
+        propertyUrgent: true,
+      )
+    )
+
+    check urgent.messages.len == 1
+    check urgent.messages[0].kind == MsgKind.WlWindowStateChanged
+    var win = model.snapshotWindow(33)
+    check win.isFullscreen
+    check win.isMinimized
+    check win.isUrgent
+    check model.snapshotWorkspace(1).isUrgent
+
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 33,
+        propertyAtom: "WM_HINTS",
+        propertyValue: "_NET_WM_STATE_FULLSCREEN",
+        propertyUrgent: false,
+      )
+    )
+    win = model.snapshotWindow(33)
+    check win.isFullscreen
+    check not win.isMinimized
+    check not win.isUrgent
+    check not model.snapshotWorkspace(1).isUrgent
+
   test "admits net wm state updates into existing window state":
     var model = x11Model()
     discard model.admitDryRun(

@@ -78,6 +78,7 @@ typedef struct TriadX11Event {
     uint8_t mapped;
     uint8_t connected;
     uint8_t focused;
+    uint8_t urgent;
     char name[256];
     char title[512];
 } TriadX11Event;
@@ -132,6 +133,7 @@ typedef struct TriadX11Atoms {
     xcb_atom_t wm_delete_window;
     xcb_atom_t wm_transient_for;
     xcb_atom_t wm_normal_hints;
+    xcb_atom_t wm_hints;
     xcb_atom_t wm_class;
     xcb_atom_t wm_name;
     xcb_atom_t net_wm_name;
@@ -493,6 +495,16 @@ static int window_normal_hints(
             *max_h = hints.max_height;
     }
     return 1;
+}
+
+static int window_urgent(TriadX11Probe *probe, xcb_window_t win)
+{
+    xcb_get_property_cookie_t cookie = xcb_icccm_get_wm_hints(probe->conn, win);
+    xcb_icccm_wm_hints_t hints;
+    memset(&hints, 0, sizeof(hints));
+    if (!xcb_icccm_get_wm_hints_reply(probe->conn, cookie, &hints, NULL))
+        return 0;
+    return xcb_icccm_wm_hints_get_urgency(&hints) != 0;
 }
 
 static char *window_state_atoms(TriadX11Probe *probe, xcb_window_t win)
@@ -1041,6 +1053,7 @@ static void init_atoms(TriadX11Probe *probe)
     probe->atoms.wm_delete_window = intern_atom(probe, "WM_DELETE_WINDOW", 0);
     probe->atoms.wm_transient_for = intern_atom(probe, "WM_TRANSIENT_FOR", 0);
     probe->atoms.wm_normal_hints = intern_atom(probe, "WM_NORMAL_HINTS", 0);
+    probe->atoms.wm_hints = intern_atom(probe, "WM_HINTS", 0);
     probe->atoms.wm_class = intern_atom(probe, "WM_CLASS", 0);
     probe->atoms.wm_name = intern_atom(probe, "WM_NAME", 0);
     probe->atoms.net_wm_name = intern_atom(probe, "_NET_WM_NAME", 0);
@@ -1857,6 +1870,18 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         event.kind = TRIAD_X11_EVENT_PROPERTY_CHANGED;
         event.id = ev->window;
         copy_text(event.name, sizeof(event.name), name);
+        if (ev->atom == probe->atoms.wm_hints) {
+            event.urgent =
+                ev->state == XCB_PROPERTY_NEW_VALUE && window_urgent(probe, ev->window)
+                    ? 1
+                    : 0;
+            char *state = window_state_atoms(probe, ev->window);
+            copy_text(event.title, sizeof(event.title), state);
+            free(state);
+            probe_event(probe, &event);
+            free(name);
+            break;
+        }
         if (ev->state == XCB_PROPERTY_NEW_VALUE) {
             if (ev->atom == probe->atoms.wm_class) {
                 char *class_name = window_class(probe, ev->window);
