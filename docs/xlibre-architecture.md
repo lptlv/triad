@@ -219,7 +219,11 @@ focused floating toggles, and argv-style `spawn` commands.
 Unsupported configured commands outside that allowlist are rejected rather than
 run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
-extension versions plus aggregate input device counts. Manage mode installs X11
+extension versions plus aggregate input device counts. `triad_xlibre
+--trace-xinput-motion` additionally selects XI2 motion events and logs valuator
+axis numbers and values for hardware diagnostics; normal sessions leave that
+motion stream disabled until high-resolution scroll dispatch is wired through
+configuration. Manage mode installs X11
 passive key grabs for configured key bindings whose commands pass the current
 XLibre allowlist. Modifier parsing, configurable modifier aliases including
 physical `Mod2`/`Mod3`/`Mod5`, and binding-string formatting are centralized in

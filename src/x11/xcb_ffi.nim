@@ -30,9 +30,12 @@ type
     modifiers*: uint32
     binding*: array[128, char]
 
+const X11ProbeOptionTraceXinputMotion* = 1'u32 shl 0
+
 proc triadX11ProbeRun*(
   displayName: cstring,
   once: cint,
+  options: cuint,
   logFn: X11ProbeLogFn,
   eventFn: X11ProbeEventFn,
   tickFn: X11ProbeTickFn,

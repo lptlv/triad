@@ -16,6 +16,10 @@
 
 typedef void (*triad_x11_log_fn)(void *user_data, const char *message);
 
+enum {
+    TRIAD_X11_PROBE_TRACE_XINPUT_MOTION = 1u << 0,
+};
+
 typedef enum TriadX11RequestKind {
     TRIAD_X11_REQUEST_CONFIGURE_WINDOW = 0,
     TRIAD_X11_REQUEST_SET_INPUT_FOCUS = 1,
@@ -167,6 +171,7 @@ typedef struct TriadX11Probe {
     const xcb_query_extension_reply_t *randr_ext;
     const xcb_query_extension_reply_t *xinput_ext;
     const xcb_query_extension_reply_t *xkb_ext;
+    uint32_t options;
     uint32_t ignored_lock_modifiers;
     int stop_requested;
     TriadX11ResolvedKeyGrab *key_grabs;
@@ -1253,6 +1258,93 @@ static const char *xinput_scroll_type_name(uint16_t scroll_type)
     }
 }
 
+static int xinput_motion_trace_enabled(TriadX11Probe *probe)
+{
+    return (probe->options & TRIAD_X11_PROBE_TRACE_XINPUT_MOTION) != 0;
+}
+
+static int32_t xinput_fp1616_integral(xcb_input_fp1616_t value)
+{
+    return value / 65536;
+}
+
+static void format_xinput_valuator_values(
+    const uint32_t *mask,
+    int mask_len,
+    const xcb_input_fp3232_t *values,
+    int values_len,
+    char *buffer,
+    size_t buffer_size)
+{
+    size_t offset = 0;
+    int value_index = 0;
+    if (buffer_size == 0)
+        return;
+    buffer[0] = '\0';
+    if (mask == NULL || values == NULL || mask_len <= 0 || values_len <= 0)
+        return;
+
+    for (int word = 0; word < mask_len; word++) {
+        for (int bit = 0; bit < 32; bit++) {
+            if ((mask[word] & (1u << bit)) == 0)
+                continue;
+            if (value_index >= values_len)
+                return;
+            int axis = word * 32 + bit;
+            int written = snprintf(
+                buffer + offset,
+                buffer_size - offset,
+                "%s%d=%d.%08x",
+                offset == 0 ? "" : ",",
+                axis,
+                values[value_index].integral,
+                values[value_index].frac);
+            if (written < 0)
+                return;
+            if ((size_t)written >= buffer_size - offset) {
+                buffer[buffer_size - 1] = '\0';
+                return;
+            }
+            offset += (size_t)written;
+            value_index++;
+        }
+    }
+}
+
+static void select_xinput_motion_events(TriadX11Probe *probe)
+{
+    if (!xinput_motion_trace_enabled(probe))
+        return;
+
+    struct {
+        xcb_input_event_mask_t header;
+        uint32_t mask;
+    } selection;
+    memset(&selection, 0, sizeof(selection));
+    selection.header.deviceid = XCB_INPUT_DEVICE_ALL_MASTER;
+    selection.header.mask_len = 1;
+    selection.mask = XCB_INPUT_XI_EVENT_MASK_MOTION;
+
+    xcb_void_cookie_t cookie = xcb_input_xi_select_events_checked(
+        probe->conn,
+        probe->screen->root,
+        1,
+        &selection.header);
+    xcb_generic_error_t *error = xcb_request_check(probe->conn, cookie);
+    if (error != NULL) {
+        probe_log(
+            probe,
+            "xinput motion events selection failed error_code=%u",
+            error->error_code);
+        free(error);
+        return;
+    }
+    probe_log(
+        probe,
+        "xinput motion events selected device=all-master mask=0x%08x",
+        selection.mask);
+}
+
 static void query_xinput_devices(TriadX11Probe *probe)
 {
     xcb_input_xi_query_device_cookie_t device_cookie =
@@ -1516,6 +1608,7 @@ static void query_input_extensions(TriadX11Probe *probe)
         probe->xinput_ext->first_event);
     free(xinput);
     query_xinput_devices(probe);
+    select_xinput_motion_events(probe);
 }
 
 static void query_randr(TriadX11Probe *probe)
@@ -1720,9 +1813,84 @@ static void log_xkb_event(TriadX11Probe *probe, xcb_generic_event_t *event)
     }
 }
 
+static int log_xinput_event(TriadX11Probe *probe, xcb_generic_event_t *event)
+{
+    if (probe->xinput_ext == NULL || !probe->xinput_ext->present)
+        return 0;
+    xcb_ge_generic_event_t *generic = (xcb_ge_generic_event_t *)event;
+    if (generic->extension != probe->xinput_ext->major_opcode)
+        return 0;
+
+    switch (generic->event_type) {
+    case XCB_INPUT_MOTION: {
+        if (!xinput_motion_trace_enabled(probe))
+            return 1;
+        xcb_input_motion_event_t *ev = (xcb_input_motion_event_t *)event;
+        char values[512];
+        format_xinput_valuator_values(
+            xcb_input_button_press_valuator_mask(ev),
+            xcb_input_button_press_valuator_mask_length(ev),
+            xcb_input_button_press_axisvalues(ev),
+            xcb_input_button_press_axisvalues_length(ev),
+            values,
+            sizeof(values));
+        probe_log(
+            probe,
+            "event XInputMotion device=%u source=%u detail=%u root=0x%08x event=0x%08x child=0x%08x root_xy=%d,%d event_xy=%d,%d valuators_len=%u values=\"%s\" flags=0x%08x",
+            ev->deviceid,
+            ev->sourceid,
+            ev->detail,
+            ev->root,
+            ev->event,
+            ev->child,
+            xinput_fp1616_integral(ev->root_x),
+            xinput_fp1616_integral(ev->root_y),
+            xinput_fp1616_integral(ev->event_x),
+            xinput_fp1616_integral(ev->event_y),
+            ev->valuators_len,
+            values,
+            ev->flags);
+        return 1;
+    }
+    case XCB_INPUT_RAW_MOTION: {
+        if (!xinput_motion_trace_enabled(probe))
+            return 1;
+        xcb_input_raw_motion_event_t *ev = (xcb_input_raw_motion_event_t *)event;
+        char values[512];
+        format_xinput_valuator_values(
+            xcb_input_raw_button_press_valuator_mask(ev),
+            xcb_input_raw_button_press_valuator_mask_length(ev),
+            xcb_input_raw_button_press_axisvalues(ev),
+            xcb_input_raw_button_press_axisvalues_length(ev),
+            values,
+            sizeof(values));
+        probe_log(
+            probe,
+            "event XInputRawMotion device=%u source=%u detail=%u valuators_len=%u values=\"%s\" flags=0x%08x",
+            ev->deviceid,
+            ev->sourceid,
+            ev->detail,
+            ev->valuators_len,
+            values,
+            ev->flags);
+        return 1;
+    }
+    default:
+        probe_log(
+            probe,
+            "event XInputGeneric extension=%u event_type=%u length=%u",
+            generic->extension,
+            generic->event_type,
+            generic->length);
+        return 1;
+    }
+}
+
 static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
 {
     uint8_t type = event->response_type & 0x7f;
+    if (type == XCB_GE_GENERIC && log_xinput_event(probe, event))
+        return;
     if (probe->xkb_ext != NULL && probe->xkb_ext->present &&
         type == probe->xkb_ext->first_event) {
         log_xkb_event(probe, event);
@@ -2136,6 +2304,7 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
 int triad_x11_probe_run(
     const char *display_name,
     int once,
+    uint32_t options,
     triad_x11_log_fn log_fn,
     triad_x11_event_fn event_fn,
     triad_x11_tick_fn tick_fn,
@@ -2143,6 +2312,7 @@ int triad_x11_probe_run(
 {
     TriadX11Probe probe;
     memset(&probe, 0, sizeof(probe));
+    probe.options = options;
     probe.log = log_fn;
     probe.event = event_fn;
     probe.log_user_data = user_data;

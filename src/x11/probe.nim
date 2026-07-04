@@ -13,6 +13,7 @@ import atoms, events, ipc_runtime, pipeline, request_executor, spawn_runner, xcb
 
 const X11IpcListenReadyTimeoutMs = 1000
 const
+  X11ProbeTraceXinputMotion* = X11ProbeOptionTraceXinputMotion
   X11ResizeEdgeTop = 1'u32
   X11ResizeEdgeBottom = 2'u32
   X11ResizeEdgeLeft = 4'u32
@@ -784,6 +785,7 @@ proc runX11Probe*(
     mode = X11ProbeMode.Observe,
     configPath = "",
     socketPath = "",
+    probeOptions = 0'u32,
 ): int =
   let display = if displayName.len == 0: nil else: displayName.cstring
   discard RequiredX11Atoms
@@ -792,6 +794,7 @@ proc runX11Probe*(
       triadX11ProbeRun(
         display,
         cint(ord(once)),
+        cuint(probeOptions),
         probeLogCallback,
         probeEventCallback,
         probeTickCallback,
@@ -816,6 +819,7 @@ proc runX11Probe*(
     triadX11ProbeRun(
       display,
       cint(ord(once)),
+      cuint(probeOptions),
       probeLogCallback,
       probeEventCallback,
       probeTickCallback,

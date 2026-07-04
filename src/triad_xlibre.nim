@@ -3,7 +3,7 @@ import std/[os, strutils]
 import x11/probe
 
 const Usage = """
-usage: triad_xlibre [--display DISPLAY] [--mode observe|admit|manage] [--config PATH] [--socket PATH] [--once] [--help]
+usage: triad_xlibre [--display DISPLAY] [--mode observe|admit|manage] [--config PATH] [--socket PATH] [--once] [--trace-xinput-motion] [--help]
 
 Experimental XLibre/X11 event probe and manager loop.
 
@@ -13,6 +13,8 @@ Options:
   --config PATH      Load Triad config for admit/manage mode.
   --socket PATH      Expose read-only native Triad IPC in manage mode.
   --once             Claim WM ownership, dump initial state, then exit.
+  --trace-xinput-motion
+                     Select and log XI2 motion valuators for diagnostics.
   --help             Show this help.
 """
 
@@ -37,6 +39,7 @@ when isMainModule:
   var configPath = ""
   var socketPath = ""
   var once = false
+  var probeOptions = 0'u32
   var mode = X11ProbeMode.Observe
   let args = commandLineParams()
   var i = 0
@@ -47,6 +50,8 @@ when isMainModule:
       quit 0
     elif arg == "--once":
       once = true
+    elif arg == "--trace-xinput-motion":
+      probeOptions = probeOptions or X11ProbeTraceXinputMotion
     elif arg == "--display":
       inc i
       if i >= args.len:
@@ -90,4 +95,4 @@ when isMainModule:
   if socketPath.len > 0 and mode != X11ProbeMode.Manage:
     fail("--socket requires --mode manage")
 
-  quit runX11Probe(displayName, once, mode, configPath, socketPath)
+  quit runX11Probe(displayName, once, mode, configPath, socketPath, probeOptions)

@@ -146,7 +146,7 @@ trap cleanup EXIT INT TERM
 
 sleep 0.5
 
-if ! "$probe" --display "$display" --once >"$log" 2>&1; then
+if ! "$probe" --display "$display" --trace-xinput-motion --once >"$log" 2>&1; then
   cat "$log" >&2
   exit 1
 fi
@@ -159,6 +159,7 @@ for pattern in \
   "xkb version=" \
   "xinput version=" \
   "xinput devices count=" \
+  "xinput motion events selected" \
   "scroll_axes=" \
   "gesture_class=" \
   "windows count=" \
