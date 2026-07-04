@@ -27,6 +27,7 @@ type
     WindowDimensions
     WindowDecorationHint
     WindowPresentationHint
+    WindowParentedRoleHint
     WindowMenuRequested
     WindowMaximizeRequested
     WindowUnmaximizeRequested
@@ -236,6 +237,8 @@ type
       deferAdmission*: bool
       spawnContextOutputId*: uint32
       spawnContextSlot*: uint32
+      createdHasParentedRoleHint*: bool
+      createdParentedRoleHint*: ParentedRole
     of MsgKind.WindowDestroyed:
       destroyedId*: uint32
     of MsgKind.FocusChanged:
@@ -272,6 +275,9 @@ type
     of MsgKind.WindowPresentationHint:
       presentationWindowId*: uint32
       presentationHint*: uint32
+    of MsgKind.WindowParentedRoleHint:
+      parentedRoleWindowId*: uint32
+      parentedRoleHint*: ParentedRole
     of MsgKind.WindowMenuRequested:
       menuWindowId*: uint32
       menuX*: int32

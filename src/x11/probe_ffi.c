@@ -81,6 +81,7 @@ typedef struct TriadX11Event {
     uint8_t urgent;
     char name[256];
     char title[512];
+    char window_type[512];
 } TriadX11Event;
 
 typedef struct TriadX11KeyGrab {
@@ -980,6 +981,7 @@ static void log_window(
 
     char *title = window_title(probe, win);
     char *class_name = window_class(probe, win);
+    char *window_type = window_type_atoms(probe, win);
     uint32_t pid = window_pid(probe, win);
     xcb_window_t parent = window_transient_for(probe, win);
     int32_t min_w = 0;
@@ -990,7 +992,7 @@ static void log_window(
 
     probe_log(
         probe,
-        "window source=%s id=0x%08x parent=0x%08x map_state=%u override_redirect=%u geom=%dx%d+%d+%d hints=min:%dx%d max:%dx%d class=\"%s\" title=\"%s\" pid=%u",
+        "window source=%s id=0x%08x parent=0x%08x map_state=%u override_redirect=%u geom=%dx%d+%d+%d hints=min:%dx%d max:%dx%d type=\"%s\" class=\"%s\" title=\"%s\" pid=%u",
         source,
         win,
         parent,
@@ -1004,6 +1006,7 @@ static void log_window(
         min_h,
         max_w,
         max_h,
+        window_type != NULL ? window_type : "",
         class_name != NULL ? class_name : "",
         title != NULL ? title : "",
         pid);
@@ -1026,6 +1029,7 @@ static void log_window(
     event.mapped = attr->map_state == XCB_MAP_STATE_VIEWABLE ? 1 : 0;
     copy_text(event.name, sizeof(event.name), class_name);
     copy_text(event.title, sizeof(event.title), title);
+    copy_text(event.window_type, sizeof(event.window_type), window_type);
     probe_event(probe, &event);
 
     if (!attr->override_redirect)
@@ -1033,6 +1037,7 @@ static void log_window(
 
     free(title);
     free(class_name);
+    free(window_type);
     free(attr);
     free(geom);
 }

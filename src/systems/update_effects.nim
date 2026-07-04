@@ -73,9 +73,9 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
       MsgKind.WindowParent, MsgKind.WindowMaximizeRequested,
       MsgKind.WindowUnmaximizeRequested, MsgKind.WindowMinimizeRequested,
       MsgKind.WindowStateChanged, MsgKind.WindowIdentifier, MsgKind.WindowAppId,
-      MsgKind.WindowTitle, MsgKind.WindowDimensionsHint, MsgKind.CmdFocusNext,
-      MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection, MsgKind.CmdFocusLast,
-      MsgKind.CmdFocusTagLeft, MsgKind.CmdFocusTagRight,
+      MsgKind.WindowTitle, MsgKind.WindowDimensionsHint, MsgKind.WindowParentedRoleHint,
+      MsgKind.CmdFocusNext, MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection,
+      MsgKind.CmdFocusLast, MsgKind.CmdFocusTagLeft, MsgKind.CmdFocusTagRight,
       MsgKind.CmdFocusOccupiedTagLeft, MsgKind.CmdFocusOccupiedTagRight,
       MsgKind.CmdFocusColumnFirst, MsgKind.CmdFocusColumnLast,
       MsgKind.CmdFocusWindowOrWorkspaceUp, MsgKind.CmdFocusWindowOrWorkspaceDown,
@@ -107,8 +107,8 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
 proc shouldBroadcastOutputsChanged*(kind: MsgKind): bool =
   case kind
   of MsgKind.OutputDimensions, MsgKind.OutputName, MsgKind.OutputPosition,
-      MsgKind.OutputRefreshRate, MsgKind.OutputPhysicalMetadata,
-      MsgKind.OutputScale, MsgKind.OutputUsable, MsgKind.OutputRemoved:
+      MsgKind.OutputRefreshRate, MsgKind.OutputPhysicalMetadata, MsgKind.OutputScale,
+      MsgKind.OutputUsable, MsgKind.OutputRemoved:
     true
   else:
     false
@@ -116,19 +116,20 @@ proc shouldBroadcastOutputsChanged*(kind: MsgKind): bool =
 proc shouldBroadcastTriadLayoutChanged*(kind: MsgKind): bool =
   case kind
   of MsgKind.WindowCreated, MsgKind.WindowDestroyed, MsgKind.WindowDimensionsHint,
-      MsgKind.WindowParent, MsgKind.WindowFullscreenRequested,
-      MsgKind.WindowExitFullscreenRequested, MsgKind.WindowMaximizeRequested,
-      MsgKind.WindowUnmaximizeRequested, MsgKind.WindowMinimizeRequested,
-      MsgKind.WindowStateChanged, MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout,
-      MsgKind.CmdSwitchLayout, MsgKind.CmdSetMasterCount, MsgKind.CmdSetMasterRatio,
-      MsgKind.CmdAdjustMasterCount, MsgKind.CmdAdjustMasterRatio,
-      MsgKind.CmdMaximizeColumn, MsgKind.CmdResizeWidth, MsgKind.CmdResizeHeight,
-      MsgKind.CmdSetColumnWidth, MsgKind.CmdSwitchProportionPreset, MsgKind.CmdFocusTag,
-      MsgKind.CmdBspPreselect, MsgKind.CmdBspPreselectCancel,
-      MsgKind.CmdBspPreselectRatio, MsgKind.CmdFocusWorkspaceIndex,
-      MsgKind.CmdNewWorkspace, MsgKind.CmdMoveToTag, MsgKind.CmdMoveWindowToTag,
-      MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex,
-      MsgKind.CmdFocusOutput, MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToOutput,
+      MsgKind.WindowParent, MsgKind.WindowParentedRoleHint,
+      MsgKind.WindowFullscreenRequested, MsgKind.WindowExitFullscreenRequested,
+      MsgKind.WindowMaximizeRequested, MsgKind.WindowUnmaximizeRequested,
+      MsgKind.WindowMinimizeRequested, MsgKind.WindowStateChanged, MsgKind.CmdSetLayout,
+      MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout, MsgKind.CmdSetMasterCount,
+      MsgKind.CmdSetMasterRatio, MsgKind.CmdAdjustMasterCount,
+      MsgKind.CmdAdjustMasterRatio, MsgKind.CmdMaximizeColumn, MsgKind.CmdResizeWidth,
+      MsgKind.CmdResizeHeight, MsgKind.CmdSetColumnWidth,
+      MsgKind.CmdSwitchProportionPreset, MsgKind.CmdFocusTag, MsgKind.CmdBspPreselect,
+      MsgKind.CmdBspPreselectCancel, MsgKind.CmdBspPreselectRatio,
+      MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace, MsgKind.CmdMoveToTag,
+      MsgKind.CmdMoveWindowToTag, MsgKind.CmdMoveToWorkspaceIndex,
+      MsgKind.CmdMoveWindowToWorkspaceIndex, MsgKind.CmdFocusOutput,
+      MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToOutput,
       MsgKind.CmdMoveToTagLeft, MsgKind.CmdMoveToTagRight, MsgKind.CmdMoveWindow,
       MsgKind.CmdMoveWindowLeft, MsgKind.CmdMoveWindowRight, MsgKind.CmdMoveWindowUp,
       MsgKind.CmdMoveWindowDown, MsgKind.CmdMoveWindowUpOrToWorkspaceUp,
@@ -215,8 +216,7 @@ proc isOverviewPreviewCommand(kind: MsgKind): bool =
   kind in {
     MsgKind.CmdFocusNext, MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection,
     MsgKind.CmdFocusWindowById, MsgKind.CmdFocusWindowOrWorkspaceUp,
-    MsgKind.CmdFocusWindowOrWorkspaceDown, MsgKind.CmdOverviewTab,
-    MsgKind.OverviewWheel,
+    MsgKind.CmdFocusWindowOrWorkspaceDown, MsgKind.CmdOverviewTab, MsgKind.OverviewWheel,
   }
 
 proc isFocusPreservingLayoutCommand(kind: MsgKind): bool =

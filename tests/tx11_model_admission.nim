@@ -25,6 +25,20 @@ proc x11Model(): Model =
     )
   ).model
 
+proc x11ModelWithRules(windowRules: seq[WindowRule]): Model =
+  initRuntimeStateFromConfig(
+    Config(
+      layout: LayoutConfig(
+        gaps: 10,
+        defaultColumnWidth: 0.7,
+        defaultWindowWidth: 0.8,
+        defaultWindowHeight: 0.6,
+      ),
+      workspaces: WorkspaceConfig(defaultCount: 3),
+      windowRules: windowRules,
+    )
+  ).model
+
 proc snapshotWindow(model: Model, id: uint32): ShellWindow =
   for win in model.shellSnapshot().windows:
     if uint32(win.id) == id:
@@ -45,31 +59,30 @@ proc hasEffect(effects: seq[Effect], kind: EffectKind): bool =
 suite "X11 model admission":
   test "admits output and window discovery into an isolated model":
     var model = x11Model()
-    let results =
-      model.admitDryRun(
-        [
-          X11BackendEvent(
-            kind: X11BackendEventKind.OutputDiscovered,
-            output: X11OutputSnapshot(
-              id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
-            ),
+    let results = model.admitDryRun(
+      [
+        X11BackendEvent(
+          kind: X11BackendEventKind.OutputDiscovered,
+          output: X11OutputSnapshot(
+            id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
           ),
-          X11BackendEvent(
-            kind: X11BackendEventKind.WindowDiscovered,
-            window: X11WindowSnapshot(
-              id: 0x2a,
-              pid: 1234,
-              wmClass: "triad-smoke/triad-smoke",
-              title: "triad smoke",
-              x: 32,
-              y: 48,
-              w: 320,
-              h: 200,
-              mapped: true,
-            ),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 0x2a,
+            pid: 1234,
+            wmClass: "triad-smoke/triad-smoke",
+            title: "triad smoke",
+            x: 32,
+            y: 48,
+            w: 320,
+            h: 200,
+            mapped: true,
           ),
-        ]
-      )
+        ),
+      ]
+    )
 
     check results.len == 2
     check results[0].messages.len == 3
@@ -100,29 +113,27 @@ suite "X11 model admission":
 
   test "admits focus and destruction into model state":
     var model = x11Model()
-    discard
-      model.admitDryRun(
-        [
-          X11BackendEvent(
-            kind: X11BackendEventKind.OutputDiscovered,
-            output: X11OutputSnapshot(
-              id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600
-            ),
+    discard model.admitDryRun(
+      [
+        X11BackendEvent(
+          kind: X11BackendEventKind.OutputDiscovered,
+          output:
+            X11OutputSnapshot(id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 10, wmClass: "app", title: "One", w: 300, h: 200, mapped: true
           ),
-          X11BackendEvent(
-            kind: X11BackendEventKind.WindowDiscovered,
-            window: X11WindowSnapshot(
-              id: 10, wmClass: "app", title: "One", w: 300, h: 200, mapped: true
-            ),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 11, wmClass: "app", title: "Two", w: 300, h: 200, mapped: true
           ),
-          X11BackendEvent(
-            kind: X11BackendEventKind.WindowDiscovered,
-            window: X11WindowSnapshot(
-              id: 11, wmClass: "app", title: "Two", w: 300, h: 200, mapped: true
-            ),
-          ),
-        ]
-      )
+        ),
+      ]
+    )
 
     let focus = model.admitDryRun(
       X11BackendEvent(
@@ -167,33 +178,28 @@ suite "X11 model admission":
       )
     )
 
-    let configured =
-      model.admitDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.ConfigureRequested,
-          configure: X11ConfigureRequest(
-            windowId: 21, valueMask: 0x0c, w: 640, h: 480
-          ),
-        )
+    let configured = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.ConfigureRequested,
+        configure: X11ConfigureRequest(windowId: 21, valueMask: 0x0c, w: 640, h: 480),
       )
-    let title =
-      model.admitDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.PropertyChanged,
-          propertyWindowId: 21,
-          propertyAtom: "_NET_WM_NAME",
-          propertyValue: "New",
-        )
+    )
+    let title = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 21,
+        propertyAtom: "_NET_WM_NAME",
+        propertyValue: "New",
       )
-    let appId =
-      model.admitDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.PropertyChanged,
-          propertyWindowId: 21,
-          propertyAtom: "WM_CLASS",
-          propertyValue: "kitty/kitty",
-        )
+    )
+    let appId = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 21,
+        propertyAtom: "WM_CLASS",
+        propertyValue: "kitty/kitty",
       )
+    )
 
     check configured.messages.len == 1
     check configured.messages[0].kind == MsgKind.WindowDimensions
@@ -306,9 +312,8 @@ suite "X11 model admission":
     discard model.admitDryRun(
       X11BackendEvent(
         kind: X11BackendEventKind.OutputDiscovered,
-        output: X11OutputSnapshot(
-          id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600
-        ),
+        output:
+          X11OutputSnapshot(id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600),
       )
     )
     discard model.admitDryRun(
@@ -353,14 +358,91 @@ suite "X11 model admission":
     check not win.isUrgent
     check not model.snapshotWorkspace(1).isUrgent
 
+  test "admits X11 window type as configurable parented role hint":
+    var model = x11Model()
+    discard model.admitDryRun(
+      [
+        X11BackendEvent(
+          kind: X11BackendEventKind.OutputDiscovered,
+          output:
+            X11OutputSnapshot(id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 0x70, wmClass: "app/app", title: "Main", w: 500, h: 400
+          ),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.MapRequested,
+          window: X11WindowSnapshot(
+            id: 0x71,
+            parentId: 0x70,
+            wmClass: "app/app",
+            title: "Child",
+            windowType: "_NET_WM_WINDOW_TYPE_NORMAL",
+            w: 500,
+            h: 400,
+          ),
+        ),
+      ]
+    )
+
+    let plainChild =
+      model.windowData(model.windowForExternal(ExternalWindowId(0x71))).get()
+    check plainChild.hasParentedRoleHint
+    check plainChild.parentedRoleHint == ParentedRole.Plain
+    check not plainChild.isFloating
+
+    var overrideModel = x11ModelWithRules(
+      @[
+        WindowRule(
+          appIdMatch: "app", parentedRoleSet: true, parentedRole: ParentedRole.Dialog
+        )
+      ]
+    )
+    discard overrideModel.admitDryRun(
+      [
+        X11BackendEvent(
+          kind: X11BackendEventKind.OutputDiscovered,
+          output:
+            X11OutputSnapshot(id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 0x72, wmClass: "app/app", title: "Main", w: 500, h: 400
+          ),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.MapRequested,
+          window: X11WindowSnapshot(
+            id: 0x73,
+            parentId: 0x72,
+            wmClass: "app/app",
+            title: "Child",
+            windowType: "_NET_WM_WINDOW_TYPE_NORMAL",
+            w: 500,
+            h: 400,
+          ),
+        ),
+      ]
+    )
+
+    let ruleChild = overrideModel
+      .windowData(overrideModel.windowForExternal(ExternalWindowId(0x73)))
+      .get()
+    check ruleChild.hasParentedRoleHint
+    check ruleChild.parentedRoleHint == ParentedRole.Plain
+    check ruleChild.isFloating
+
   test "admits net wm state updates into existing window state":
     var model = x11Model()
     discard model.admitDryRun(
       X11BackendEvent(
         kind: X11BackendEventKind.OutputDiscovered,
-        output: X11OutputSnapshot(
-          id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600
-        ),
+        output:
+          X11OutputSnapshot(id: 1, name: "Xvfb-0", connected: true, w: 800, h: 600),
       )
     )
     discard model.admitDryRun(
@@ -372,17 +454,16 @@ suite "X11 model admission":
       )
     )
 
-    let state =
-      model.admitDryRun(
-        X11BackendEvent(
-          kind: X11BackendEventKind.PropertyChanged,
-          propertyWindowId: 22,
-          propertyAtom: "_NET_WM_STATE",
-          propertyValue:
-            "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_VERT " &
-            "_NET_WM_STATE_HIDDEN _NET_WM_STATE_DEMANDS_ATTENTION",
-        )
+    let state = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 22,
+        propertyAtom: "_NET_WM_STATE",
+        propertyValue:
+          "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_VERT " &
+          "_NET_WM_STATE_HIDDEN _NET_WM_STATE_DEMANDS_ATTENTION",
       )
+    )
 
     check state.messages.len == 1
     check state.messages[0].kind == MsgKind.WindowStateChanged

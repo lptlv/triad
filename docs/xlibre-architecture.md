@@ -181,8 +181,11 @@ executes whitelisted requests on the active probe connection. Admit and manage
 mode load real Triad config through the strict config loader and fail explicitly
 on invalid config. Configure requests, metadata notifications, and
 `_NET_WM_STATE` changes for fullscreen, maximized, minimized, and urgent windows
-now update isolated model state through existing Triad messages. Per-window
-urgency is also aggregated into workspace-level shell snapshot urgency.
+now update isolated model state through existing Triad messages. XLibre also
+decodes `_NET_WM_WINDOW_TYPE` during discovery and property changes, maps known
+dialog/tool/plain atoms into a backend-neutral parented-role hint, and lets
+explicit Triad window rules override that hint. Per-window urgency is also
+aggregated into workspace-level shell snapshot urgency.
 Manage mode can also expose opt-in read-only native Triad IPC with
 `--socket PATH`. That socket reuses the existing Triad JSON request schema for
 `state`, `workspaces`, `outputs`, `windows`, `focused-window`, and

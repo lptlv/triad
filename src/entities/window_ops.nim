@@ -3,7 +3,7 @@ import group_ops, history_ops, placement_ops, scratchpad_ops, swallow_ops
 import ../state/[entity_manager, id_gen, iterators]
 import ../types/core
 import ../types/model
-from ../types/runtime_values import WindowRuleIdleInhibitMode
+from ../types/runtime_values import ParentedRole, WindowRuleIdleInhibitMode
 
 proc addWindow*(
     model: var Model,
@@ -34,6 +34,8 @@ proc addWindow*(
     decorationHint = 0'u32,
     hasPresentationHint = false,
     presentationHint = 0'u32,
+    hasParentedRoleHint = false,
+    parentedRoleHint = ParentedRole.Dialog,
     floatingGeom = Rect(),
     parentAutoFloating = false,
     manualFloatingPosition = false,
@@ -83,6 +85,8 @@ proc addWindow*(
       decorationHint: decorationHint,
       hasPresentationHint: hasPresentationHint,
       presentationHint: presentationHint,
+      hasParentedRoleHint: hasParentedRoleHint,
+      parentedRoleHint: parentedRoleHint,
       floatingGeom: floatingGeom,
       parentAutoFloating: parentAutoFloating,
       manualFloatingPosition: manualFloatingPosition,
@@ -164,6 +168,8 @@ proc setWindowCreatedState*(
     admissionState = WindowAdmissionState.Admitted,
     focusAfterAdmission = false,
     parentExternalId = NullExternalWindowId,
+    hasParentedRoleHint = false,
+    parentedRoleHint = ParentedRole.Dialog,
     keyboardShortcutsInhibit = false,
     idleInhibitMode = WindowRuleIdleInhibitMode.IdleInhibitNone,
     isTerminal = false,
@@ -211,6 +217,10 @@ proc setWindowCreatedState*(
     hasPresentationHint:
       if preserveRuntimeState: current.hasPresentationHint else: false,
     presentationHint: if preserveRuntimeState: current.presentationHint else: 0'u32,
+    hasParentedRoleHint:
+      if preserveRuntimeState: current.hasParentedRoleHint else: hasParentedRoleHint,
+    parentedRoleHint:
+      if preserveRuntimeState: current.parentedRoleHint else: parentedRoleHint,
     floatingGeom: if preserveRuntimeState: current.floatingGeom else: floatingGeom,
     parentAutoFloating:
       if preserveRuntimeState: current.parentAutoFloating else: parentAutoFloating,
@@ -286,9 +296,8 @@ proc preserveWindowRuntimeAttributes*(
       current.isFloating == source.isFloating and
       current.isFullscreen == source.isFullscreen and
       current.isMaximized == source.isMaximized and
-      current.isMinimized == source.isMinimized and
-      current.isUrgent == source.isUrgent and current.isSticky == source.isSticky and
-      current.isOverlay == source.isOverlay and
+      current.isMinimized == source.isMinimized and current.isUrgent == source.isUrgent and
+      current.isSticky == source.isSticky and current.isOverlay == source.isOverlay and
       current.isUnmanagedGlobal == source.isUnmanagedGlobal and
       current.fullscreenOutput == source.fullscreenOutput and
       current.actualW == source.actualW and current.actualH == source.actualH and
@@ -302,6 +311,8 @@ proc preserveWindowRuntimeAttributes*(
       current.decorationHint == source.decorationHint and
       current.hasPresentationHint == source.hasPresentationHint and
       current.presentationHint == source.presentationHint and
+      current.hasParentedRoleHint == source.hasParentedRoleHint and
+      current.parentedRoleHint == source.parentedRoleHint and
       current.floatingGeom == source.floatingGeom and
       current.parentAutoFloating == source.parentAutoFloating and
       current.manualFloatingPosition == source.manualFloatingPosition and
@@ -340,6 +351,8 @@ proc preserveWindowRuntimeAttributes*(
   win.decorationHint = source.decorationHint
   win.hasPresentationHint = source.hasPresentationHint
   win.presentationHint = source.presentationHint
+  win.hasParentedRoleHint = source.hasParentedRoleHint
+  win.parentedRoleHint = source.parentedRoleHint
   win.floatingGeom = source.floatingGeom
   win.parentAutoFloating = source.parentAutoFloating
   win.manualFloatingPosition = source.manualFloatingPosition
@@ -505,6 +518,18 @@ proc setWindowPresentationHint*(model: var Model, winId: WindowId, hint: uint32)
     return false
   model.windows.mEntity(winId).hasPresentationHint = true
   model.windows.mEntity(winId).presentationHint = hint
+  true
+
+proc setWindowParentedRoleHint*(
+    model: var Model, winId: WindowId, role: ParentedRole
+): bool =
+  if model.windows.entity(winId).isNone:
+    return false
+  let win = model.windows.entity(winId).get()
+  if win.hasParentedRoleHint and win.parentedRoleHint == role:
+    return false
+  model.windows.mEntity(winId).hasParentedRoleHint = true
+  model.windows.mEntity(winId).parentedRoleHint = role
   true
 
 proc setWindowFloating*(

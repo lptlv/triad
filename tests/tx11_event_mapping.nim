@@ -1,6 +1,7 @@
 import unittest
 
 import ../src/core/msg
+import ../src/types/runtime_values
 import ../src/x11/events
 
 suite "X11 event mapping":
@@ -24,6 +25,8 @@ suite "X11 event mapping":
       raw.name[idx] = ch
     for idx, ch in "Terminal":
       raw.title[idx] = ch
+    for idx, ch in "_NET_WM_WINDOW_TYPE_DIALOG":
+      raw.windowType[idx] = ch
 
     let event = raw.backendEventFromProbe()
     check event.kind == X11BackendEventKind.WindowDiscovered
@@ -32,6 +35,7 @@ suite "X11 event mapping":
     check event.window.pid == 1234
     check event.window.wmClass == "kitty/kitty"
     check event.window.title == "Terminal"
+    check event.window.windowType == "_NET_WM_WINDOW_TYPE_DIALOG"
     check event.window.x == 10
     check event.window.y == 20
     check event.window.w == 800
@@ -281,6 +285,7 @@ suite "X11 event mapping":
         pid: 1234,
         wmClass: "kitty/kitty",
         title: "Terminal",
+        windowType: "_NET_WM_WINDOW_TYPE_DIALOG",
         x: 10,
         y: 20,
         w: 800,
@@ -298,6 +303,8 @@ suite "X11 event mapping":
     check messages[0].title == "Terminal"
     check messages[0].createdIdentifier == "x11:0x0000002a"
     check not messages[0].deferAdmission
+    check messages[0].createdHasParentedRoleHint
+    check messages[0].createdParentedRoleHint == ParentedRole.Dialog
     check messages[1].kind == MsgKind.WindowDimensions
     check messages[1].dimensionsWindowId == 42
     check messages[1].actualWidth == 800
@@ -539,7 +546,7 @@ suite "X11 event mapping":
     check not cleared[0].stateMinimized
     check not cleared[0].stateUrgent
 
-  test "net wm window type remains observed-only with decoded atom names":
+  test "net wm window type maps decoded atom names to parented role hints":
     var raw = X11ProbeEvent(kind: X11ProbeEventKind.XpePropertyChanged, id: 0x40)
     for idx, ch in "_NET_WM_WINDOW_TYPE":
       raw.name[idx] = ch
@@ -550,9 +557,12 @@ suite "X11 event mapping":
     check event.kind == X11BackendEventKind.PropertyChanged
     check event.propertyWindowId == 0x40
     check event.propertyAtom == "_NET_WM_WINDOW_TYPE"
-    check event.propertyValue ==
-      "_NET_WM_WINDOW_TYPE_DIALOG _NET_WM_WINDOW_TYPE_UTILITY"
-    check event.messagesFor().len == 0
+    check event.propertyValue == "_NET_WM_WINDOW_TYPE_DIALOG _NET_WM_WINDOW_TYPE_UTILITY"
+    let messages = event.messagesFor()
+    check messages.len == 1
+    check messages[0].kind == MsgKind.WindowParentedRoleHint
+    check messages[0].parentedRoleWindowId == 0x40
+    check messages[0].parentedRoleHint == ParentedRole.Dialog
 
   test "client messages map to EWMH commands":
     let active = X11BackendEvent(
@@ -608,11 +618,6 @@ suite "X11 event mapping":
       X11BackendEvent(
         kind: X11BackendEventKind.ConfigureRequested,
         configure: X11ConfigureRequest(windowId: 1, valueMask: 0x04, w: 100, h: 0),
-      ),
-      X11BackendEvent(
-        kind: X11BackendEventKind.PropertyChanged,
-        propertyWindowId: 1,
-        propertyAtom: "_NET_WM_WINDOW_TYPE",
       ),
       X11BackendEvent(kind: X11BackendEventKind.PointerEntered, enterWindowId: 1),
       X11BackendEvent(kind: X11BackendEventKind.RandrChanged, randrRoot: 1),

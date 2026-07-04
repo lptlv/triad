@@ -201,6 +201,8 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
       msg.deferAdmission,
       msg.spawnContextOutputId,
       msg.spawnContextSlot,
+      msg.createdHasParentedRoleHint,
+      msg.createdParentedRoleHint,
     )
     result.dirty = winId != NullWindowId
   of MsgKind.WindowDestroyed:
@@ -219,6 +221,10 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
   of MsgKind.WindowPresentationHint:
     result.dirty = model.updateWindowPresentationHintForExternal(
       msg.presentationWindowId.externalWindowId(), msg.presentationHint
+    )
+  of MsgKind.WindowParentedRoleHint:
+    result.dirty = model.updateWindowParentedRoleHintForExternal(
+      msg.parentedRoleWindowId.externalWindowId(), msg.parentedRoleHint
     )
   of MsgKind.WindowParent:
     result.dirty = model.updateWindowParentForExternal(

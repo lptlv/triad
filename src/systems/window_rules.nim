@@ -295,6 +295,7 @@ proc applyWindowRule(result: var ResolvedWindowRuleData, rule: WindowRuleData) =
     result.centerFloatingSet = true
     result.centerFloating = rule.centerFloating
   if rule.parentedRoleSet:
+    result.parentedRoleSet = true
     result.parentedRole = rule.parentedRole
   if rule.openNamedScratchpad.len > 0:
     result.openNamedScratchpad = rule.openNamedScratchpad
@@ -353,7 +354,11 @@ proc parentedRoleFor*(model: Model, appId, title: string): ParentedRole =
 
 proc parentedRoleFor*(model: Model, win: WindowData): ParentedRole =
   let ruleMatch = model.windowRuleFor(win)
-  if ruleMatch.found: ruleMatch.rule.parentedRole else: ParentedRole.Dialog
+  if ruleMatch.found and ruleMatch.rule.parentedRoleSet:
+    return ruleMatch.rule.parentedRole
+  if win.hasParentedRoleHint:
+    return win.parentedRoleHint
+  ParentedRole.Dialog
 
 proc windowKeyboardShortcutsInhibit*(model: Model, appId, title: string): bool =
   let ruleMatch = model.windowRuleFor(appId, title)

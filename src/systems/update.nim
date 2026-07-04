@@ -8,26 +8,26 @@ import update_commands, update_effects, update_events, update_maintenance, windo
 proc shouldLogRuntimeUpdate(kind: MsgKind): bool =
   kind in {
     MsgKind.WindowCreated, MsgKind.WindowDestroyed, MsgKind.WindowAppId,
-    MsgKind.WindowMaximizeRequested, MsgKind.WindowUnmaximizeRequested,
-    MsgKind.WindowMinimizeRequested, MsgKind.WindowFullscreenRequested,
-    MsgKind.WindowStateChanged, MsgKind.WindowExitFullscreenRequested,
-    MsgKind.SessionLocked, MsgKind.SessionUnlocked, MsgKind.FocusChanged,
-    MsgKind.FrameTabClicked, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
-    MsgKind.CmdFocusTagRight, MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace,
-    MsgKind.CmdFocusOutput, MsgKind.CmdMoveToTag, MsgKind.CmdMoveToTagLeft,
-    MsgKind.CmdMoveToTagRight, MsgKind.CmdMoveWorkspaceToOutput,
-    MsgKind.CmdMoveToOutput, MsgKind.CmdMoveWindowToTag,
-    MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex,
-    MsgKind.CmdMoveWindowUpOrToWorkspaceUp, MsgKind.CmdMoveWindowDownOrToWorkspaceDown,
-    MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout,
-    MsgKind.CmdMaximizeColumn, MsgKind.CmdToggleFloating,
-    MsgKind.CmdSetWindowFloatingById, MsgKind.CmdSetWindowMaximizedById,
-    MsgKind.CmdToggleMaximizedById, MsgKind.CmdToggleMaximized,
-    MsgKind.CmdMoveToScratchpad, MsgKind.CmdToggleFullscreen,
-    MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdToggleFullscreenById,
-    MsgKind.CmdExitFullscreenById, MsgKind.CmdMoveToNamedScratchpad,
-    MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
-    MsgKind.CmdRestoreScratchpad,
+    MsgKind.WindowParentedRoleHint, MsgKind.WindowMaximizeRequested,
+    MsgKind.WindowUnmaximizeRequested, MsgKind.WindowMinimizeRequested,
+    MsgKind.WindowFullscreenRequested, MsgKind.WindowStateChanged,
+    MsgKind.WindowExitFullscreenRequested, MsgKind.SessionLocked,
+    MsgKind.SessionUnlocked, MsgKind.FocusChanged, MsgKind.FrameTabClicked,
+    MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft, MsgKind.CmdFocusTagRight,
+    MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace, MsgKind.CmdFocusOutput,
+    MsgKind.CmdMoveToTag, MsgKind.CmdMoveToTagLeft, MsgKind.CmdMoveToTagRight,
+    MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToOutput,
+    MsgKind.CmdMoveWindowToTag, MsgKind.CmdMoveToWorkspaceIndex,
+    MsgKind.CmdMoveWindowToWorkspaceIndex, MsgKind.CmdMoveWindowUpOrToWorkspaceUp,
+    MsgKind.CmdMoveWindowDownOrToWorkspaceDown, MsgKind.CmdSetLayout,
+    MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout, MsgKind.CmdMaximizeColumn,
+    MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
+    MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleMaximizedById,
+    MsgKind.CmdToggleMaximized, MsgKind.CmdMoveToScratchpad,
+    MsgKind.CmdToggleFullscreen, MsgKind.CmdSetWindowFullscreenById,
+    MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
+    MsgKind.CmdMoveToNamedScratchpad, MsgKind.CmdToggleScratchpad,
+    MsgKind.CmdToggleNamedScratchpad, MsgKind.CmdRestoreScratchpad,
   }
 
 proc updateSnapshotSummary(
@@ -73,6 +73,8 @@ proc addMsgWindowId(ids: var seq[uint32], msg: Msg) =
     ids.addTrackedWindowId(msg.minimizeRequestId)
   of MsgKind.WindowStateChanged:
     ids.addTrackedWindowId(msg.stateWindowId)
+  of MsgKind.WindowParentedRoleHint:
+    ids.addTrackedWindowId(msg.parentedRoleWindowId)
   of MsgKind.WindowFullscreenRequested:
     ids.addTrackedWindowId(msg.fullscreenRequestId)
   of MsgKind.WindowExitFullscreenRequested:
@@ -100,19 +102,18 @@ proc compactWindowState(snapshot: ShellSnapshot, id: uint32): JsonNode =
   for win in snapshot.windows:
     if win.id != id:
       continue
-    result =
-      %*{
-        "id": win.id,
-        "workspace_idx": win.workspaceIdx,
-        "focused": win.isFocused,
-        "floating": win.isFloating,
-        "fullscreen": win.isFullscreen,
-        "maximized": win.isMaximized,
-        "minimized": win.isMinimized,
-        "urgent": win.isUrgent,
-        "app_id": win.appId,
-        "title": win.title,
-      }
+    result = %*{
+      "id": win.id,
+      "workspace_idx": win.workspaceIdx,
+      "focused": win.isFocused,
+      "floating": win.isFloating,
+      "fullscreen": win.isFullscreen,
+      "maximized": win.isMaximized,
+      "minimized": win.isMinimized,
+      "urgent": win.isUrgent,
+      "app_id": win.appId,
+      "title": win.title,
+    }
     result["tag_id"] =
       if win.tagId.isSome:
         %win.tagId.get()
@@ -210,22 +211,21 @@ proc writeRuntimeUpdateEvent(
   if not kind.shouldLogRuntimeUpdate():
     return
   let trackedIds = trackedRuntimeWindowIds(msg, before, after)
-  let payload =
-    %*{
-      "kind": $kind,
-      "dirty": dirty,
-      "collapsed": collapsed,
-      "pruned": pruned,
-      "effect_count": effects.len,
-      "effects": effects.compactRuntimeEffects(),
-      "before":
-        before.updateSnapshotSummary(beforeSessionLocked, beforeLayerFocusExclusive),
-      "after": after.updateSnapshotSummary(afterSessionLocked, afterLayerFocusExclusive),
-      "tracked_windows": {
-        "before": before.compactTrackedWindows(trackedIds),
-        "after": after.compactTrackedWindows(trackedIds),
-      },
-    }
+  let payload = %*{
+    "kind": $kind,
+    "dirty": dirty,
+    "collapsed": collapsed,
+    "pruned": pruned,
+    "effect_count": effects.len,
+    "effects": effects.compactRuntimeEffects(),
+    "before":
+      before.updateSnapshotSummary(beforeSessionLocked, beforeLayerFocusExclusive),
+    "after": after.updateSnapshotSummary(afterSessionLocked, afterLayerFocusExclusive),
+    "tracked_windows": {
+      "before": before.compactTrackedWindows(trackedIds),
+      "after": after.compactTrackedWindows(trackedIds),
+    },
+  }
   if kind.isLayoutCommand():
     payload["layout_transition"] = before.layoutTransitionPayload(after)
   writeBehaviorEvent("runtime_update", payload)

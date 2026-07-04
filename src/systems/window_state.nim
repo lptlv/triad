@@ -3,7 +3,7 @@ import window_policy, window_rules
 import ../core/layout_selection_codec
 import ../core/native_layout_codec
 import ../state/engine
-from ../types/runtime_values import LayoutMode, WindowRuleMaximizePolicy
+from ../types/runtime_values import LayoutMode, ParentedRole, WindowRuleMaximizePolicy
 
 proc requestedFullscreenOutputValid(model: Model, requested: ExternalOutputId): bool =
   requested != NullExternalOutputId and
@@ -64,6 +64,17 @@ proc updateWindowPresentationHintForExternal*(
 ): bool =
   let winId = model.windowForExternal(externalId)
   winId != NullWindowId and model.setWindowPresentationHint(winId, hint)
+
+proc updateWindowParentedRoleHintForExternal*(
+    model: var Model, externalId: ExternalWindowId, role: ParentedRole
+): bool =
+  let winId = model.windowForExternal(externalId)
+  if winId == NullWindowId or not model.setWindowParentedRoleHint(winId, role):
+    return false
+  let winOpt = model.windowData(winId)
+  if winOpt.isSome and winOpt.get().parentExternalId != NullExternalWindowId:
+    discard model.applyParentFloatingPolicy(winId, winOpt.get().parentExternalId)
+  true
 
 proc updateWindowParentForExternal*(
     model: var Model, externalId: ExternalWindowId, parentExternalId: ExternalWindowId

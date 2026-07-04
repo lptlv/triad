@@ -580,8 +580,8 @@ proc dryRunMessageLabel(msg: Msg): string =
   of MsgKind.WindowDestroyed:
     "WindowDestroyed id=" & $msg.destroyedId
   of MsgKind.WindowDimensions:
-    "WindowDimensions id=" & $msg.dimensionsWindowId & " size=" & $msg.actualWidth &
-      "x" & $msg.actualHeight
+    "WindowDimensions id=" & $msg.dimensionsWindowId & " size=" & $msg.actualWidth & "x" &
+      $msg.actualHeight
   of MsgKind.WindowPid:
     "WindowPid id=" & $msg.pidWindowId & " pid=" & $msg.windowPid
   of MsgKind.WindowAppId:
@@ -589,9 +589,12 @@ proc dryRunMessageLabel(msg: Msg): string =
   of MsgKind.WindowTitle:
     "WindowTitle id=" & $msg.titleWindowId & " title=\"" & msg.updatedTitle & "\""
   of MsgKind.WindowStateChanged:
-    "WindowStateChanged id=" & $msg.stateWindowId & " fullscreen=" &
-      $msg.stateFullscreen & " maximized=" & $msg.stateMaximized & " minimized=" &
-      $msg.stateMinimized & " urgent=" & $msg.stateUrgent
+    "WindowStateChanged id=" & $msg.stateWindowId & " fullscreen=" & $msg.stateFullscreen &
+      " maximized=" & $msg.stateMaximized & " minimized=" & $msg.stateMinimized &
+      " urgent=" & $msg.stateUrgent
+  of MsgKind.WindowParentedRoleHint:
+    "WindowParentedRoleHint id=" & $msg.parentedRoleWindowId & " role=" &
+      $msg.parentedRoleHint
   of MsgKind.OutputDimensions:
     "OutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" & $msg.height
   of MsgKind.OutputName:

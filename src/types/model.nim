@@ -46,6 +46,8 @@ type
     decorationHint*: uint32
     hasPresentationHint*: bool
     presentationHint*: uint32
+    hasParentedRoleHint*: bool
+    parentedRoleHint*: ParentedRole
     floatingGeom*: Rect
     parentAutoFloating*: bool
     manualFloatingPosition*: bool
@@ -289,6 +291,7 @@ type
     respectSizeHints*: bool
     centerFloatingSet*: bool
     centerFloating*: bool
+    parentedRoleSet*: bool
     parentedRole*: ParentedRole
     openNamedScratchpad*: string
     floating*: WindowRuleFloatingConfig

@@ -532,6 +532,8 @@ proc createWindowForExternal*(
     deferAdmission = false,
     spawnContextOutputId = 0'u32,
     spawnContextSlot = 0'u32,
+    hasParentedRoleHint = false,
+    parentedRoleHint = ParentedRole.Dialog,
 ): WindowId =
   if externalId == NullExternalWindowId:
     return NullWindowId
@@ -584,7 +586,12 @@ proc createWindowForExternal*(
 
   let ruleMatch = model.windowRuleFor(appId, title)
   let parentedRole =
-    if ruleMatch.found: ruleMatch.rule.parentedRole else: ParentedRole.Dialog
+    if ruleMatch.found and ruleMatch.rule.parentedRoleSet:
+      ruleMatch.rule.parentedRole
+    elif hasParentedRoleHint:
+      parentedRoleHint
+    else:
+      ParentedRole.Dialog
   let ruleOpensUnmanagedGlobal =
     ruleMatch.found and not hasRestoredWindow and ruleMatch.rule.openUnmanagedGlobalSet and
     ruleMatch.rule.openUnmanagedGlobal
@@ -703,7 +710,7 @@ proc createWindowForExternal*(
     isSticky = false
     isOverlay = false
     floatingGeom = model.defaultFloatingGeom()
-  elif parentKnown and parentOpensFloating:
+  elif parentKnown and parentOpensFloating and parentedRole != ParentedRole.Plain:
     isFloating = true
   if isFullscreen or isMaximized or openColumnMaximized:
     isFloating = false
@@ -754,6 +761,8 @@ proc createWindowForExternal*(
         WindowAdmissionState.Admitted,
     focusAfterAdmission = false,
     parentExternalId = parentExternalId,
+    hasParentedRoleHint = hasParentedRoleHint,
+    parentedRoleHint = parentedRoleHint,
     keyboardShortcutsInhibit = shortcutInhibit,
     idleInhibitMode = idleInhibitMode,
     isTerminal = isTerminal,

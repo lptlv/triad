@@ -1,6 +1,7 @@
 import std/[options, strutils]
 
 import ../core/msg
+from ../types/runtime_values import ParentedRole
 
 const
   X11ConfigureMaskWidth = 1'u32 shl 2
@@ -10,6 +11,11 @@ const
   X11StateMaximizedVert = "_NET_WM_STATE_MAXIMIZED_VERT"
   X11StateHidden = "_NET_WM_STATE_HIDDEN"
   X11StateDemandsAttention = "_NET_WM_STATE_DEMANDS_ATTENTION"
+  X11WindowTypeDialog = "_NET_WM_WINDOW_TYPE_DIALOG"
+  X11WindowTypeUtility = "_NET_WM_WINDOW_TYPE_UTILITY"
+  X11WindowTypeToolbar = "_NET_WM_WINDOW_TYPE_TOOLBAR"
+  X11WindowTypeSplash = "_NET_WM_WINDOW_TYPE_SPLASH"
+  X11WindowTypeNormal = "_NET_WM_WINDOW_TYPE_NORMAL"
   X11WmTransientFor = "WM_TRANSIENT_FOR"
   X11WmNormalHints = "WM_NORMAL_HINTS"
   X11WmHints = "WM_HINTS"
@@ -57,6 +63,7 @@ type
     urgent*: uint8
     name*: array[256, char]
     title*: array[512, char]
+    windowType*: array[512, char]
 
   X11BackendEventKind* {.pure.} = enum
     WindowDiscovered
@@ -84,6 +91,7 @@ type
     pid*: int32
     wmClass*: string
     title*: string
+    windowType*: string
     x*, y*, w*, h*: int32
     minW*, minH*, maxW*, maxH*: int32
     overrideRedirect*: bool
@@ -190,6 +198,19 @@ proc hasState(tokens: openArray[string], state: string): bool =
     if token == state:
       return true
 
+proc parentedRoleHintForWindowType(value: string): Option[ParentedRole] =
+  for token in value.stateTokenSet():
+    case token
+    of X11WindowTypeDialog:
+      return some(ParentedRole.Dialog)
+    of X11WindowTypeUtility, X11WindowTypeToolbar, X11WindowTypeSplash:
+      return some(ParentedRole.Tool)
+    of X11WindowTypeNormal:
+      return some(ParentedRole.Plain)
+    else:
+      discard
+  none(ParentedRole)
+
 proc cArrayString[N: static[int]](value: array[N, char]): string =
   for ch in value:
     if ch == '\0':
@@ -207,6 +228,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         pid: event.pid,
         wmClass: event.name.cArrayString(),
         title: event.title.cArrayString(),
+        windowType: event.windowType.cArrayString(),
         x: event.x,
         y: event.y,
         w: event.w,
@@ -228,6 +250,7 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         pid: event.pid,
         wmClass: event.name.cArrayString(),
         title: event.title.cArrayString(),
+        windowType: event.windowType.cArrayString(),
         x: event.x,
         y: event.y,
         w: event.w,
@@ -421,6 +444,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   of X11BackendEventKind.WindowDiscovered, X11BackendEventKind.MapRequested:
     if event.window.overrideRedirect:
       return
+    let parentedRoleHint = event.window.windowType.parentedRoleHintForWindowType()
     result.add(
       Msg(
         kind: MsgKind.WindowCreated,
@@ -431,6 +455,12 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
         title: event.window.title,
         createdIdentifier: event.window.id.x11WindowIdentifier(),
         deferAdmission: false,
+        createdHasParentedRoleHint: parentedRoleHint.isSome,
+        createdParentedRoleHint:
+          if parentedRoleHint.isSome:
+            parentedRoleHint.get()
+          else:
+            ParentedRole.Dialog,
       )
     )
     if event.window.w > 0 or event.window.h > 0:
@@ -583,6 +613,16 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
           stateUrgent: tokens.hasState(X11StateDemandsAttention),
         )
       )
+    of "_NET_WM_WINDOW_TYPE":
+      let parentedRoleHint = event.propertyValue.parentedRoleHintForWindowType()
+      if parentedRoleHint.isSome:
+        result.add(
+          Msg(
+            kind: MsgKind.WindowParentedRoleHint,
+            parentedRoleWindowId: event.propertyWindowId,
+            parentedRoleHint: parentedRoleHint.get(),
+          )
+        )
     else:
       discard
   of X11BackendEventKind.ClientMessage:
