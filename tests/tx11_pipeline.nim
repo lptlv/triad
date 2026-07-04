@@ -314,6 +314,49 @@ suite "X11 admission pipeline":
     check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
     check step.dryRunExecutions.len == 1
 
+  test "transient parent updates trigger layout projection requests":
+    var model = x11ModelWithMappedWindows([0x50'u32, 0x51'u32])
+
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 0x51,
+        propertyParentWindowId: 0x50,
+        propertyAtom: "WM_TRANSIENT_FOR",
+      )
+    )
+
+    check step.admission.messages.len == 1
+    check step.admission.messages[0].kind == MsgKind.WlWindowParent
+    check step.layoutRequests.len > 0
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x51
+    )
+    check step.dryRunExecutions.len == step.requests.len
+
+  test "normal size hint updates trigger layout projection requests":
+    var model = x11ModelWithMappedWindows([0x52'u32])
+
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 0x52,
+        propertyAtom: "WM_NORMAL_HINTS",
+        propertyMinWidth: 320,
+        propertyMinHeight: 200,
+        propertyMaxWidth: 1280,
+        propertyMaxHeight: 900,
+      )
+    )
+
+    check step.admission.messages.len == 1
+    check step.admission.messages[0].kind == MsgKind.WlWindowDimensionsHint
+    check step.layoutRequests.len > 0
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x52
+    )
+    check step.dryRunExecutions.len == step.requests.len
+
   test "client messages produce EWMH command requests":
     var model = x11ModelWithMappedWindows([0x90'u32, 0x91'u32])
 

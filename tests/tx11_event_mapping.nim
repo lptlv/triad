@@ -14,6 +14,10 @@ suite "X11 event mapping":
       y: 20,
       w: 800,
       h: 600,
+      minW: 320,
+      minH: 200,
+      maxW: 1600,
+      maxH: 1200,
       mapped: 1,
     )
     for idx, ch in "kitty/kitty":
@@ -32,6 +36,10 @@ suite "X11 event mapping":
     check event.window.y == 20
     check event.window.w == 800
     check event.window.h == 600
+    check event.window.minW == 320
+    check event.window.minH == 200
+    check event.window.maxW == 1600
+    check event.window.maxH == 1200
     check event.window.mapped
 
   test "raw probe map request maps to distinct backend event":
@@ -86,18 +94,28 @@ suite "X11 event mapping":
     check event.output.h == 1440
 
   test "raw probe configure and property events preserve observed data":
-    var propertyRaw = X11ProbeEvent(kind: X11ProbeEventKind.XpePropertyChanged, id: 9)
+    var propertyRaw =
+      X11ProbeEvent(kind: X11ProbeEventKind.XpePropertyChanged, id: 9, parentId: 8)
     for idx, ch in "_NET_WM_STATE":
       propertyRaw.name[idx] = ch
     for idx, ch in "state-value":
       propertyRaw.title[idx] = ch
     propertyRaw.pid = 1234
+    propertyRaw.minW = 120
+    propertyRaw.minH = 80
+    propertyRaw.maxW = 800
+    propertyRaw.maxH = 600
     let property = propertyRaw.backendEventFromProbe()
     check property.kind == X11BackendEventKind.PropertyChanged
     check property.propertyWindowId == 9
+    check property.propertyParentWindowId == 8
     check property.propertyAtom == "_NET_WM_STATE"
     check property.propertyValue == "state-value"
     check property.propertyPid == 1234
+    check property.propertyMinWidth == 120
+    check property.propertyMinHeight == 80
+    check property.propertyMaxWidth == 800
+    check property.propertyMaxHeight == 600
 
     let configure = X11ProbeEvent(
       kind: X11ProbeEventKind.XpeConfigureRequested,
@@ -303,6 +321,30 @@ suite "X11 event mapping":
     check messages[2].kind == MsgKind.WlWindowPid
     check messages[2].pidWindowId == 43
 
+  test "window discovery maps client size hints":
+    let messages = X11BackendEvent(
+      kind: X11BackendEventKind.WindowDiscovered,
+      window: X11WindowSnapshot(
+        id: 44,
+        wmClass: "app/app",
+        title: "App",
+        w: 640,
+        h: 480,
+        minW: 320,
+        minH: 200,
+        maxW: 1280,
+        maxH: 900,
+      ),
+    ).messagesFor()
+
+    check messages.len == 3
+    check messages[2].kind == MsgKind.WlWindowDimensionsHint
+    check messages[2].hintWindowId == 44
+    check messages[2].minWidth == 320
+    check messages[2].minHeight == 200
+    check messages[2].maxWidth == 1280
+    check messages[2].maxHeight == 900
+
   test "override-redirect windows are not admitted":
     let messages = X11BackendEvent(
       kind: X11BackendEventKind.WindowDiscovered,
@@ -400,6 +442,21 @@ suite "X11 event mapping":
       propertyAtom: "_NET_WM_PID",
       propertyPid: 4321,
     ).messagesFor()
+    let transient = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 2,
+      propertyParentWindowId: 1,
+      propertyAtom: "WM_TRANSIENT_FOR",
+    ).messagesFor()
+    let normalHints = X11BackendEvent(
+      kind: X11BackendEventKind.PropertyChanged,
+      propertyWindowId: 3,
+      propertyAtom: "WM_NORMAL_HINTS",
+      propertyMinWidth: 320,
+      propertyMinHeight: 200,
+      propertyMaxWidth: 1280,
+      propertyMaxHeight: 900,
+    ).messagesFor()
 
     check title.len == 1
     check title[0].kind == MsgKind.WlWindowTitle
@@ -413,6 +470,17 @@ suite "X11 event mapping":
     check pid[0].kind == MsgKind.WlWindowPid
     check pid[0].pidWindowId == 1
     check pid[0].windowPid == 4321
+    check transient.len == 1
+    check transient[0].kind == MsgKind.WlWindowParent
+    check transient[0].childWindowId == 2
+    check transient[0].parentWindowId == 1
+    check normalHints.len == 1
+    check normalHints[0].kind == MsgKind.WlWindowDimensionsHint
+    check normalHints[0].hintWindowId == 3
+    check normalHints[0].minWidth == 320
+    check normalHints[0].minHeight == 200
+    check normalHints[0].maxWidth == 1280
+    check normalHints[0].maxHeight == 900
 
   test "net wm state changes map to observed window state":
     let messages = X11BackendEvent(

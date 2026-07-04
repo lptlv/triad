@@ -65,6 +65,10 @@ typedef struct TriadX11Event {
     int32_t y;
     int32_t w;
     int32_t h;
+    int32_t min_w;
+    int32_t min_h;
+    int32_t max_w;
+    int32_t max_h;
     uint32_t value_mask;
     uint32_t sibling;
     uint32_t stack_mode;
@@ -126,6 +130,8 @@ typedef void (*triad_x11_tick_fn)(void *user_data);
 typedef struct TriadX11Atoms {
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_window;
+    xcb_atom_t wm_transient_for;
+    xcb_atom_t wm_normal_hints;
     xcb_atom_t wm_class;
     xcb_atom_t wm_name;
     xcb_atom_t net_wm_name;
@@ -433,6 +439,60 @@ static uint32_t window_pid(TriadX11Probe *probe, xcb_window_t win)
         pid = *((uint32_t *)xcb_get_property_value(reply));
     free(reply);
     return pid;
+}
+
+static xcb_window_t window_transient_for(TriadX11Probe *probe, xcb_window_t win)
+{
+    xcb_get_property_cookie_t cookie = xcb_get_property(
+        probe->conn, 0, win, probe->atoms.wm_transient_for, XCB_ATOM_WINDOW, 0, 1);
+    xcb_get_property_reply_t *reply =
+        xcb_get_property_reply(probe->conn, cookie, NULL);
+    if (reply == NULL)
+        return XCB_WINDOW_NONE;
+    xcb_window_t parent = XCB_WINDOW_NONE;
+    if (xcb_get_property_value_length(reply) >= (int)sizeof(xcb_window_t))
+        parent = *((xcb_window_t *)xcb_get_property_value(reply));
+    free(reply);
+    return parent;
+}
+
+static int window_normal_hints(
+    TriadX11Probe *probe,
+    xcb_window_t win,
+    int32_t *min_w,
+    int32_t *min_h,
+    int32_t *max_w,
+    int32_t *max_h)
+{
+    if (min_w != NULL)
+        *min_w = 0;
+    if (min_h != NULL)
+        *min_h = 0;
+    if (max_w != NULL)
+        *max_w = 0;
+    if (max_h != NULL)
+        *max_h = 0;
+
+    xcb_get_property_cookie_t cookie =
+        xcb_icccm_get_wm_normal_hints(probe->conn, win);
+    xcb_size_hints_t hints;
+    memset(&hints, 0, sizeof(hints));
+    if (!xcb_icccm_get_wm_normal_hints_reply(probe->conn, cookie, &hints, NULL))
+        return 0;
+
+    if ((hints.flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE) != 0) {
+        if (min_w != NULL)
+            *min_w = hints.min_width;
+        if (min_h != NULL)
+            *min_h = hints.min_height;
+    }
+    if ((hints.flags & XCB_ICCCM_SIZE_HINT_P_MAX_SIZE) != 0) {
+        if (max_w != NULL)
+            *max_w = hints.max_width;
+        if (max_h != NULL)
+            *max_h = hints.max_height;
+    }
+    return 1;
 }
 
 static char *window_state_atoms(TriadX11Probe *probe, xcb_window_t win)
@@ -898,18 +958,29 @@ static void log_window(
     char *title = window_title(probe, win);
     char *class_name = window_class(probe, win);
     uint32_t pid = window_pid(probe, win);
+    xcb_window_t parent = window_transient_for(probe, win);
+    int32_t min_w = 0;
+    int32_t min_h = 0;
+    int32_t max_w = 0;
+    int32_t max_h = 0;
+    window_normal_hints(probe, win, &min_w, &min_h, &max_w, &max_h);
 
     probe_log(
         probe,
-        "window source=%s id=0x%08x map_state=%u override_redirect=%u geom=%dx%d+%d+%d class=\"%s\" title=\"%s\" pid=%u",
+        "window source=%s id=0x%08x parent=0x%08x map_state=%u override_redirect=%u geom=%dx%d+%d+%d hints=min:%dx%d max:%dx%d class=\"%s\" title=\"%s\" pid=%u",
         source,
         win,
+        parent,
         attr->map_state,
         attr->override_redirect,
         geom->width,
         geom->height,
         geom->x,
         geom->y,
+        min_w,
+        min_h,
+        max_w,
+        max_h,
         class_name != NULL ? class_name : "",
         title != NULL ? title : "",
         pid);
@@ -918,12 +989,16 @@ static void log_window(
     memset(&event, 0, sizeof(event));
     event.kind = event_kind;
     event.id = win;
-    event.parent_id = 0;
+    event.parent_id = parent;
     event.pid = (int32_t)pid;
     event.x = geom->x;
     event.y = geom->y;
     event.w = geom->width;
     event.h = geom->height;
+    event.min_w = min_w;
+    event.min_h = min_h;
+    event.max_w = max_w;
+    event.max_h = max_h;
     event.override_redirect = attr->override_redirect ? 1 : 0;
     event.mapped = attr->map_state == XCB_MAP_STATE_VIEWABLE ? 1 : 0;
     copy_text(event.name, sizeof(event.name), class_name);
@@ -964,6 +1039,8 @@ static void init_atoms(TriadX11Probe *probe)
 
     probe->atoms.wm_protocols = intern_atom(probe, "WM_PROTOCOLS", 0);
     probe->atoms.wm_delete_window = intern_atom(probe, "WM_DELETE_WINDOW", 0);
+    probe->atoms.wm_transient_for = intern_atom(probe, "WM_TRANSIENT_FOR", 0);
+    probe->atoms.wm_normal_hints = intern_atom(probe, "WM_NORMAL_HINTS", 0);
     probe->atoms.wm_class = intern_atom(probe, "WM_CLASS", 0);
     probe->atoms.wm_name = intern_atom(probe, "WM_NAME", 0);
     probe->atoms.net_wm_name = intern_atom(probe, "_NET_WM_NAME", 0);
@@ -1793,6 +1870,16 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
                 free(title);
             } else if (ev->atom == probe->atoms.net_wm_pid) {
                 event.pid = (int32_t)window_pid(probe, ev->window);
+            } else if (ev->atom == probe->atoms.wm_transient_for) {
+                event.parent_id = window_transient_for(probe, ev->window);
+            } else if (ev->atom == probe->atoms.wm_normal_hints) {
+                window_normal_hints(
+                    probe,
+                    ev->window,
+                    &event.min_w,
+                    &event.min_h,
+                    &event.max_w,
+                    &event.max_h);
             } else if (ev->atom == probe->atoms.net_wm_state) {
                 char *state = window_state_atoms(probe, ev->window);
                 copy_text(event.title, sizeof(event.title), state);

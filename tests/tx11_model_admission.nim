@@ -1,4 +1,4 @@
-import std/unittest
+import std/[options, unittest]
 
 import ../src/config/parser
 import ../src/core/effects
@@ -208,6 +208,98 @@ suite "X11 model admission":
     check win.actualH == 480
     check win.title == "New"
     check win.appId == "kitty"
+
+  test "admits transient parent updates into existing window state":
+    var model = x11Model()
+    discard model.admitDryRun(
+      [
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 30, wmClass: "app", title: "Parent", w: 400, h: 300, mapped: true
+          ),
+        ),
+        X11BackendEvent(
+          kind: X11BackendEventKind.WindowDiscovered,
+          window: X11WindowSnapshot(
+            id: 31, wmClass: "app", title: "Dialog", w: 200, h: 100, mapped: true
+          ),
+        ),
+      ]
+    )
+
+    let parented = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 31,
+        propertyParentWindowId: 30,
+        propertyAtom: "WM_TRANSIENT_FOR",
+      )
+    )
+
+    check parented.messages.len == 1
+    check parented.messages[0].kind == MsgKind.WlWindowParent
+    check parented.messages[0].childWindowId == 31
+    check parented.messages[0].parentWindowId == 30
+    check model.snapshotWindow(31).parentId == 30
+
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 31,
+        propertyParentWindowId: 0,
+        propertyAtom: "WM_TRANSIENT_FOR",
+      )
+    )
+    check model.snapshotWindow(31).parentId == 0
+
+  test "admits normal size hints into existing window state":
+    var model = x11Model()
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.WindowDiscovered,
+        window: X11WindowSnapshot(
+          id: 32, wmClass: "app", title: "Resizable", w: 400, h: 300, mapped: true
+        ),
+      )
+    )
+
+    let hinted = model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 32,
+        propertyAtom: "WM_NORMAL_HINTS",
+        propertyMinWidth: 320,
+        propertyMinHeight: 200,
+        propertyMaxWidth: 1280,
+        propertyMaxHeight: 900,
+      )
+    )
+
+    check hinted.messages.len == 1
+    check hinted.messages[0].kind == MsgKind.WlWindowDimensionsHint
+    let winId = model.windowForExternal(ExternalWindowId(32))
+    check winId != NullWindowId
+    let win = model.windowData(winId)
+    check win.isSome
+    check win.get().minWidth == 320
+    check win.get().minHeight == 200
+    check win.get().maxWidth == 1280
+    check win.get().maxHeight == 900
+
+    discard model.admitDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.PropertyChanged,
+        propertyWindowId: 32,
+        propertyAtom: "WM_NORMAL_HINTS",
+      )
+    )
+    let cleared = model.windowData(winId)
+    check cleared.isSome
+    check cleared.get().minWidth == 0
+    check cleared.get().minHeight == 0
+    check cleared.get().maxWidth == 0
+    check cleared.get().maxHeight == 0
 
   test "admits net wm state updates into existing window state":
     var model = x11Model()

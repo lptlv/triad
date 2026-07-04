@@ -10,6 +10,8 @@ const
   X11StateMaximizedVert = "_NET_WM_STATE_MAXIMIZED_VERT"
   X11StateHidden = "_NET_WM_STATE_HIDDEN"
   X11StateDemandsAttention = "_NET_WM_STATE_DEMANDS_ATTENTION"
+  X11WmTransientFor = "WM_TRANSIENT_FOR"
+  X11WmNormalHints = "WM_NORMAL_HINTS"
   X11StateActionRemove = 0'u32
   X11StateActionAdd = 1'u32
   X11StateActionToggle = 2'u32
@@ -41,6 +43,7 @@ type
     parentId*: uint32
     pid*: int32
     x*, y*, w*, h*: int32
+    minW*, minH*, maxW*, maxH*: int32
     valueMask*: uint32
     sibling*: uint32
     stackMode*: uint32
@@ -80,6 +83,7 @@ type
     wmClass*: string
     title*: string
     x*, y*, w*, h*: int32
+    minW*, minH*, maxW*, maxH*: int32
     overrideRedirect*: bool
     mapped*: bool
 
@@ -108,9 +112,12 @@ type
       configure*: X11ConfigureRequest
     of X11BackendEventKind.PropertyChanged:
       propertyWindowId*: uint32
+      propertyParentWindowId*: uint32
       propertyAtom*: string
       propertyValue*: string
       propertyPid*: int32
+      propertyMinWidth*, propertyMinHeight*, propertyMaxWidth*, propertyMaxHeight*:
+        int32
     of X11BackendEventKind.FocusChanged:
       focusWindowId*: uint32
       focused*: bool
@@ -201,6 +208,10 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         y: event.y,
         w: event.w,
         h: event.h,
+        minW: event.minW,
+        minH: event.minH,
+        maxW: event.maxW,
+        maxH: event.maxH,
         overrideRedirect: event.overrideRedirect != 0,
         mapped: event.mapped != 0,
       ),
@@ -218,6 +229,10 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
         y: event.y,
         w: event.w,
         h: event.h,
+        minW: event.minW,
+        minH: event.minH,
+        maxW: event.maxW,
+        maxH: event.maxH,
         overrideRedirect: event.overrideRedirect != 0,
         mapped: event.mapped != 0,
       ),
@@ -257,9 +272,14 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
     X11BackendEvent(
       kind: X11BackendEventKind.PropertyChanged,
       propertyWindowId: event.id,
+      propertyParentWindowId: event.parentId,
       propertyAtom: event.name.cArrayString(),
       propertyValue: event.title.cArrayString(),
       propertyPid: event.pid,
+      propertyMinWidth: event.minW,
+      propertyMinHeight: event.minH,
+      propertyMaxWidth: event.maxW,
+      propertyMaxHeight: event.maxH,
     )
   of X11ProbeEventKind.XpeFocusChanged:
     X11BackendEvent(
@@ -426,6 +446,18 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
           windowPid: event.window.pid,
         )
       )
+    if event.window.minW > 0 or event.window.minH > 0 or event.window.maxW > 0 or
+        event.window.maxH > 0:
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowDimensionsHint,
+          hintWindowId: event.window.id,
+          minWidth: event.window.minW,
+          minHeight: event.window.minH,
+          maxWidth: event.window.maxW,
+          maxHeight: event.window.maxH,
+        )
+      )
   of X11BackendEventKind.WindowDestroyed, X11BackendEventKind.WindowUnmapped:
     result.add(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: event.windowId))
   of X11BackendEventKind.OutputDiscovered:
@@ -500,6 +532,25 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
             windowPid: event.propertyPid,
           )
         )
+    of X11WmTransientFor:
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowParent,
+          childWindowId: event.propertyWindowId,
+          parentWindowId: event.propertyParentWindowId,
+        )
+      )
+    of X11WmNormalHints:
+      result.add(
+        Msg(
+          kind: MsgKind.WlWindowDimensionsHint,
+          hintWindowId: event.propertyWindowId,
+          minWidth: event.propertyMinWidth,
+          minHeight: event.propertyMinHeight,
+          maxWidth: event.propertyMaxWidth,
+          maxHeight: event.propertyMaxHeight,
+        )
+      )
     of "_NET_WM_STATE":
       let tokens = event.propertyValue.stateTokenSet()
       result.add(
