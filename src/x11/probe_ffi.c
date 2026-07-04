@@ -53,6 +53,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_POINTER_RELEASE = 14,
     TRIAD_X11_EVENT_MAPPING_CHANGED = 15,
     TRIAD_X11_EVENT_XKB_CHANGED = 16,
+    TRIAD_X11_EVENT_CLIENT_MESSAGE = 17,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -68,6 +69,7 @@ typedef struct TriadX11Event {
     uint32_t sibling;
     uint32_t stack_mode;
     uint32_t root;
+    uint32_t client_data[5];
     uint8_t override_redirect;
     uint8_t mapped;
     uint8_t connected;
@@ -135,6 +137,8 @@ typedef struct TriadX11Atoms {
     xcb_atom_t net_wm_state_hidden;
     xcb_atom_t net_wm_state_demands_attention;
     xcb_atom_t net_wm_window_type;
+    xcb_atom_t net_active_window;
+    xcb_atom_t net_close_window;
     xcb_atom_t net_supported;
     xcb_atom_t net_supporting_wm_check;
     xcb_atom_t utf8_string;
@@ -976,6 +980,8 @@ static void init_atoms(TriadX11Probe *probe)
     probe->atoms.net_wm_state_demands_attention =
         intern_atom(probe, "_NET_WM_STATE_DEMANDS_ATTENTION", 0);
     probe->atoms.net_wm_window_type = intern_atom(probe, "_NET_WM_WINDOW_TYPE", 0);
+    probe->atoms.net_active_window = intern_atom(probe, "_NET_ACTIVE_WINDOW", 0);
+    probe->atoms.net_close_window = intern_atom(probe, "_NET_CLOSE_WINDOW", 0);
     probe->atoms.net_supported = intern_atom(probe, "_NET_SUPPORTED", 0);
     probe->atoms.net_supporting_wm_check =
         intern_atom(probe, "_NET_SUPPORTING_WM_CHECK", 0);
@@ -1092,6 +1098,8 @@ static int claim_wm(TriadX11Probe *probe)
         probe->atoms.net_wm_state_hidden,
         probe->atoms.net_wm_state_demands_attention,
         probe->atoms.net_wm_window_type,
+        probe->atoms.net_active_window,
+        probe->atoms.net_close_window,
     };
     xcb_change_property(
         probe->conn,
@@ -1832,6 +1840,52 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         event.kind = TRIAD_X11_EVENT_POINTER_ENTERED;
         event.id = ev->event;
         probe_event(probe, &event);
+        break;
+    }
+    case XCB_CLIENT_MESSAGE: {
+        xcb_client_message_event_t *ev = (xcb_client_message_event_t *)event;
+        char *type_name = atom_name(probe, ev->type);
+        char atom_values[512];
+        atom_values[0] = '\0';
+        if (ev->format == 32 && ev->type == probe->atoms.net_wm_state) {
+            char *first = atom_name(probe, ev->data.data32[1]);
+            char *second = atom_name(probe, ev->data.data32[2]);
+            snprintf(
+                atom_values,
+                sizeof(atom_values),
+                "%s%s%s",
+                first != NULL ? first : "",
+                (first != NULL && first[0] != '\0' && second != NULL &&
+                 second[0] != '\0') ? " " : "",
+                second != NULL ? second : "");
+            free(first);
+            free(second);
+        }
+        probe_log(
+            probe,
+            "event %s window=0x%08x type=%s(%u) format=%u data32=%u,%u,%u,%u,%u atoms=\"%s\"",
+            event_name(type),
+            ev->window,
+            type_name,
+            ev->type,
+            ev->format,
+            ev->data.data32[0],
+            ev->data.data32[1],
+            ev->data.data32[2],
+            ev->data.data32[3],
+            ev->data.data32[4],
+            atom_values);
+        TriadX11Event event;
+        memset(&event, 0, sizeof(event));
+        event.kind = TRIAD_X11_EVENT_CLIENT_MESSAGE;
+        event.id = ev->window;
+        event.value_mask = ev->format;
+        for (size_t i = 0; i < 5; i++)
+            event.client_data[i] = ev->data.data32[i];
+        copy_text(event.name, sizeof(event.name), type_name);
+        copy_text(event.title, sizeof(event.title), atom_values);
+        probe_event(probe, &event);
+        free(type_name);
         break;
     }
     case XCB_MAPPING_NOTIFY: {

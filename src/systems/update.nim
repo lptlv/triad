@@ -22,8 +22,9 @@ proc shouldLogRuntimeUpdate(kind: MsgKind): bool =
     MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout,
     MsgKind.CmdMaximizeColumn, MsgKind.CmdToggleFloating,
     MsgKind.CmdSetWindowFloatingById, MsgKind.CmdSetWindowMaximizedById,
-    MsgKind.CmdToggleMaximized, MsgKind.CmdMoveToScratchpad,
-    MsgKind.CmdToggleFullscreen, MsgKind.CmdToggleFullscreenById,
+    MsgKind.CmdToggleMaximizedById, MsgKind.CmdToggleMaximized,
+    MsgKind.CmdMoveToScratchpad, MsgKind.CmdToggleFullscreen,
+    MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdToggleFullscreenById,
     MsgKind.CmdExitFullscreenById, MsgKind.CmdMoveToNamedScratchpad,
     MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
     MsgKind.CmdRestoreScratchpad,
@@ -82,9 +83,10 @@ proc addMsgWindowId(ids: var seq[uint32], msg: Msg) =
     ids.addTrackedWindowId(msg.moveWorkspaceWindowId)
   of MsgKind.CmdSetWindowFloatingById:
     ids.addTrackedWindowId(msg.floatingWindowId)
-  of MsgKind.CmdSetWindowMaximizedById:
+  of MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleMaximizedById:
     ids.addTrackedWindowId(msg.maximizedWindowId)
-  of MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById:
+  of MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdToggleFullscreenById,
+      MsgKind.CmdExitFullscreenById:
     ids.addTrackedWindowId(msg.fullscreenWindowId)
   else:
     discard

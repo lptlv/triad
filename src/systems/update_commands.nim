@@ -519,6 +519,17 @@ proc applyCommand*(
     result.dirty = model.setMaximizedForExternal(
       ExternalWindowId(msg.maximizedWindowId), msg.windowMaximized
     )
+  of MsgKind.CmdToggleMaximizedById:
+    result.dirty =
+      model.toggleMaximizedForExternal(ExternalWindowId(msg.maximizedWindowId))
+  of MsgKind.CmdSetWindowFullscreenById:
+    result.dirty =
+      if msg.windowFullscreen:
+        model.requestFullscreenForExternal(
+          msg.fullscreenWindowId.externalWindowId(), NullExternalOutputId
+        )
+      else:
+        model.exitFullscreenForExternal(msg.fullscreenWindowId.externalWindowId())
   of MsgKind.CmdMoveFloating:
     result.dirty = model.moveFloatingFocused(msg.moveDX, msg.moveDY)
   of MsgKind.CmdResizeFloating:

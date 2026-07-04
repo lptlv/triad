@@ -95,7 +95,8 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
       MsgKind.CmdRestoreScratchpad, MsgKind.CmdToggleFloating,
       MsgKind.CmdSetWindowFloatingById, MsgKind.CmdSetWindowMaximizedById,
-      MsgKind.CmdToggleFullscreen, MsgKind.CmdToggleFullscreenById,
+      MsgKind.CmdToggleMaximizedById, MsgKind.CmdToggleFullscreen,
+      MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdToggleFullscreenById,
       MsgKind.CmdExitFullscreenById, MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize,
       MsgKind.CmdSelectWindow, MsgKind.CmdRecentWindowConfirm, MsgKind.CmdFocusTag,
       MsgKind.CmdFocusWindowById:
@@ -140,7 +141,8 @@ proc shouldBroadcastTriadLayoutChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
       MsgKind.CmdRestoreScratchpad, MsgKind.CmdToggleFloating,
       MsgKind.CmdSetWindowFloatingById, MsgKind.CmdSetWindowMaximizedById,
-      MsgKind.CmdToggleFullscreen, MsgKind.CmdToggleFullscreenById,
+      MsgKind.CmdToggleMaximizedById, MsgKind.CmdToggleFullscreen,
+      MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdToggleFullscreenById,
       MsgKind.CmdExitFullscreenById, MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize,
       MsgKind.CmdSelectWindow:
     true
@@ -313,9 +315,9 @@ proc shouldSyncFullscreenPresentation(
     MsgKind.WlWindowAppId, MsgKind.WlWindowFullscreenRequested,
     MsgKind.WlWindowExitFullscreenRequested, MsgKind.WlOutputRemoved,
     MsgKind.CmdToggleFullscreen, MsgKind.CmdToggleFullscreenById,
-    MsgKind.CmdExitFullscreenById, MsgKind.CmdToggleOverview, MsgKind.CmdOpenOverview,
-    MsgKind.CmdCloseOverview, MsgKind.CmdOverviewTab, MsgKind.CmdSelectWindow,
-    MsgKind.CmdConfigReload,
+    MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdExitFullscreenById,
+    MsgKind.CmdToggleOverview, MsgKind.CmdOpenOverview, MsgKind.CmdCloseOverview,
+    MsgKind.CmdOverviewTab, MsgKind.CmdSelectWindow, MsgKind.CmdConfigReload,
   }
 
 proc addFullscreenPresentationSync(
@@ -367,9 +369,9 @@ proc shouldSyncMaximizedPresentation(
     MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout,
     MsgKind.CmdMaximizeColumn, MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize,
     MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
-    MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleOverview,
-    MsgKind.CmdOpenOverview, MsgKind.CmdCloseOverview, MsgKind.CmdOverviewTab,
-    MsgKind.CmdSelectWindow, MsgKind.CmdConfigReload,
+    MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleMaximizedById,
+    MsgKind.CmdToggleOverview, MsgKind.CmdOpenOverview, MsgKind.CmdCloseOverview,
+    MsgKind.CmdOverviewTab, MsgKind.CmdSelectWindow, MsgKind.CmdConfigReload,
   }
 
 proc addMaximizedPresentationSync(

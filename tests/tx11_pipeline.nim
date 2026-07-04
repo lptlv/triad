@@ -314,6 +314,60 @@ suite "X11 admission pipeline":
     check step.requests[0].kind == X11RequestKind.XrqConfigureWindow
     check step.dryRunExecutions.len == 1
 
+  test "client messages produce EWMH command requests":
+    var model = x11ModelWithMappedWindows([0x90'u32, 0x91'u32])
+
+    let active = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.ClientMessage,
+        clientWindowId: 0x90,
+        clientMessageType: "_NET_ACTIVE_WINDOW",
+        clientMessageFormat: 32,
+      )
+    )
+
+    check active.admission.messages.len == 1
+    check active.admission.messages[0].kind == MsgKind.CmdFocusWindowById
+    check active.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x90
+    )
+
+    let state = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.ClientMessage,
+        clientWindowId: 0x90,
+        clientMessageType: "_NET_WM_STATE",
+        clientMessageFormat: 32,
+        clientData: [1'u32, 0'u32, 0'u32, 0'u32, 0'u32],
+        clientAtomValues: "_NET_WM_STATE_FULLSCREEN",
+      )
+    )
+
+    check state.admission.messages.len == 1
+    check state.admission.messages[0].kind == MsgKind.CmdSetWindowFullscreenById
+    check state.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x90
+    )
+    check state.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetFullscreenState and it.windowId == 0x90 and
+        it.values[0] == 1
+    )
+
+    let close = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.ClientMessage,
+        clientWindowId: 0x90,
+        clientMessageType: "_NET_CLOSE_WINDOW",
+        clientMessageFormat: 32,
+      )
+    )
+
+    check close.admission.messages.len == 1
+    check close.admission.messages[0].kind == MsgKind.CmdCloseWindowById
+    check close.requests.anyIt(
+      it.kind == X11RequestKind.XrqSendCloseWindow and it.windowId == 0x90
+    )
+
   test "workspace command pipeline reprojects and reasserts focus":
     var model = x11Model()
     discard model.processEventDryRun(

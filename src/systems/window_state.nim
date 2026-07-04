@@ -371,6 +371,13 @@ proc setMaximizedForExternal*(
         discard model.requestTagViewportRetarget(tagId)
   result = model.setWindowMaximized(winId, maximized) or result
 
+proc toggleMaximizedForExternal*(model: var Model, externalId: ExternalWindowId): bool =
+  let winId = model.windowForExternal(externalId)
+  let win = model.window(winId)
+  if win.isNone:
+    return false
+  model.setMaximizedForExternal(externalId, not win.get().isMaximized)
+
 proc toggleFullscreenFocused*(model: var Model): bool =
   let winId = model.focusedWindow()
   let win = model.window(winId)

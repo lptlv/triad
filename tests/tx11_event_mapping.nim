@@ -120,6 +120,29 @@ suite "X11 event mapping":
     check configure.configure.sibling == 11
     check configure.configure.stackMode == 1
 
+  test "raw probe client message preserves EWMH payload":
+    var raw = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeClientMessage,
+      id: 0x2c,
+      valueMask: 32,
+      clientData: [1'u32, 100'u32, 200'u32, 0'u32, 0'u32],
+    )
+    for idx, ch in "_NET_WM_STATE":
+      raw.name[idx] = ch
+    for idx, ch in "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ":
+      raw.title[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+
+    check event.kind == X11BackendEventKind.ClientMessage
+    check event.clientWindowId == 0x2c
+    check event.clientMessageType == "_NET_WM_STATE"
+    check event.clientMessageFormat == 32
+    check event.clientData[0] == 1
+    check event.clientData[1] == 100
+    check event.clientAtomValues ==
+      "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ"
+
   test "raw key binding event preserves binding identity without model messages":
     var raw =
       X11ProbeEvent(kind: X11ProbeEventKind.XpeKeyBinding, id: 43, valueMask: 64'u32)
@@ -420,6 +443,55 @@ suite "X11 event mapping":
     check not cleared[0].stateMaximized
     check not cleared[0].stateMinimized
     check not cleared[0].stateUrgent
+
+  test "client messages map to EWMH commands":
+    let active = X11BackendEvent(
+      kind: X11BackendEventKind.ClientMessage,
+      clientWindowId: 0x2d,
+      clientMessageType: "_NET_ACTIVE_WINDOW",
+      clientMessageFormat: 32,
+    ).messagesFor()
+    let close = X11BackendEvent(
+      kind: X11BackendEventKind.ClientMessage,
+      clientWindowId: 0x2e,
+      clientMessageType: "_NET_CLOSE_WINDOW",
+      clientMessageFormat: 32,
+    ).messagesFor()
+    let state = X11BackendEvent(
+      kind: X11BackendEventKind.ClientMessage,
+      clientWindowId: 0x2f,
+      clientMessageType: "_NET_WM_STATE",
+      clientMessageFormat: 32,
+      clientData: [1'u32, 0'u32, 0'u32, 0'u32, 0'u32],
+      clientAtomValues:
+        "_NET_WM_STATE_FULLSCREEN _NET_WM_STATE_MAXIMIZED_HORZ " &
+        "_NET_WM_STATE_MAXIMIZED_VERT",
+    ).messagesFor()
+    let toggleState = X11BackendEvent(
+      kind: X11BackendEventKind.ClientMessage,
+      clientWindowId: 0x30,
+      clientMessageType: "_NET_WM_STATE",
+      clientMessageFormat: 32,
+      clientData: [2'u32, 0'u32, 0'u32, 0'u32, 0'u32],
+      clientAtomValues: "_NET_WM_STATE_MAXIMIZED_HORZ",
+    ).messagesFor()
+
+    check active.len == 1
+    check active[0].kind == MsgKind.CmdFocusWindowById
+    check active[0].focusWindowId == 0x2d
+    check close.len == 1
+    check close[0].kind == MsgKind.CmdCloseWindowById
+    check close[0].closeWindowId == 0x2e
+    check state.len == 2
+    check state[0].kind == MsgKind.CmdSetWindowFullscreenById
+    check state[0].fullscreenWindowId == 0x2f
+    check state[0].windowFullscreen
+    check state[1].kind == MsgKind.CmdSetWindowMaximizedById
+    check state[1].maximizedWindowId == 0x2f
+    check state[1].windowMaximized
+    check toggleState.len == 1
+    check toggleState[0].kind == MsgKind.CmdToggleMaximizedById
+    check toggleState[0].maximizedWindowId == 0x30
 
   test "observed-only and incomplete events are explicit no-ops":
     let events = [

@@ -661,6 +661,9 @@ proc eventLabel(event: X11BackendEvent): string =
     "XkbChanged type=" & $event.xkbEventType & " changed=0x" &
       toHex(event.xkbChanged, 4).toLowerAscii() & " group=" & $event.xkbGroup &
       " locked_group=" & $event.xkbLockedGroup & " keycode=" & $event.xkbKeycode
+  of X11BackendEventKind.ClientMessage:
+    "ClientMessage id=" & $event.clientWindowId & " type=\"" & event.clientMessageType &
+      "\" format=" & $event.clientMessageFormat
 
 proc x11ConfigPath*(configPath = ""): string =
   if configPath.len > 0:

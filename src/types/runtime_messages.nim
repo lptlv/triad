@@ -173,7 +173,9 @@ type
     CmdToggleFloating
     CmdSetWindowFloatingById
     CmdSetWindowMaximizedById
+    CmdToggleMaximizedById
     CmdToggleFullscreen
+    CmdSetWindowFullscreenById
     CmdToggleFullscreenById
     CmdExitFullscreenById
     CmdToggleMaximized
@@ -442,13 +444,15 @@ type
     of MsgKind.CmdSetWindowFloatingById:
       floatingWindowId*: uint32
       windowFloating*: bool
-    of MsgKind.CmdSetWindowMaximizedById:
+    of MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleMaximizedById:
       maximizedWindowId*: uint32
       windowMaximized*: bool
     of MsgKind.CmdCloseWindowById:
       closeWindowId*: uint32
-    of MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById:
+    of MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdToggleFullscreenById,
+        MsgKind.CmdExitFullscreenById:
       fullscreenWindowId*: uint32
+      windowFullscreen*: bool
     of MsgKind.CmdSpawn:
       spawnCommand*: seq[string]
     of MsgKind.CmdWarpPointer:

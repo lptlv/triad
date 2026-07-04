@@ -53,6 +53,8 @@ proc shouldProjectLayout*(event: X11BackendEvent): bool =
     true
   of X11BackendEventKind.PropertyChanged:
     event.propertyAtom == "_NET_WM_STATE"
+  of X11BackendEventKind.ClientMessage:
+    event.clientMessageType == "_NET_WM_STATE"
   else:
     false
 

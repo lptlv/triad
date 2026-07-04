@@ -1,4 +1,4 @@
-import std/strutils
+import std/[options, strutils]
 
 import ../core/msg
 
@@ -10,6 +10,9 @@ const
   X11StateMaximizedVert = "_NET_WM_STATE_MAXIMIZED_VERT"
   X11StateHidden = "_NET_WM_STATE_HIDDEN"
   X11StateDemandsAttention = "_NET_WM_STATE_DEMANDS_ATTENTION"
+  X11StateActionRemove = 0'u32
+  X11StateActionAdd = 1'u32
+  X11StateActionToggle = 2'u32
 
 type
   X11ProbeEventKind* {.pure, size: sizeof(cuint).} = enum
@@ -30,6 +33,7 @@ type
     XpePointerRelease = 14
     XpeMappingChanged = 15
     XpeXkbChanged = 16
+    XpeClientMessage = 17
 
   X11ProbeEvent* {.bycopy.} = object
     kind*: X11ProbeEventKind
@@ -41,6 +45,7 @@ type
     sibling*: uint32
     stackMode*: uint32
     root*: uint32
+    clientData*: array[5, uint32]
     overrideRedirect*: uint8
     mapped*: uint8
     connected*: uint8
@@ -66,6 +71,7 @@ type
     PointerRelease
     MappingChanged
     XkbChanged
+    ClientMessage
 
   X11WindowSnapshot* = object
     id*: uint32
@@ -146,6 +152,12 @@ type
       xkbGroup*: uint32
       xkbLockedGroup*: uint32
       xkbKeycode*: uint32
+    of X11BackendEventKind.ClientMessage:
+      clientWindowId*: uint32
+      clientMessageType*: string
+      clientMessageFormat*: uint32
+      clientData*: array[5, uint32]
+      clientAtomValues*: string
 
 proc x11WindowIdentifier*(id: uint32): string =
   "x11:0x" & toHex(id, 8).toLowerAscii()
@@ -321,6 +333,64 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       xkbLockedGroup: event.root and 0xffff'u32,
       xkbKeycode: event.sibling,
     )
+  of X11ProbeEventKind.XpeClientMessage:
+    X11BackendEvent(
+      kind: X11BackendEventKind.ClientMessage,
+      clientWindowId: event.id,
+      clientMessageType: event.name.cArrayString(),
+      clientMessageFormat: event.valueMask,
+      clientData: event.clientData,
+      clientAtomValues: event.title.cArrayString(),
+    )
+
+proc clientStateCommand(windowId, action: uint32, state: string): Option[Msg] =
+  case state
+  of X11StateFullscreen:
+    case action
+    of X11StateActionAdd:
+      some(
+        Msg(
+          kind: MsgKind.CmdSetWindowFullscreenById,
+          fullscreenWindowId: windowId,
+          windowFullscreen: true,
+        )
+      )
+    of X11StateActionRemove:
+      some(
+        Msg(
+          kind: MsgKind.CmdSetWindowFullscreenById,
+          fullscreenWindowId: windowId,
+          windowFullscreen: false,
+        )
+      )
+    of X11StateActionToggle:
+      some(Msg(kind: MsgKind.CmdToggleFullscreenById, fullscreenWindowId: windowId))
+    else:
+      none(Msg)
+  of X11StateMaximizedHorz, X11StateMaximizedVert:
+    case action
+    of X11StateActionAdd:
+      some(
+        Msg(
+          kind: MsgKind.CmdSetWindowMaximizedById,
+          maximizedWindowId: windowId,
+          windowMaximized: true,
+        )
+      )
+    of X11StateActionRemove:
+      some(
+        Msg(
+          kind: MsgKind.CmdSetWindowMaximizedById,
+          maximizedWindowId: windowId,
+          windowMaximized: false,
+        )
+      )
+    of X11StateActionToggle:
+      some(Msg(kind: MsgKind.CmdToggleMaximizedById, maximizedWindowId: windowId))
+    else:
+      none(Msg)
+  else:
+    none(Msg)
 
 proc messagesFor*(event: X11BackendEvent): seq[Msg] =
   case event.kind
@@ -444,6 +514,34 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
           stateUrgent: tokens.hasState(X11StateDemandsAttention),
         )
       )
+    else:
+      discard
+  of X11BackendEventKind.ClientMessage:
+    case event.clientMessageType
+    of "_NET_ACTIVE_WINDOW":
+      if event.clientWindowId != 0:
+        result.add(
+          Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: event.clientWindowId)
+        )
+    of "_NET_CLOSE_WINDOW":
+      if event.clientWindowId != 0:
+        result.add(
+          Msg(kind: MsgKind.CmdCloseWindowById, closeWindowId: event.clientWindowId)
+        )
+    of "_NET_WM_STATE":
+      if event.clientWindowId != 0:
+        var emittedMaximized = false
+        for state in event.clientAtomValues.stateTokenSet():
+          let command =
+            clientStateCommand(event.clientWindowId, event.clientData[0], state)
+          if command.isNone:
+            continue
+          if command.get().kind in
+              {MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleMaximizedById}:
+            if emittedMaximized:
+              continue
+            emittedMaximized = true
+          result.add(command.get())
     else:
       discard
   of X11BackendEventKind.PointerEntered, X11BackendEventKind.RandrChanged,
