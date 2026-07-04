@@ -162,6 +162,9 @@ typedef struct TriadX11Probe {
     uint32_t button_grab_count;
     TriadX11ResolvedAxisGrab *axis_grabs;
     uint32_t axis_grab_count;
+    xcb_window_t *suppressed_unmaps;
+    uint32_t suppressed_unmap_count;
+    uint32_t suppressed_unmap_capacity;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -169,6 +172,52 @@ typedef struct TriadX11Probe {
 } TriadX11Probe;
 
 static TriadX11Probe *active_probe = NULL;
+
+static int suppress_unmap_notify(TriadX11Probe *probe, xcb_window_t window)
+{
+    if (probe == NULL || window == XCB_WINDOW_NONE)
+        return 0;
+    for (uint32_t i = 0; i < probe->suppressed_unmap_count; i++) {
+        if (probe->suppressed_unmaps[i] == window)
+            return 1;
+    }
+    if (probe->suppressed_unmap_count == probe->suppressed_unmap_capacity) {
+        uint32_t next_capacity =
+            probe->suppressed_unmap_capacity == 0 ? 8 : probe->suppressed_unmap_capacity * 2;
+        xcb_window_t *next = realloc(
+            probe->suppressed_unmaps, (size_t)next_capacity * sizeof(xcb_window_t));
+        if (next == NULL)
+            return 0;
+        probe->suppressed_unmaps = next;
+        probe->suppressed_unmap_capacity = next_capacity;
+    }
+    probe->suppressed_unmaps[probe->suppressed_unmap_count++] = window;
+    return 1;
+}
+
+static int take_suppressed_unmap_notify(TriadX11Probe *probe, xcb_window_t window)
+{
+    if (probe == NULL || window == XCB_WINDOW_NONE)
+        return 0;
+    for (uint32_t i = 0; i < probe->suppressed_unmap_count; i++) {
+        if (probe->suppressed_unmaps[i] != window)
+            continue;
+        probe->suppressed_unmap_count--;
+        probe->suppressed_unmaps[i] = probe->suppressed_unmaps[probe->suppressed_unmap_count];
+        return 1;
+    }
+    return 0;
+}
+
+static void clear_suppressed_unmaps(TriadX11Probe *probe)
+{
+    if (probe == NULL)
+        return;
+    free(probe->suppressed_unmaps);
+    probe->suppressed_unmaps = NULL;
+    probe->suppressed_unmap_count = 0;
+    probe->suppressed_unmap_capacity = 0;
+}
 
 #define TRIAD_XK_NUM_LOCK 0xff7f
 #define TRIAD_XK_SCROLL_LOCK 0xff14
@@ -1627,6 +1676,11 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->window,
             ev->from_configure,
             state != NULL ? state : "");
+        if (take_suppressed_unmap_notify(probe, ev->window)) {
+            probe_log(probe, "event UnmapNotify ignored internal window=0x%08x", ev->window);
+            free(state);
+            break;
+        }
         TriadX11Event event;
         memset(&event, 0, sizeof(event));
         event.id = ev->window;
@@ -1911,6 +1965,7 @@ int triad_x11_probe_run(
     clear_key_grabs(&probe);
     clear_button_grabs(&probe);
     clear_axis_grabs(&probe);
+    clear_suppressed_unmaps(&probe);
     if (active_probe == &probe)
         active_probe = NULL;
 
@@ -2236,6 +2291,8 @@ static int execute_unmap_request(
         free(error);
         return 1;
     }
+    if (active_probe != NULL && active_probe->conn == conn)
+        (void)suppress_unmap_notify(active_probe, request->window_id);
     request_log(log_fn, user_data, "applied unmap window=0x%08x", request->window_id);
     return 0;
 }

@@ -220,6 +220,24 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "y",
+          modifiers: 64'u32,
+          command: "group-windows",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "o",
+          modifiers: 65'u32,
+          command: "ungroup-window",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "n",
+          modifiers: 68'u32,
+          command: "focus-next-in-group",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -780,6 +798,45 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "expel-window"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdExpelWindow
+
+  test "binding dispatch resolves group-windows key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+y"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "group-windows"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdGroupWindows
+
+  test "binding dispatch resolves ungroup-window key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+o"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "ungroup-window"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdUngroupWindow
+
+  test "binding dispatch resolves focus-next-in-group key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+n"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "focus-next-in-group"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusNextInGroup
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

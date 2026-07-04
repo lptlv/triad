@@ -88,6 +88,51 @@ proc layoutRequestsForProjection*(model: var Model): seq[X11Request] =
     if instruction.windowId != 0:
       result.add(instruction.x11ConfigureRequestFor())
 
+proc projectionVisibleWindowIds(model: var Model): seq[uint32] =
+  if model.outputCount() == 0:
+    return
+  for instruction in model.layoutInstructions():
+    if instruction.windowId == 0:
+      continue
+    var found = false
+    for existing in result:
+      if existing == instruction.windowId:
+        found = true
+        break
+    if not found:
+      result.add(instruction.windowId)
+
+proc containsWindowId(ids: openArray[uint32], windowId: uint32): bool =
+  for id in ids:
+    if id == windowId:
+      return true
+  false
+
+proc snapshotMinimized(snapshot: ShellSnapshot, windowId: uint32): bool =
+  for win in snapshot.windows:
+    if win.id == windowId:
+      return win.isMinimized
+  false
+
+proc minimizedStateChanged(before, after: ShellSnapshot, windowId: uint32): bool =
+  before.snapshotMinimized(windowId) != after.snapshotMinimized(windowId)
+
+proc projectionVisibilityRequestsFor(
+    before, after: ShellSnapshot, beforeVisible, afterVisible: openArray[uint32]
+): seq[X11Request] =
+  for windowId in afterVisible:
+    if not beforeVisible.containsWindowId(windowId) and
+        not minimizedStateChanged(before, after, windowId):
+      result.add(x11MapWindowRequest(windowId))
+  for windowId in beforeVisible:
+    if not afterVisible.containsWindowId(windowId) and
+        not minimizedStateChanged(before, after, windowId):
+      result.add(x11UnmapWindowRequest(windowId))
+
+proc shouldSyncProjectionVisibility(kind: MsgKind): bool =
+  kind in
+    {MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup}
+
 proc hasFocusRequest(requests: openArray[X11Request], windowId: uint32): bool =
   for request in requests:
     if request.kind == X11RequestKind.XrqSetInputFocus and request.windowId == windowId:
@@ -175,11 +220,21 @@ proc processEventWithActiveProbe*(
 
 proc processCommandWithActiveProbe*(model: var Model, message: Msg): X11CommandStep =
   result.message = message
+  let beforeVisible = model.projectionVisibleWindowIds()
   let before = model.shellSnapshot()
   result.effects = model.updateInPlace(message)
-  let stateRequests = before.minimizedStateRequestsFor(model.shellSnapshot())
+  let after = model.shellSnapshot()
+  let stateRequests = before.minimizedStateRequestsFor(after)
   result.layoutRequests = model.layoutRequestsForProjection()
+  let visibilityRequests =
+    if message.kind.shouldSyncProjectionVisibility():
+      projectionVisibilityRequestsFor(
+        before, after, beforeVisible, model.projectionVisibleWindowIds()
+      )
+    else:
+      @[]
   result.requests.add(result.layoutRequests)
+  result.requests.add(visibilityRequests)
   result.requests.add(stateRequests)
   result.requests.add(result.effects.x11IntentsFor().x11RequestsFor())
   model.addCommandFocusRequest(message, result.requests)
@@ -190,11 +245,21 @@ proc processCommandWithActiveProbe*(model: var Model, message: Msg): X11CommandS
 
 proc processCommandDryRun*(model: var Model, message: Msg): X11CommandStep =
   result.message = message
+  let beforeVisible = model.projectionVisibleWindowIds()
   let before = model.shellSnapshot()
   result.effects = model.updateInPlace(message)
-  let stateRequests = before.minimizedStateRequestsFor(model.shellSnapshot())
+  let after = model.shellSnapshot()
+  let stateRequests = before.minimizedStateRequestsFor(after)
   result.layoutRequests = model.layoutRequestsForProjection()
+  let visibilityRequests =
+    if message.kind.shouldSyncProjectionVisibility():
+      projectionVisibilityRequestsFor(
+        before, after, beforeVisible, model.projectionVisibleWindowIds()
+      )
+    else:
+      @[]
   result.requests.add(result.layoutRequests)
+  result.requests.add(visibilityRequests)
   result.requests.add(stateRequests)
   result.requests.add(result.effects.x11IntentsFor().x11RequestsFor())
   model.addCommandFocusRequest(message, result.requests)
@@ -204,11 +269,21 @@ proc processCommandWithExecutor*(
     model: var Model, message: Msg, displayName = "", dryRun = true
 ): X11CommandStep =
   result.message = message
+  let beforeVisible = model.projectionVisibleWindowIds()
   let before = model.shellSnapshot()
   result.effects = model.updateInPlace(message)
-  let stateRequests = before.minimizedStateRequestsFor(model.shellSnapshot())
+  let after = model.shellSnapshot()
+  let stateRequests = before.minimizedStateRequestsFor(after)
   result.layoutRequests = model.layoutRequestsForProjection()
+  let visibilityRequests =
+    if message.kind.shouldSyncProjectionVisibility():
+      projectionVisibilityRequestsFor(
+        before, after, beforeVisible, model.projectionVisibleWindowIds()
+      )
+    else:
+      @[]
   result.requests.add(result.layoutRequests)
+  result.requests.add(visibilityRequests)
   result.requests.add(stateRequests)
   result.requests.add(result.effects.x11IntentsFor().x11RequestsFor())
   model.addCommandFocusRequest(message, result.requests)

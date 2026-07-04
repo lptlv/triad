@@ -715,6 +715,54 @@ suite "X11 admission pipeline":
     check expel.xcbRun.code == 0
     check expel.xcbRun.dryRun
 
+  test "group command pipeline maps visible group member":
+    var model = x11ModelWithMappedWindows([0x7a'u32, 0x7b'u32])
+
+    let grouped = model.processCommandDryRun(Msg(kind: MsgKind.CmdGroupWindows))
+
+    check grouped.message.kind == MsgKind.CmdGroupWindows
+    check grouped.layoutRequests.len == 1
+    check grouped.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x7b
+    )
+    check grouped.requests.anyIt(
+      it.kind == X11RequestKind.XrqUnmapWindow and it.windowId == 0x7a
+    )
+
+    let focused = model.processCommandDryRun(Msg(kind: MsgKind.CmdFocusNextInGroup))
+    var mapIdx = -1
+    var focusIdx = -1
+    var unmapIdx = -1
+    for idx, request in focused.requests:
+      if request.kind == X11RequestKind.XrqMapWindow and request.windowId == 0x7a:
+        mapIdx = idx
+      if request.kind == X11RequestKind.XrqSetInputFocus and request.windowId == 0x7a:
+        focusIdx = idx
+      if request.kind == X11RequestKind.XrqUnmapWindow and request.windowId == 0x7b:
+        unmapIdx = idx
+
+    check focused.message.kind == MsgKind.CmdFocusNextInGroup
+    check mapIdx >= 0
+    check focusIdx >= 0
+    check unmapIdx >= 0
+    check mapIdx < focusIdx
+
+    let ungrouped = model.processCommandDryRun(Msg(kind: MsgKind.CmdUngroupWindow))
+
+    check ungrouped.message.kind == MsgKind.CmdUngroupWindow
+    check ungrouped.layoutRequests.len == 2
+    check ungrouped.requests.anyIt(
+      it.kind == X11RequestKind.XrqMapWindow and it.windowId == 0x7b
+    )
+    check ungrouped.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x7a
+    )
+    check ungrouped.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x7b
+    )
+    check ungrouped.xcbRun.code == 0
+    check ungrouped.xcbRun.dryRun
+
   test "minimize command pipeline hides and unmaps focused window":
     var model = x11Model()
     discard model.processEventDryRun(

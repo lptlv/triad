@@ -88,6 +88,7 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
       MsgKind.CmdMoveColumnRight, MsgKind.CmdMoveColumnToFirst,
       MsgKind.CmdMoveColumnToLast, MsgKind.CmdSwapWindowUp, MsgKind.CmdSwapWindowDown,
       MsgKind.CmdConsumeWindow, MsgKind.CmdExpelWindow, MsgKind.CmdZoom,
+      MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup,
       MsgKind.CmdMoveToTag, MsgKind.CmdMoveWindowToTag, MsgKind.CmdSwapWindowToTag,
       MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToScratchpad,
       MsgKind.CmdMoveToNamedScratchpad, MsgKind.CmdToggleScratchpad,
@@ -133,6 +134,7 @@ proc shouldBroadcastTriadLayoutChanged*(kind: MsgKind): bool =
       MsgKind.CmdMoveColumnRight, MsgKind.CmdMoveColumnToFirst,
       MsgKind.CmdMoveColumnToLast, MsgKind.CmdSwapWindowUp, MsgKind.CmdSwapWindowDown,
       MsgKind.CmdConsumeWindow, MsgKind.CmdExpelWindow, MsgKind.CmdZoom,
+      MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup,
       MsgKind.CmdMoveToScratchpad, MsgKind.CmdMoveToNamedScratchpad,
       MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
       MsgKind.CmdRestoreScratchpad, MsgKind.CmdToggleFloating,
@@ -191,8 +193,9 @@ proc isFocusChangingCommand*(kind: MsgKind): bool =
     MsgKind.CmdFocusWindowOrWorkspaceDown, MsgKind.CmdFocusTag,
     MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace, MsgKind.CmdFocusWindowById,
     MsgKind.CmdSelectWindow, MsgKind.CmdRecentWindowConfirm,
-    MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
-    MsgKind.CmdRestoreScratchpad, MsgKind.WlShellSurfaceInteraction,
+    MsgKind.CmdFocusNextInGroup, MsgKind.CmdToggleScratchpad,
+    MsgKind.CmdToggleNamedScratchpad, MsgKind.CmdRestoreScratchpad,
+    MsgKind.WlShellSurfaceInteraction,
   }
 
 proc shouldCollapseAfterUpdate*(kind: MsgKind): bool =
