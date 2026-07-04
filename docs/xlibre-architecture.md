@@ -245,7 +245,10 @@ accumulated against each axis increment and can dispatch bounded multi-tick
 events. Positive vertical ticks map to `wheel-down`, negative vertical ticks map
 to `wheel-up`, positive horizontal ticks map to `wheel-right`, and negative
 horizontal ticks map to `wheel-left`, matching Triad's existing Wayland axis
-binding convention.
+binding convention. XLibre classifies pointer devices using the same basic
+trackball, trackpoint, touchpad, and mouse heuristic as the Wayland/libinput
+runtime, then applies the corresponding existing `input.*.natural-scroll` and
+`input.*.scroll-factor` settings before extracting ticks from XI2 deltas.
 Matching `KeyPress` and `ButtonPress` events are converted back into the same
 `dispatch-binding` path used by IPC, so real input and synthetic dispatch share
 command validation and execution. Interactive pointer bindings can also start
@@ -265,9 +268,9 @@ initial position in the floating window. Core `MappingNotify` and XKB
 new-keyboard, keymap, and state notifications invalidate the configured key,
 button, and axis grab signatures so the next manage tick rebuilds grabs against
 the server's current keyboard, modifier, group, and button state. This first
-input path is intentionally narrow: gesture bindings, XLibre natural-scroll and
-scroll-factor application, and full per-layout keysym resolution still need
-follow-up work.
+input path is intentionally narrow: gesture bindings, richer XLibre device
+configuration beyond scroll policy, and full per-layout keysym resolution still
+need follow-up work.
 
 The next step is to expand runtime usability cautiously:
 

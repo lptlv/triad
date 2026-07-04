@@ -30,12 +30,24 @@ type
     modifiers*: uint32
     binding*: array[128, char]
 
+  X11InputClassConfig* {.bycopy.} = object
+    naturalScrollSet*: uint32
+    naturalScroll*: uint32
+    scrollFactorMilli*: uint32
+
+  X11InputConfig* {.bycopy.} = object
+    mouse*: X11InputClassConfig
+    touchpad*: X11InputClassConfig
+    trackpoint*: X11InputClassConfig
+    trackball*: X11InputClassConfig
+
 const X11ProbeOptionTraceXinputMotion* = 1'u32 shl 0
 
 proc triadX11ProbeRun*(
   displayName: cstring,
   once: cint,
   options: cuint,
+  inputConfig: ptr X11InputConfig,
   logFn: X11ProbeLogFn,
   eventFn: X11ProbeEventFn,
   tickFn: X11ProbeTickFn,

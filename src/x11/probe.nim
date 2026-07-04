@@ -205,6 +205,24 @@ proc axisGrabSignature(grabs: openArray[X11AxisGrab]): string =
     result.add(grab.grabBinding())
     result.add("\n")
 
+proc x11InputClassConfig(config: InputPointerConfig): X11InputClassConfig =
+  result.naturalScrollSet = if config.naturalScrollSet: 1'u32 else: 0'u32
+  result.naturalScroll = if config.naturalScroll: 1'u32 else: 0'u32
+  let factor =
+    if config.scrollFactorSet:
+      max(0.0'f32, min(config.scrollFactor, 100.0'f32))
+    else:
+      1.0'f32
+  result.scrollFactorMilli = uint32(factor * 1000.0'f32)
+
+proc x11InputConfig(model: Model): X11InputConfig =
+  X11InputConfig(
+    mouse: model.input.mouse.x11InputClassConfig(),
+    touchpad: model.input.touchpad.pointer.x11InputClassConfig(),
+    trackpoint: model.input.trackpoint.x11InputClassConfig(),
+    trackball: model.input.trackball.x11InputClassConfig(),
+  )
+
 proc xlibreKeyGrabs(model: Model): seq[X11KeyGrab] =
   let snapshot = model.shellSnapshot()
   for binding in model.resolvedKeyBindings():
@@ -803,6 +821,7 @@ proc runX11Probe*(
         display,
         cint(ord(once)),
         cuint(probeOptions),
+        nil,
         probeLogCallback,
         probeEventCallback,
         probeTickCallback,
@@ -818,6 +837,7 @@ proc runX11Probe*(
     return 1
   stdout.writeLine("config loaded path=\"" & loaded.path & "\"")
   stdout.flushFile()
+  var inputConfig = loaded.model.x11InputConfig()
 
   var context =
     X11ProbeContext(mode: mode, displayName: displayName, model: loaded.model)
@@ -828,6 +848,7 @@ proc runX11Probe*(
       display,
       cint(ord(once)),
       cuint(probeOptions),
+      addr inputConfig,
       probeLogCallback,
       probeEventCallback,
       probeTickCallback,

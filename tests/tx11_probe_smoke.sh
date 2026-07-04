@@ -157,6 +157,7 @@ for pattern in \
   "ewmh initialized" \
   "wm claimed" \
   "xkb version=" \
+  "xinput config mouse(natural_set=0 natural=0 factor_milli=1000)" \
   "xinput version=" \
   "xinput devices count=" \
   "xinput motion events selected" \
@@ -233,6 +234,20 @@ workspaces {
 
 terminal {
   command "touch" "$spawn_terminal_marker"
+}
+
+input {
+  mouse {
+    natural-scroll #true
+    scroll-factor 1.5
+  }
+  touchpad {
+    natural-scroll #true
+    scroll-factor 0.5
+  }
+  trackball {
+    scroll-factor 0.75
+  }
 }
 
 window-rule {
@@ -352,6 +367,9 @@ fi
 for pattern in \
   "config loaded path=\"$config\"" \
   "ipc listening path=\"$ipc_socket\" mode=read-only" \
+  "xinput config mouse(natural_set=1 natural=1 factor_milli=1500)" \
+  "touchpad(natural_set=1 natural=1 factor_milli=500)" \
+  "trackball(natural_set=0 natural=0 factor_milli=750)" \
   "key grabs configured count=" \
   "xlibre_key_grabs requested=" \
   "button grabs configured count=" \

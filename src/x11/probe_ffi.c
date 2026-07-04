@@ -20,6 +20,26 @@ enum {
     TRIAD_X11_PROBE_TRACE_XINPUT_MOTION = 1u << 0,
 };
 
+typedef enum TriadX11PointerClass {
+    TRIAD_X11_POINTER_MOUSE = 0,
+    TRIAD_X11_POINTER_TOUCHPAD = 1,
+    TRIAD_X11_POINTER_TRACKPOINT = 2,
+    TRIAD_X11_POINTER_TRACKBALL = 3,
+} TriadX11PointerClass;
+
+typedef struct TriadX11InputClassConfig {
+    uint32_t natural_scroll_set;
+    uint32_t natural_scroll;
+    uint32_t scroll_factor_milli;
+} TriadX11InputClassConfig;
+
+typedef struct TriadX11InputConfig {
+    TriadX11InputClassConfig mouse;
+    TriadX11InputClassConfig touchpad;
+    TriadX11InputClassConfig trackpoint;
+    TriadX11InputClassConfig trackball;
+} TriadX11InputConfig;
+
 enum {
     TRIAD_X11_MAX_SCROLL_AXES = 128,
 };
@@ -143,6 +163,7 @@ typedef struct TriadXInputScrollAxis {
     uint16_t source_id;
     uint16_t number;
     uint16_t scroll_type;
+    TriadX11PointerClass pointer_class;
     uint32_t flags;
     xcb_input_fp3232_t increment;
     double last_value;
@@ -190,6 +211,7 @@ typedef struct TriadX11Probe {
     const xcb_query_extension_reply_t *xinput_ext;
     const xcb_query_extension_reply_t *xkb_ext;
     uint32_t options;
+    TriadX11InputConfig input_config;
     uint32_t ignored_lock_modifiers;
     int xinput_motion_events_selected;
     int stop_requested;
@@ -273,6 +295,36 @@ static void probe_log(TriadX11Probe *probe, const char *fmt, ...)
 
     if (probe->log != NULL)
         probe->log(probe->log_user_data, buffer);
+}
+
+static TriadX11InputConfig default_x11_input_config(void)
+{
+    TriadX11InputConfig config;
+    memset(&config, 0, sizeof(config));
+    config.mouse.scroll_factor_milli = 1000;
+    config.touchpad.scroll_factor_milli = 1000;
+    config.trackpoint.scroll_factor_milli = 1000;
+    config.trackball.scroll_factor_milli = 1000;
+    return config;
+}
+
+static void log_input_config(TriadX11Probe *probe)
+{
+    probe_log(
+        probe,
+        "xinput config mouse(natural_set=%u natural=%u factor_milli=%u) touchpad(natural_set=%u natural=%u factor_milli=%u) trackpoint(natural_set=%u natural=%u factor_milli=%u) trackball(natural_set=%u natural=%u factor_milli=%u)",
+        probe->input_config.mouse.natural_scroll_set,
+        probe->input_config.mouse.natural_scroll,
+        probe->input_config.mouse.scroll_factor_milli,
+        probe->input_config.touchpad.natural_scroll_set,
+        probe->input_config.touchpad.natural_scroll,
+        probe->input_config.touchpad.scroll_factor_milli,
+        probe->input_config.trackpoint.natural_scroll_set,
+        probe->input_config.trackpoint.natural_scroll,
+        probe->input_config.trackpoint.scroll_factor_milli,
+        probe->input_config.trackball.natural_scroll_set,
+        probe->input_config.trackball.natural_scroll,
+        probe->input_config.trackball.scroll_factor_milli);
 }
 
 static void copy_text(char *dst, size_t dst_len, const char *src)
@@ -1279,10 +1331,107 @@ static const char *xinput_scroll_type_name(uint16_t scroll_type)
     }
 }
 
+static int ascii_contains_case_insensitive(const char *value, const char *needle)
+{
+    if (value == NULL || needle == NULL || needle[0] == '\0')
+        return 0;
+    size_t needle_len = strlen(needle);
+    for (const char *cursor = value; *cursor != '\0'; cursor++) {
+        size_t i = 0;
+        while (i < needle_len && cursor[i] != '\0') {
+            char left = cursor[i];
+            char right = needle[i];
+            if (left >= 'A' && left <= 'Z')
+                left = (char)(left - 'A' + 'a');
+            if (right >= 'A' && right <= 'Z')
+                right = (char)(right - 'A' + 'a');
+            if (left != right)
+                break;
+            i++;
+        }
+        if (i == needle_len)
+            return 1;
+    }
+    return 0;
+}
+
+static TriadX11PointerClass xinput_pointer_class_for(
+    const char *device_name,
+    int has_touch_class,
+    int has_gesture_class)
+{
+    if (ascii_contains_case_insensitive(device_name, "trackball"))
+        return TRIAD_X11_POINTER_TRACKBALL;
+    if (ascii_contains_case_insensitive(device_name, "trackpoint") ||
+        ascii_contains_case_insensitive(device_name, "pointing stick"))
+        return TRIAD_X11_POINTER_TRACKPOINT;
+    if (has_touch_class || has_gesture_class ||
+        ascii_contains_case_insensitive(device_name, "touchpad"))
+        return TRIAD_X11_POINTER_TOUCHPAD;
+    return TRIAD_X11_POINTER_MOUSE;
+}
+
+static const char *xinput_pointer_class_name(TriadX11PointerClass pointer_class)
+{
+    switch (pointer_class) {
+    case TRIAD_X11_POINTER_TOUCHPAD:
+        return "touchpad";
+    case TRIAD_X11_POINTER_TRACKPOINT:
+        return "trackpoint";
+    case TRIAD_X11_POINTER_TRACKBALL:
+        return "trackball";
+    case TRIAD_X11_POINTER_MOUSE:
+    default:
+        return "mouse";
+    }
+}
+
+static const TriadX11InputClassConfig *xinput_config_for_class(
+    const TriadX11Probe *probe,
+    TriadX11PointerClass pointer_class)
+{
+    switch (pointer_class) {
+    case TRIAD_X11_POINTER_TOUCHPAD:
+        return &probe->input_config.touchpad;
+    case TRIAD_X11_POINTER_TRACKPOINT:
+        return &probe->input_config.trackpoint;
+    case TRIAD_X11_POINTER_TRACKBALL:
+        return &probe->input_config.trackball;
+    case TRIAD_X11_POINTER_MOUSE:
+    default:
+        return &probe->input_config.mouse;
+    }
+}
+
+static double xinput_scroll_factor_for_axis(
+    const TriadX11Probe *probe,
+    const TriadXInputScrollAxis *axis)
+{
+    if (axis == NULL)
+        return 1.0;
+    const TriadX11InputClassConfig *config =
+        xinput_config_for_class(probe, axis->pointer_class);
+    if (config->scroll_factor_milli == 0)
+        return 0.0;
+    return (double)config->scroll_factor_milli / 1000.0;
+}
+
+static int xinput_natural_scroll_for_axis(
+    const TriadX11Probe *probe,
+    const TriadXInputScrollAxis *axis)
+{
+    if (axis == NULL)
+        return 0;
+    const TriadX11InputClassConfig *config =
+        xinput_config_for_class(probe, axis->pointer_class);
+    return config->natural_scroll_set != 0 && config->natural_scroll != 0;
+}
+
 static void store_xinput_scroll_axis(
     TriadX11Probe *probe,
     uint16_t device_id,
     uint16_t source_id,
+    TriadX11PointerClass pointer_class,
     const char *device_name,
     const xcb_input_scroll_class_t *scroll)
 {
@@ -1293,6 +1442,7 @@ static void store_xinput_scroll_axis(
     axis->source_id = source_id;
     axis->number = scroll->number;
     axis->scroll_type = scroll->scroll_type;
+    axis->pointer_class = pointer_class;
     axis->flags = scroll->flags;
     axis->increment = scroll->increment;
     axis->last_value = 0.0;
@@ -1394,9 +1544,13 @@ static void process_xinput_scroll_value(
         return;
     }
 
-    axis->accumulator += value - axis->last_value;
+    double delta = value - axis->last_value;
     axis->last_value = value;
+    if (xinput_natural_scroll_for_axis(probe, axis))
+        delta = -delta;
+    delta *= xinput_scroll_factor_for_axis(probe, axis);
 
+    axis->accumulator += delta;
     int ticks = 0;
     while (axis->accumulator >= increment && ticks < 100) {
         axis->accumulator -= increment;
@@ -1611,17 +1765,25 @@ static void query_xinput_devices(TriadX11Probe *probe)
         default:
             break;
         }
-        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_KEY))
+        int has_key_class = device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_KEY);
+        int has_button_class = device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_BUTTON);
+        int has_valuator_class =
+            device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR);
+        int has_scroll_class = device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL);
+        int has_touch_class = device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_TOUCH);
+        int has_gesture_class = device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_GESTURE);
+
+        if (has_key_class)
             key_class_devices++;
-        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_BUTTON))
+        if (has_button_class)
             button_class_devices++;
-        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR))
+        if (has_valuator_class)
             valuator_class_devices++;
-        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL))
+        if (has_scroll_class)
             scroll_class_devices++;
-        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_TOUCH))
+        if (has_touch_class)
             touch_class_devices++;
-        if (device_has_class(device, XCB_INPUT_DEVICE_CLASS_TYPE_GESTURE))
+        if (has_gesture_class)
             gesture_class_devices++;
 
         int device_name_len = xcb_input_xi_device_info_name_length(device);
@@ -1635,6 +1797,8 @@ static void query_xinput_devices(TriadX11Probe *probe)
             xcb_input_xi_device_info_name(device),
             (size_t)device_name_copy_len);
         device_name[device_name_copy_len] = '\0';
+        TriadX11PointerClass pointer_class =
+            xinput_pointer_class_for(device_name, has_touch_class, has_gesture_class);
 
         xcb_input_device_class_iterator_t class_iter =
             xcb_input_xi_device_info_classes_iterator(device);
@@ -1659,19 +1823,26 @@ static void query_xinput_devices(TriadX11Probe *probe)
                     probe,
                     device->deviceid,
                     scroll->sourceid,
+                    pointer_class,
                     device_name,
                     scroll);
+                const TriadX11InputClassConfig *input_config =
+                    xinput_config_for_class(probe, pointer_class);
                 probe_log(
                     probe,
-                    "xinput scroll device=%u source=%u name=\"%s\" number=%u type=%s flags=0x%08x increment=%d.%08x",
+                    "xinput scroll device=%u source=%u class=%s name=\"%s\" number=%u type=%s flags=0x%08x increment=%d.%08x natural_scroll_set=%u natural_scroll=%u scroll_factor_milli=%u",
                     device->deviceid,
                     scroll->sourceid,
+                    xinput_pointer_class_name(pointer_class),
                     device_name,
                     scroll->number,
                     xinput_scroll_type_name(scroll->scroll_type),
                     scroll->flags,
                     scroll->increment.integral,
-                    scroll->increment.frac);
+                    scroll->increment.frac,
+                    input_config->natural_scroll_set,
+                    input_config->natural_scroll,
+                    input_config->scroll_factor_milli);
                 break;
             }
             default:
@@ -2541,6 +2712,7 @@ int triad_x11_probe_run(
     const char *display_name,
     int once,
     uint32_t options,
+    const TriadX11InputConfig *input_config,
     triad_x11_log_fn log_fn,
     triad_x11_event_fn event_fn,
     triad_x11_tick_fn tick_fn,
@@ -2549,6 +2721,9 @@ int triad_x11_probe_run(
     TriadX11Probe probe;
     memset(&probe, 0, sizeof(probe));
     probe.options = options;
+    probe.input_config = default_x11_input_config();
+    if (input_config != NULL)
+        probe.input_config = *input_config;
     probe.log = log_fn;
     probe.event = event_fn;
     probe.log_user_data = user_data;
@@ -2577,6 +2752,7 @@ int triad_x11_probe_run(
         probe.screen->root,
         probe.screen->width_in_pixels,
         probe.screen->height_in_pixels);
+    log_input_config(&probe);
 
     detect_ignored_lock_modifiers(&probe);
     init_atoms(&probe);
