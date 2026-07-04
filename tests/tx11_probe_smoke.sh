@@ -66,6 +66,7 @@ manager_log="$root/tests/tx11-probe-smoke-manager.log"
 client_log="$root/tests/tx11-probe-smoke-client.log"
 managed_client_log="$root/tests/tx11-probe-smoke-managed-client.log"
 close_key_client_log="$root/tests/tx11-probe-smoke-close-key-client.log"
+active_request_log="$root/tests/tx11-probe-smoke-active-request.log"
 focus_next_a_client_log="$root/tests/tx11-probe-smoke-focus-next-a-client.log"
 focus_next_b_client_log="$root/tests/tx11-probe-smoke-focus-next-b-client.log"
 executor_log="$root/tests/tx11-probe-smoke-executor.log"
@@ -102,7 +103,7 @@ config="$root/tests/tx11-probe-smoke-config.kdl"
 ipc_socket="$root/tests/tx11-probe-smoke.sock"
 spawn_marker="$root/tests/tx11-probe-smoke-spawn-marker"
 spawn_terminal_marker="$root/tests/tx11-probe-smoke-spawn-terminal-marker"
-rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$maximize_column_press_log" "$maximize_edges_press_log" "$fullscreen_press_log" "$layout_scroller_press_log" "$vertical_scroller_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
+rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$active_request_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$maximize_column_press_log" "$maximize_edges_press_log" "$fullscreen_press_log" "$layout_scroller_press_log" "$vertical_scroller_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
 
 xvfb_pid=""
 if [ "$external_display" -eq 0 ]; then
@@ -139,7 +140,7 @@ cleanup() {
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
   fi
-  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$maximize_column_press_log" "$maximize_edges_press_log" "$fullscreen_press_log" "$layout_scroller_press_log" "$vertical_scroller_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
+  rm -f "$log" "$event_log" "$manager_log" "$client_log" "$managed_client_log" "$close_key_client_log" "$active_request_log" "$focus_next_a_client_log" "$focus_next_b_client_log" "$executor_log" "$ipc_windows_log" "$ipc_capabilities_log" "$ipc_status_log" "$ipc_focus_log" "$ipc_focus_workspace_log" "$ipc_binding_dispatch_log" "$key_press_log" "$shifted_key_press_log" "$close_key_press_log" "$focus_next_press_log" "$maximize_column_press_log" "$maximize_edges_press_log" "$fullscreen_press_log" "$layout_scroller_press_log" "$vertical_scroller_press_log" "$switch_layout_press_log" "$spawn_press_log" "$spawn_terminal_press_log" "$button_press_log" "$back_button_press_log" "$device_button_press_log" "$mapping_notify_log" "$xkb_state_log" "$axis_press_log" "$pointer_drag_log" "$pointer_resize_log" "$ipc_move_workspace_log" "$ipc_close_log" "$ipc_stop_log" "$log.xvfb" "$client" "$config" "$ipc_socket" "$spawn_marker" "$spawn_terminal_marker"
 }
 
 trap cleanup EXIT INT TERM
@@ -504,6 +505,36 @@ for pattern in \
     exit 1
   fi
 done
+
+if ! "$client" "$display" --request-active >"$active_request_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$active_request_log" >&2
+  exit 1
+fi
+
+active_request_window_id="$(sed -n 's/^window=//p' "$active_request_log" | head -n 1)"
+if [ -z "$active_request_window_id" ]; then
+  printf '%s\n' "tx11_probe_smoke: active-request client did not publish a window id" >&2
+  cat "$active_request_log" >&2
+  exit 1
+fi
+
+active_request_dispatched=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q "event ClientMessage window=$active_request_window_id type=_NET_ACTIVE_WINDOW" "$manager_log" &&
+      grep -q "live_xcb applied focus window=$active_request_window_id" "$manager_log"; then
+    active_request_dispatched=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$active_request_dispatched" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: _NET_ACTIVE_WINDOW client message did not focus requested client" >&2
+  cat "$manager_log" >&2
+  cat "$active_request_log" >&2
+  exit 1
+fi
 
 if ! "$triad" msg --socket "$ipc_socket" dispatch-binding key Super+h >"$ipc_binding_dispatch_log" 2>&1; then
   cat "$manager_log" >&2

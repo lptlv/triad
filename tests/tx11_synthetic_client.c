@@ -357,6 +357,42 @@ static int wait_for_close(
     }
 }
 
+static int request_active_window(
+    xcb_connection_t *conn,
+    xcb_screen_t *screen,
+    xcb_window_t win,
+    xcb_atom_t net_active_window)
+{
+    xcb_client_message_event_t event;
+    memset(&event, 0, sizeof(event));
+    event.response_type = XCB_CLIENT_MESSAGE;
+    event.format = 32;
+    event.window = win;
+    event.type = net_active_window;
+    event.data.data32[0] = 1;
+    event.data.data32[1] = XCB_CURRENT_TIME;
+
+    xcb_void_cookie_t cookie = xcb_send_event_checked(
+        conn,
+        0,
+        screen->root,
+        XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+        (const char *)&event);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        fprintf(
+            stderr,
+            "tx11_synthetic_client: active-window send error=%u\n",
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    xcb_flush(conn);
+    printf("request-active window=0x%08x\n", win);
+    fflush(stdout);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     const char *display = argc > 1 ? argv[1] : NULL;
@@ -367,6 +403,7 @@ int main(int argc, char **argv)
     int send_xkb_state = argc > 2 && strcmp(argv[2], "--send-xkb-state") == 0;
     int hold = argc > 2 &&
         (strcmp(argv[2], "--hold") == 0 || strcmp(argv[2], "--managed-hold") == 0);
+    int request_active = argc > 2 && strcmp(argv[2], "--request-active") == 0;
     int override_redirect = argc > 2 && strcmp(argv[2], "--hold") == 0;
     int screen_number = 0;
     xcb_connection_t *conn = xcb_connect(display, &screen_number);
@@ -559,6 +596,7 @@ int main(int argc, char **argv)
     xcb_atom_t wm_take_focus = intern_atom(conn, "WM_TAKE_FOCUS");
     xcb_atom_t net_wm_name = intern_atom(conn, "_NET_WM_NAME");
     xcb_atom_t net_wm_pid = intern_atom(conn, "_NET_WM_PID");
+    xcb_atom_t net_active_window = intern_atom(conn, "_NET_ACTIVE_WINDOW");
     xcb_atom_t net_wm_state = intern_atom(conn, "_NET_WM_STATE");
     xcb_atom_t net_wm_state_fullscreen = intern_atom(conn, "_NET_WM_STATE_FULLSCREEN");
     xcb_atom_t net_wm_state_maximized_horz =
@@ -575,6 +613,7 @@ int main(int argc, char **argv)
         wm_protocols == XCB_ATOM_NONE || wm_delete_window == XCB_ATOM_NONE ||
         wm_take_focus == XCB_ATOM_NONE ||
         net_wm_name == XCB_ATOM_NONE || net_wm_pid == XCB_ATOM_NONE ||
+        net_active_window == XCB_ATOM_NONE ||
         net_wm_state == XCB_ATOM_NONE ||
         net_wm_state_fullscreen == XCB_ATOM_NONE ||
         net_wm_state_maximized_horz == XCB_ATOM_NONE ||
@@ -673,6 +712,17 @@ int main(int argc, char **argv)
     }
     xcb_flush(conn);
     usleep(200000);
+
+    if (request_active) {
+        printf("window=0x%08x\n", win);
+        fflush(stdout);
+        int status = request_active_window(conn, screen, win, net_active_window);
+        usleep(300000);
+        xcb_destroy_window(conn, win);
+        xcb_flush(conn);
+        xcb_disconnect(conn);
+        return status;
+    }
 
     if (hold) {
         printf("window=0x%08x\n", win);
