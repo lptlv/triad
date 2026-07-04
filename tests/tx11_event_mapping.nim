@@ -539,6 +539,21 @@ suite "X11 event mapping":
     check not cleared[0].stateMinimized
     check not cleared[0].stateUrgent
 
+  test "net wm window type remains observed-only with decoded atom names":
+    var raw = X11ProbeEvent(kind: X11ProbeEventKind.XpePropertyChanged, id: 0x40)
+    for idx, ch in "_NET_WM_WINDOW_TYPE":
+      raw.name[idx] = ch
+    for idx, ch in "_NET_WM_WINDOW_TYPE_DIALOG _NET_WM_WINDOW_TYPE_UTILITY":
+      raw.title[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.PropertyChanged
+    check event.propertyWindowId == 0x40
+    check event.propertyAtom == "_NET_WM_WINDOW_TYPE"
+    check event.propertyValue ==
+      "_NET_WM_WINDOW_TYPE_DIALOG _NET_WM_WINDOW_TYPE_UTILITY"
+    check event.messagesFor().len == 0
+
   test "client messages map to EWMH commands":
     let active = X11BackendEvent(
       kind: X11BackendEventKind.ClientMessage,

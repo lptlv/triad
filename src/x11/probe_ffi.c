@@ -507,10 +507,11 @@ static int window_urgent(TriadX11Probe *probe, xcb_window_t win)
     return xcb_icccm_wm_hints_get_urgency(&hints) != 0;
 }
 
-static char *window_state_atoms(TriadX11Probe *probe, xcb_window_t win)
+static char *window_atom_property_names(
+    TriadX11Probe *probe, xcb_window_t win, xcb_atom_t property)
 {
     xcb_get_property_cookie_t cookie = xcb_get_property(
-        probe->conn, 0, win, probe->atoms.net_wm_state, XCB_ATOM_ATOM, 0, 64);
+        probe->conn, 0, win, property, XCB_ATOM_ATOM, 0, 64);
     xcb_get_property_reply_t *reply =
         xcb_get_property_reply(probe->conn, cookie, NULL);
     if (reply == NULL)
@@ -547,6 +548,16 @@ static char *window_state_atoms(TriadX11Probe *probe, xcb_window_t win)
 
     free(reply);
     return result;
+}
+
+static char *window_state_atoms(TriadX11Probe *probe, xcb_window_t win)
+{
+    return window_atom_property_names(probe, win, probe->atoms.net_wm_state);
+}
+
+static char *window_type_atoms(TriadX11Probe *probe, xcb_window_t win)
+{
+    return window_atom_property_names(probe, win, probe->atoms.net_wm_window_type);
 }
 
 static int select_window_events(TriadX11Probe *probe, xcb_window_t win)
@@ -1909,6 +1920,10 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
                 char *state = window_state_atoms(probe, ev->window);
                 copy_text(event.title, sizeof(event.title), state);
                 free(state);
+            } else if (ev->atom == probe->atoms.net_wm_window_type) {
+                char *window_type = window_type_atoms(probe, ev->window);
+                copy_text(event.title, sizeof(event.title), window_type);
+                free(window_type);
             }
         }
         probe_event(probe, &event);
