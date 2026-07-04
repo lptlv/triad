@@ -199,6 +199,12 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "t",
+          modifiers: 68'u32,
+          command: "toggle-floating",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -701,6 +707,19 @@ suite "X11 writable IPC":
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdSwapWindowToTag
     check parsed.messages[0].targetTagSwap == 2
+
+  test "binding dispatch resolves toggle-floating key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+t"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "toggle-floating"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdToggleFloating
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

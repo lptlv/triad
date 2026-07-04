@@ -626,6 +626,21 @@ suite "X11 admission pipeline":
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
 
+  test "toggle-floating command pipeline reprojects managed window":
+    var model = x11ModelWithMappedWindows([0x75'u32])
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdToggleFloating))
+
+    check step.message.kind == MsgKind.CmdToggleFloating
+    check step.layoutRequests.len == 1
+    check step.layoutRequests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.layoutRequests[0].windowId == 0x75
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x75
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
   test "minimize command pipeline hides and unmaps focused window":
     var model = x11Model()
     discard model.processEventDryRun(

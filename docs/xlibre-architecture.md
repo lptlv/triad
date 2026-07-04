@@ -211,7 +211,8 @@ move-window-to-workspace, move-to-tag and swap-to-tag aliases, switch-layout,
 core scroller layout changes,
 maximize-column, window and column movement, window swaps, column sizing and
 proportion presets, master count/ratio controls, gap controls, fullscreen,
-maximize-to-edges, minimize, and argv-style `spawn` commands.
+maximize-to-edges, minimize, focused floating toggles, and argv-style `spawn`
+commands.
 Unsupported configured commands outside that allowlist are rejected rather than
 run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
