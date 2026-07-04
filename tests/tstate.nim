@@ -194,7 +194,7 @@ suite "Runtime state primitives":
 
   test "daemon click focus uses command focus path":
     let source = readFile("src/triad.nim")
-    check not source.contains("MsgKind.WlFocusChanged")
+    check not source.contains("MsgKind.FocusChanged")
 
   test "empty frame focus is click-only":
     let source = readFile("src/daemon/bindings_runtime.nim")
@@ -244,12 +244,12 @@ suite "Runtime state primitives":
     var inPlace = initRuntimeStateFromConfig(config).model
     let messages =
       @[
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "kitty", title: "one"),
-        Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 10, updatedAppId: "foot"),
-        Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 10, updatedTitle: "two"),
+        Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "kitty", title: "one"),
+        Msg(kind: MsgKind.WindowAppId, appIdWindowId: 10, updatedAppId: "foot"),
+        Msg(kind: MsgKind.WindowTitle, titleWindowId: 10, updatedTitle: "two"),
         Msg(kind: MsgKind.CmdSwitchLayout),
         Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2),
-        Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 10),
+        Msg(kind: MsgKind.WindowDestroyed, destroyedId: 10),
       ]
 
     for msg in messages:
@@ -267,7 +267,7 @@ suite "Runtime state primitives":
     for externalId in 10'u32 .. 22'u32:
       (model, _) = model.update(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: externalId,
           appId: "kitty",
           title: "window " & $externalId,
@@ -275,7 +275,7 @@ suite "Runtime state primitives":
       )
     for externalId in 16'u32 .. 22'u32:
       (model, _) =
-        model.update(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: externalId))
+        model.update(Msg(kind: MsgKind.WindowDestroyed, destroyedId: externalId))
 
     let beforeRestore = model.liveRestoreJson()
     let beforeCounts = model.modelDiagnosticCounts()
@@ -718,9 +718,9 @@ suite "Runtime state primitives":
     config.recentWindows.previews.maxScale = 0.5
     var model = initRuntimeStateFromConfig(config).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two"),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two"),
       Msg(kind: MsgKind.CmdRecentWindowNext),
     ]:
       let (next, _) = model.update(msg)
@@ -750,8 +750,8 @@ suite "Runtime state primitives":
     config.layout.focusedBorderColor = 0x112233ff'u32
     var model = initRuntimeStateFromConfig(config).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 800, height: 600),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 800, height: 600),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
       Msg(kind: MsgKind.CmdOpenOverview),
     ]:
       let (next, _) = model.update(msg)
@@ -772,10 +772,10 @@ suite "Runtime state primitives":
     config.layout.borderWidth = 4
     var model = initRuntimeStateFromConfig(config).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 800, height: 600),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 800, height: 600),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
       Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three"),
       Msg(kind: MsgKind.CmdOpenOverview),
     ]:
       let (next, _) = model.update(msg)
@@ -792,7 +792,7 @@ suite "Runtime state primitives":
     config.layout.focusedBorderColor = 0x99aabbff'u32
     var model = initRuntimeStateFromConfig(config).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 800, height: 600),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 800, height: 600),
       Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2),
       Msg(kind: MsgKind.CmdOpenOverview),
     ]:
@@ -815,12 +815,12 @@ suite "Runtime state primitives":
     config.layout.defaultMasterRatio = 0.55
     var model = initRuntimeStateFromConfig(config).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700),
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Deck),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 4, appId: "app", title: "Four"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 4, appId: "app", title: "Four"),
       Msg(kind: MsgKind.CmdOpenOverview),
     ]:
       let (next, _) = model.update(msg)
@@ -838,11 +838,11 @@ suite "Runtime state primitives":
   test "overview overlay does not badge monocle windows in finder overview":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700),
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Monocle),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three"),
       Msg(kind: MsgKind.CmdOpenOverview),
     ]:
       let (next, _) = model.update(msg)
@@ -859,10 +859,10 @@ suite "Runtime state primitives":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.overviewScrollerIndicators = true
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three"),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three"),
     ]:
       let (next, _) = model.update(msg)
       model = next
@@ -886,10 +886,10 @@ suite "Runtime state primitives":
   test "overview overlay hides scroller overflow indicators by default":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three"),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three"),
     ]:
       let (next, _) = model.update(msg)
       model = next
@@ -905,11 +905,11 @@ suite "Runtime state primitives":
   test "overview overlay renders vertical scroller overflow indicators":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700),
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.VerticalScroller),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three"),
     ]:
       let (next, _) = model.update(msg)
       model = next
@@ -928,7 +928,7 @@ suite "Runtime state primitives":
   test "runtime update mutates model and returns effects":
     var state = initRuntimeStateFromConfig(baseConfig())
     let effects = state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 42, appId: "term", title: "Terminal")
+      Msg(kind: MsgKind.WindowCreated, windowId: 42, appId: "term", title: "Terminal")
     )
     let snapshot = state.readRuntimeSnapshot()
 
@@ -944,13 +944,13 @@ suite "Runtime state primitives":
   test "single window runtime snapshot matches full snapshot window":
     var state = initRuntimeStateFromConfig(baseConfig())
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "HDMI-A-1")
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 42, appId: "term", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 42, appId: "term", title: "A")
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 43, appId: "term", title: "B")
+      Msg(kind: MsgKind.WindowCreated, windowId: 43, appId: "term", title: "B")
     )
 
     let full = state.readRuntimeSnapshot()
@@ -984,10 +984,10 @@ suite "Runtime state primitives":
   test "group commands join, cycle, and dissolve visible neighbors":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
 
     let first = model.windowForExternal(ExternalWindowId(10))
@@ -1065,9 +1065,9 @@ suite "Runtime state primitives":
         )
       ]
     var model = initRuntimeStateFromConfig(config).model
-    let (withFirst, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    let (withFirst, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model = withFirst
-    let (withSecond, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    let (withSecond, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model = withSecond
     let (customSet, _) = model.update(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("spiral"))
@@ -1102,18 +1102,18 @@ suite "Runtime state primitives":
   test "native BSP splits focused leaf and projects all leaf windows":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     var updated = model.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model = updated[0]
-    updated = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    updated = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model = updated[0]
     updated = model.update(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
     model = updated[0]
-    updated = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    updated = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model = updated[0]
-    updated = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    updated = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model = updated[0]
 
     let tagId = model.activeTag
@@ -1132,7 +1132,7 @@ suite "Runtime state primitives":
     check projection.instructions.anyIt(it.windowId == 11'u32)
     check projection.instructions.anyIt(it.windowId == 12'u32)
 
-    updated = model.update(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 12))
+    updated = model.update(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 12))
     model = updated[0]
     check model.bspNodeForWindowOnTag(tagId, tc.WindowId(3)) == tc.NullBspNodeId
     let collapsed = model.layoutProjection()
@@ -1143,14 +1143,14 @@ suite "Runtime state primitives":
   test "dwindle selects bundled BSP policy over native tree":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("dwindle"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let active = model.tagData(tagId).get()
@@ -1172,16 +1172,16 @@ suite "Runtime state primitives":
   test "native BSP persists through live restore":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     var updated = model.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model = updated[0]
-    updated = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    updated = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model = updated[0]
     updated = model.update(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("bsp-tree"))
     )
     model = updated[0]
-    updated = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    updated = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model = updated[0]
 
     let restore = model.liveRestoreState()
@@ -1190,9 +1190,9 @@ suite "Runtime state primitives":
 
     var restored = initRuntimeStateFromConfig(baseConfig()).model
     restored.applyLiveRestore(restore.pendingRestoreState())
-    updated = restored.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    updated = restored.update(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     restored = updated[0]
-    updated = restored.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    updated = restored.update(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     restored = updated[0]
 
     let snapshot = restored.shellSnapshot()
@@ -1206,23 +1206,23 @@ suite "Runtime state primitives":
   test "native BSP restore preserves tree when windows arrive out of order":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("bsp-tree"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
 
     let restore = model.liveRestoreState().pendingRestoreState()
 
     var restored = initRuntimeStateFromConfig(baseConfig()).model
     restored.applyLiveRestore(restore)
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = restored.tagForSlot(1)
     check restored.focusedWindowId() == 11
@@ -1235,9 +1235,9 @@ suite "Runtime state primitives":
   test "native BSP treats floating leaves as vacant until unfloated":
     var baseline = initRuntimeStateFromConfig(baseConfig()).model
     baseline.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    baseline.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    baseline.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     baseline.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
@@ -1245,13 +1245,13 @@ suite "Runtime state primitives":
 
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
 
     let tagId = model.activeTag
@@ -1275,9 +1275,9 @@ suite "Runtime state primitives":
   test "native BSP live restore preserves floating leaf ownership":
     var baseline = initRuntimeStateFromConfig(baseConfig()).model
     baseline.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    baseline.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    baseline.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     baseline.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
@@ -1285,13 +1285,13 @@ suite "Runtime state primitives":
 
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdToggleFloating))
 
@@ -1302,11 +1302,11 @@ suite "Runtime state primitives":
 
     var restored = initRuntimeStateFromConfig(baseConfig()).model
     restored.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     restored.applyLiveRestore(restore)
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = restored.activeTag
     let floatingWin = restored.windowForExternal(ExternalWindowId(11))
@@ -1324,14 +1324,14 @@ suite "Runtime state primitives":
   test "BSP focus uses tree order and directional geometry":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusNext))
     check model.focusedWindowId() == 10
@@ -1348,14 +1348,14 @@ suite "Runtime state primitives":
   test "BSP syncs deferred admission windows into native tree":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, deferAdmission: true)
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, deferAdmission: true)
     )
 
     let tagId = model.activeTag
@@ -1365,7 +1365,7 @@ suite "Runtime state primitives":
       WindowAdmissionState.PendingAdmission
     check model.bspNodeForWindowOnTag(tagId, pendingWin) == tc.NullBspNodeId
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowAdmissionSettled, admissionWindowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowAdmissionSettled, admissionWindowId: 11))
 
     check model.windowData(pendingWin).get().admissionState ==
       WindowAdmissionState.Admitted
@@ -1376,14 +1376,14 @@ suite "Runtime state primitives":
   test "BSP sync repairs duplicate leaves before projection":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let duplicateWin = model.windowForExternal(ExternalWindowId(11))
@@ -1408,14 +1408,14 @@ suite "Runtime state primitives":
   test "BSP directional move swaps focused leaf window":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     let leftGeom = model.instructionGeom(10)
@@ -1429,13 +1429,13 @@ suite "Runtime state primitives":
   test "BSP preselection controls next split direction and clears after insert":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
 
     let focusedWin = model.windowForExternal(ExternalWindowId(10))
@@ -1449,7 +1449,7 @@ suite "Runtime state primitives":
     check withPreselection.bspPreselections.len == 1
     check withPreselection.bspPreselections[0].direction == Direction.DirLeft
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     let newWin = model.windowForExternal(ExternalWindowId(12))
     let oldNodeAfter = model.bspNodeForWindowOnTag(model.activeTag, focusedWin)
     let newNode = model.bspNodeForWindowOnTag(model.activeTag, newWin)
@@ -1468,13 +1468,13 @@ suite "Runtime state primitives":
   test "BSP preselection ratio before direction defaults right and preserves ratio":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
 
     let focusedWin = model.windowForExternal(ExternalWindowId(10))
@@ -1493,7 +1493,7 @@ suite "Runtime state primitives":
     check focusedNode.preselectDirection == Direction.DirUp
     check abs(focusedNode.preselectRatio - 0.3'f32) < 0.001'f32
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     let newWin = model.windowForExternal(ExternalWindowId(12))
     let newNode = model.bspNodeForWindowOnTag(model.activeTag, newWin)
     let oldNode = model.bspNodeForWindowOnTag(model.activeTag, focusedWin)
@@ -1509,13 +1509,13 @@ suite "Runtime state primitives":
   test "BSP preselection cancel and overview projection hide overlay":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdBspPreselect, bspPreselectDirection: Direction.DirDown)
     )
@@ -1536,13 +1536,13 @@ suite "Runtime state primitives":
   test "BSP live restore preserves preselection state":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdBspPreselect, bspPreselectDirection: Direction.DirDown)
     )
@@ -1556,11 +1556,11 @@ suite "Runtime state primitives":
 
     var restored = initRuntimeStateFromConfig(baseConfig()).model
     restored.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     restored.applyLiveRestore(restore)
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let restoredPreselectNodes = toSeq(restored.bspNodesOnTagWithId(restored.activeTag))
       .filterIt(it.node.hasPreselection)
@@ -1571,14 +1571,14 @@ suite "Runtime state primitives":
   test "BSP resize adjusts the focused split fence":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let focusedWin = model.windowForExternal(ExternalWindowId(11))
@@ -1594,14 +1594,14 @@ suite "Runtime state primitives":
   test "BSP balance and equalize update split ratios":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let root = model.bspRootForTag(model.activeTag)
     model.applyMsg(Msg(kind: MsgKind.CmdBspBalance))
@@ -1613,17 +1613,17 @@ suite "Runtime state primitives":
   test "BSP removal adjusts promoted split by longest side":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 13))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 13))
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 10))
 
     let root = model.bspRootForTag(model.activeTag)
     let rootData = model.bspNodeData(root).get()
@@ -1635,16 +1635,16 @@ suite "Runtime state primitives":
 
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let first = model.windowForExternal(ExternalWindowId(10))
@@ -1668,17 +1668,17 @@ suite "Runtime state primitives":
   test "native split-tree preserves split direction for deferred windows":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, deferAdmission: true)
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, deferAdmission: true)
     )
 
     let tagId = model.activeTag
@@ -1687,7 +1687,7 @@ suite "Runtime state primitives":
       WindowAdmissionState.PendingAdmission
     check model.splitNodeForWindowOnTag(tagId, third) == tc.NullSplitNodeId
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowAdmissionSettled, admissionWindowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowAdmissionSettled, admissionWindowId: 12))
 
     check model.windowData(third).get().admissionState == WindowAdmissionState.Admitted
     check model.splitNodeForWindowOnTag(tagId, third) != tc.NullSplitNodeId
@@ -1704,16 +1704,16 @@ suite "Runtime state primitives":
   test "split-tree movement mirrors directional focus and swaps windows":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
 
     check model.directionalTarget(Direction.DirDown).window ==
@@ -1730,14 +1730,14 @@ suite "Runtime state primitives":
   test "native split-tree supports i3 stacking and tabbed container modes":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let root = model.splitRootForTag(tagId)
@@ -1771,14 +1771,14 @@ suite "Runtime state primitives":
   test "frame tab commands cycle native i3 tabbed containers":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let first = model.windowForExternal(ExternalWindowId(10))
@@ -1806,14 +1806,14 @@ suite "Runtime state primitives":
   test "frame tab click selects native i3 tabbed and stacking tabs":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let tagId = model.activeTag
     let root = model.splitRootForTag(tagId)
@@ -1821,7 +1821,7 @@ suite "Runtime state primitives":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.SplitTree,
         frameClickContainerId: uint32(root),
         frameClickWindowId: 10,
@@ -1835,7 +1835,7 @@ suite "Runtime state primitives":
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeLayoutStacking))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.SplitTree,
         frameClickContainerId: uint32(root),
         frameClickWindowId: 11,
@@ -1847,7 +1847,7 @@ suite "Runtime state primitives":
     check model.layoutProjection().instructions[0].windowId == 11'u32
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.SplitTree,
         frameClickContainerId: uint32(root),
         frameClickWindowId: 10,
@@ -1861,17 +1861,17 @@ suite "Runtime state primitives":
   test "frame tab commands cycle nested native i3 tabbed children":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 13))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 13))
 
     let tagId = model.activeTag
     let first = model.windowForExternal(ExternalWindowId(10))
@@ -1900,17 +1900,17 @@ suite "Runtime state primitives":
   test "frame tab click selects nested native i3 tabbed children":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 13))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 13))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeLayoutTabbed))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
 
@@ -1919,7 +1919,7 @@ suite "Runtime state primitives":
     let bar = model.layoutProjection().frameTabBars[0]
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.SplitTree,
         frameClickContainerId: bar.frameId,
         frameClickWindowId: 13,
@@ -1933,13 +1933,13 @@ suite "Runtime state primitives":
   test "split-tree floating removes and reinserts tiled leaves":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = model.activeTag
     let second = model.windowForExternal(ExternalWindowId(11))
@@ -1966,10 +1966,10 @@ suite "Runtime state primitives":
       ]
     var model = initRuntimeStateFromConfig(config).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("split-policy"))
     )
@@ -2003,16 +2003,16 @@ suite "Runtime state primitives":
   test "native split-tree persists through live restore":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let restore = model.liveRestoreState()
     check restore.tags[1].nativeLayoutId.nativeLayoutIdString() == "i3"
@@ -2020,9 +2020,9 @@ suite "Runtime state primitives":
 
     var restored = initRuntimeStateFromConfig(baseConfig()).model
     restored.applyLiveRestore(restore.pendingRestoreState())
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = restored.tagForSlot(1)
     let snapshot = restored.shellSnapshot()
@@ -2040,16 +2040,16 @@ suite "Runtime state primitives":
   test "native split-tree persists through live restore JSON round trip":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
 
     let parsed = parseLiveRestoreJson(model.liveRestoreJson())
@@ -2060,9 +2060,9 @@ suite "Runtime state primitives":
 
     var restored = initRuntimeStateFromConfig(baseConfig()).model
     restored.applyLiveRestore(parsed.get().pendingRestoreState())
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    restored.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    restored.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = restored.tagForSlot(1)
     let snapshot = restored.shellSnapshot()
@@ -2081,9 +2081,9 @@ suite "Runtime state primitives":
   test "split-tree structural focus follows tree topology not geometry":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
@@ -2092,10 +2092,10 @@ suite "Runtime state primitives":
     # - create 11 -> splith{10, 11}
     # - focus 11, split vertical -> splith{10, splitv{11}}
     # - create 12 -> splith{10, splitv{11, 12}}
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let winA = model.windowForExternal(ExternalWindowId(10))
     let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2127,14 +2127,14 @@ suite "Runtime state primitives":
   test "split-tree structural move reorders siblings in matching-orientation parent":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let winA = model.windowForExternal(ExternalWindowId(10))
     let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2167,16 +2167,16 @@ suite "Runtime state primitives":
     block:
       var model = initRuntimeStateFromConfig(baseConfig()).model
       model.applyMsg(
-        Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+        Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
       )
-      model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+      model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
       model.applyMsg(
         Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
       )
-      model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+      model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
       model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
       model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-      model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+      model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
       let winA = model.windowForExternal(ExternalWindowId(10))
       let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2193,16 +2193,16 @@ suite "Runtime state primitives":
     block:
       var model = initRuntimeStateFromConfig(baseConfig()).model
       model.applyMsg(
-        Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+        Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
       )
-      model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+      model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
       model.applyMsg(
         Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
       )
-      model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+      model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
       model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
       model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-      model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+      model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
       let winA = model.windowForExternal(ExternalWindowId(10))
       let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2218,17 +2218,17 @@ suite "Runtime state primitives":
   test "split-tree focus parent elevates container scope and child descends back":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
     # Build splith{A(10), splitv{B(11), C(12)}}
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let winA = model.windowForExternal(ExternalWindowId(10))
     let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2277,17 +2277,17 @@ suite "Runtime state primitives":
   test "split-tree container focus shifts structural neighbor start level":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
     # Build splith{A(10), splitv{B(11), C(12)}}
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let winA = model.windowForExternal(ExternalWindowId(10))
     let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2308,13 +2308,13 @@ suite "Runtime state primitives":
   test "split-tree layout cycle-all steps through all four modes":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = model.activeTag
     let root = model.splitRootForTag(tagId)
@@ -2343,13 +2343,13 @@ suite "Runtime state primitives":
   test "split-tree layout cycle-list cycles through supplied mode subset":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let tagId = model.activeTag
     let root = model.splitRootForTag(tagId)
@@ -2370,14 +2370,14 @@ suite "Runtime state primitives":
   test "split-tree focus next/prev sibling steps through parent children with wrap":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 12))
 
     let winA = model.windowForExternal(ExternalWindowId(10))
     let winB = model.windowForExternal(ExternalWindowId(11))
@@ -2406,12 +2406,12 @@ suite "Runtime state primitives":
   test "native frame-tree stores tabs and projects active frame windows":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     let (withOutput, _) = model.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model = withOutput
-    let (withFirst, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    let (withFirst, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model = withFirst
-    let (withSecond, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    let (withSecond, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model = withSecond
     let (nativeSet, _) = model.update(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
@@ -2445,9 +2445,9 @@ suite "Runtime state primitives":
   test "frame-tree floating detaches from frame chrome and reinserts on unfloat":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2479,10 +2479,10 @@ suite "Runtime state primitives":
   test "frame-tree floating active tab promotes tiled chrome anchor":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2519,9 +2519,9 @@ suite "Runtime state primitives":
   test "targeted frame-tree floating command follows detach and reinsert":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2553,10 +2553,10 @@ suite "Runtime state primitives":
   test "group-windows consolidates frame-tree neighbors into focused frame":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2590,11 +2590,11 @@ suite "Runtime state primitives":
   test "frame-bind-app places new windows in bound frame":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 10, updatedAppId: "alacritty")
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: 10, updatedAppId: "alacritty")
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
@@ -2615,9 +2615,9 @@ suite "Runtime state primitives":
     check model.tagData(tagId).get().frameAppBindings.hasKey("alacritty")
 
     # New alacritty window should land in the bound frame.
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 11, updatedAppId: "alacritty")
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: 11, updatedAppId: "alacritty")
     )
     let winNew = model.windowForExternal(ExternalWindowId(11))
     check model.frameForWindowOnTag(tagId, winNew) == secondFrame
@@ -2629,10 +2629,10 @@ suite "Runtime state primitives":
   test "frame-focus-parent elevates container scope and child descends back":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2668,9 +2668,9 @@ suite "Runtime state primitives":
   test "frame-split-toggle flips parent split orientation":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2689,9 +2689,9 @@ suite "Runtime state primitives":
     # Single leaf frame (no parent split): toggle is a no-op, root stays a leaf.
     var modelSingle = initRuntimeStateFromConfig(baseConfig()).model
     modelSingle.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    modelSingle.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    modelSingle.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     modelSingle.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2703,9 +2703,9 @@ suite "Runtime state primitives":
   test "frame-tree resize adjusts split ratio and clamps at boundaries":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2733,9 +2733,9 @@ suite "Runtime state primitives":
     cfg.layout.defaultFrameSplitRatio = 0.65'f32
     var model = initRuntimeStateFromConfig(cfg).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2747,10 +2747,10 @@ suite "Runtime state primitives":
   test "native frame-tree split keeps focused window in original frame":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
@@ -2763,7 +2763,7 @@ suite "Runtime state primitives":
     check model.frameData(splitParent).get().firstChild == initialFrame
     check model.windowsForFrame(initialFrame) == @[tc.WindowId(1)]
     check model.tagData(model.activeTag).get().focusedFrame != initialFrame
-    let (withThird, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    let (withThird, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model = withThird
     var projection = model.layoutProjection()
 
@@ -2779,7 +2779,7 @@ suite "Runtime state primitives":
         clickedFrame = frameId
     let (tabClick, _) = model.update(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.FrameTree,
         frameClickContainerId: uint32(clickedFrame),
         frameClickWindowId: 11,
@@ -2793,7 +2793,7 @@ suite "Runtime state primitives":
     check model.tagData(model.activeTag).get().focusedWindow == tc.WindowId(3)
     let (staleIndexTabClick, _) = model.update(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.FrameTree,
         frameClickContainerId: uint32(clickedFrame),
         frameClickWindowId: 11,
@@ -2804,7 +2804,7 @@ suite "Runtime state primitives":
     check model.tagData(model.activeTag).get().focusedWindow == tc.WindowId(2)
     let (invalidTabClick, _) = model.update(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.FrameTree,
         frameClickContainerId: uint32(clickedFrame),
         frameClickWindowId: 10,
@@ -2815,7 +2815,7 @@ suite "Runtime state primitives":
     check model.tagData(model.activeTag).get().focusedWindow == tc.WindowId(2)
     let (restoreFocusTabClick, _) = model.update(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.FrameTree,
         frameClickContainerId: uint32(clickedFrame),
         frameClickWindowId: 12,
@@ -2833,12 +2833,12 @@ suite "Runtime state primitives":
       parityConfig.layout.unfocusedBorderColor = 0x2a2636ff'u32
       var parityModel = initRuntimeStateFromConfig(parityConfig).model
       let (parityOutput, _) = parityModel.update(
-        Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1920, height: 1080)
+        Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1920, height: 1080)
       )
       parityModel = parityOutput
       for externalId in [60'u32, 61'u32]:
         let (withWindow, _) =
-          parityModel.update(Msg(kind: MsgKind.WlWindowCreated, windowId: externalId))
+          parityModel.update(Msg(kind: MsgKind.WindowCreated, windowId: externalId))
         parityModel = withWindow
       let (parityNative, _) = parityModel.update(
         Msg(
@@ -2886,12 +2886,12 @@ suite "Runtime state primitives":
     block:
       var moveModel = initRuntimeStateFromConfig(baseConfig()).model
       let (moveOutput, _) = moveModel.update(
-        Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+        Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
       )
       moveModel = moveOutput
       for externalId in [30'u32, 31'u32]:
         let (withWindow, _) =
-          moveModel.update(Msg(kind: MsgKind.WlWindowCreated, windowId: externalId))
+          moveModel.update(Msg(kind: MsgKind.WindowCreated, windowId: externalId))
         moveModel = withWindow
       let (moveNative, _) = moveModel.update(
         Msg(
@@ -2912,12 +2912,12 @@ suite "Runtime state primitives":
 
     var singleFrame = initRuntimeStateFromConfig(baseConfig()).model
     let (singleOutput, _) = singleFrame.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     singleFrame = singleOutput
     for externalId in [20'u32, 21'u32, 22'u32, 23'u32]:
       let (withWindow, _) =
-        singleFrame.update(Msg(kind: MsgKind.WlWindowCreated, windowId: externalId))
+        singleFrame.update(Msg(kind: MsgKind.WindowCreated, windowId: externalId))
       singleFrame = withWindow
     let (singleNative, _) = singleFrame.update(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
@@ -2966,12 +2966,12 @@ suite "Runtime state primitives":
         config
     ).model
     let (notionOutput, _) = notionFrame.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     notionFrame = notionOutput
     for externalId in [50'u32, 51'u32, 52'u32, 53'u32]:
       let (withWindow, _) =
-        notionFrame.update(Msg(kind: MsgKind.WlWindowCreated, windowId: externalId))
+        notionFrame.update(Msg(kind: MsgKind.WindowCreated, windowId: externalId))
       notionFrame = withWindow
     let (notionSet, _) = notionFrame.update(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("notion"))
@@ -3029,10 +3029,10 @@ suite "Runtime state primitives":
           config
       ).model
       notionSplit.applyMsg(
-        Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+        Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
       )
       for externalId in [70'u32, 71'u32, 72'u32]:
-        notionSplit.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: externalId))
+        notionSplit.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: externalId))
       notionSplit.applyMsg(
         Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("notion"))
       )
@@ -3052,11 +3052,11 @@ suite "Runtime state primitives":
 
     var twoFrame = initRuntimeStateFromConfig(baseConfig()).model
     let (twoOutput, _) = twoFrame.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     twoFrame = twoOutput
     let (twoFirst, _) =
-      twoFrame.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 30))
+      twoFrame.update(Msg(kind: MsgKind.WindowCreated, windowId: 30))
     twoFrame = twoFirst
     let (twoNative, _) = twoFrame.update(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
@@ -3064,7 +3064,7 @@ suite "Runtime state primitives":
     twoFrame = twoNative
     for externalId in [31'u32, 32'u32, 33'u32]:
       let (withWindow, _) =
-        twoFrame.update(Msg(kind: MsgKind.WlWindowCreated, windowId: externalId))
+        twoFrame.update(Msg(kind: MsgKind.WindowCreated, windowId: externalId))
       twoFrame = withWindow
       if externalId == 31'u32:
         let (twoSplit, _) = twoFrame.update(Msg(kind: MsgKind.CmdFrameSplitVertical))
@@ -3122,11 +3122,11 @@ suite "Runtime state primitives":
 
     var emptyFrame = initRuntimeStateFromConfig(baseConfig()).model
     let (emptyOutput, _) = emptyFrame.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     emptyFrame = emptyOutput
     let (emptyFirst, _) =
-      emptyFrame.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 40))
+      emptyFrame.update(Msg(kind: MsgKind.WindowCreated, windowId: 40))
     emptyFrame = emptyFirst
     let (emptyNative, _) = emptyFrame.update(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
@@ -3155,7 +3155,7 @@ suite "Runtime state primitives":
       let focusedWindowBeforePointer =
         targetedEmpty.tagData(targetedEmpty.activeTag).get().focusedWindow
       let (focusedByPointer, _) = targetedEmpty.update(
-        Msg(kind: MsgKind.WlFrameEmptyFocused, frameFocusFrameId: uint32(emptyLeaf))
+        Msg(kind: MsgKind.FrameEmptyFocused, frameFocusFrameId: uint32(emptyLeaf))
       )
       targetedEmpty = focusedByPointer
       check targetedEmpty.tagData(targetedEmpty.activeTag).get().focusedFrame ==
@@ -3163,7 +3163,7 @@ suite "Runtime state primitives":
       check targetedEmpty.tagData(targetedEmpty.activeTag).get().focusedWindow ==
         focusedWindowBeforePointer
       let (placedInEmpty, _) =
-        targetedEmpty.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 41))
+        targetedEmpty.update(Msg(kind: MsgKind.WindowCreated, windowId: 41))
       targetedEmpty = placedInEmpty
       check targetedEmpty.windowsForFrame(emptyLeaf) == @[tc.WindowId(2)]
       check targetedEmpty.tagData(targetedEmpty.activeTag).get().focusedWindow ==
@@ -3242,7 +3242,7 @@ suite "Runtime state primitives":
     check restored.applyRuntimeLiveRestore(restore)
     for externalId in [10'u32, 11'u32, 12'u32]:
       discard restored.applyRuntimeUpdate(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: externalId)
+        Msg(kind: MsgKind.WindowCreated, windowId: externalId)
       )
     let restoredSnapshot = restored.readRuntimeSnapshot()
     check restoredSnapshot.workspaces[0].layoutId == "frame-tree"
@@ -3263,15 +3263,15 @@ suite "Runtime state primitives":
   test "frame-tree snapshots repair stale tag focus from focused frame":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 20))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 20))
 
     let tag1 = model.tagForSlot(1)
     let staleWindow = model.windowForExternal(tc.ExternalWindowId(20))
@@ -3306,12 +3306,12 @@ suite "Runtime state primitives":
       ]
     var model = initRuntimeStateFromConfig(config).model
     let (withOutput, _) = model.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model = withOutput
-    let (withFirst, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    let (withFirst, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model = withFirst
-    let (withSecond, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    let (withSecond, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     model = withSecond
     let (customSet, _) = model.update(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("frame-custom"))
@@ -3319,7 +3319,7 @@ suite "Runtime state primitives":
     model = customSet
     let (split, _) = model.update(Msg(kind: MsgKind.CmdFrameSplitHorizontal))
     model = split
-    let (withThird, _) = model.update(Msg(kind: MsgKind.WlWindowCreated, windowId: 12))
+    let (withThird, _) = model.update(Msg(kind: MsgKind.WindowCreated, windowId: 12))
     model = withThird
 
     proc customEval(context: JanetLayoutContext): JanetLayoutEvalResult =
@@ -3384,9 +3384,9 @@ suite "Runtime state primitives":
       ]
     var model = initRuntimeStateFromConfig(config).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("notion"))
     )
@@ -3405,7 +3405,7 @@ suite "Runtime state primitives":
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     check model.frameForWindowOnTag(tagId, tc.WindowId(2)) == tc.NullFrameId
 
     model.applyMsg(
@@ -3445,9 +3445,9 @@ suite "Runtime state primitives":
       ]
     var model = initRuntimeStateFromConfig(config).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("notion"))
     )
@@ -3461,9 +3461,9 @@ suite "Runtime state primitives":
     check emptyLeaf != tc.NullFrameId
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlFrameEmptyFocused, frameFocusFrameId: uint32(emptyLeaf))
+      Msg(kind: MsgKind.FrameEmptyFocused, frameFocusFrameId: uint32(emptyLeaf))
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
     let firstWindowFrame = model.frameForWindowOnTag(tagId, tc.WindowId(1))
     let secondWindowFrame = model.frameForWindowOnTag(tagId, tc.WindowId(2))
     check firstWindowFrame != tc.NullFrameId
@@ -3598,7 +3598,7 @@ suite "Runtime state primitives":
   test "runtime config reload preserves live state":
     var state = initRuntimeStateFromConfig(baseConfig())
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 42, appId: "term", title: "Terminal")
+      Msg(kind: MsgKind.WindowCreated, windowId: 42, appId: "term", title: "Terminal")
     )
 
     let reloaded = Config(
@@ -3628,7 +3628,7 @@ suite "Runtime state primitives":
   test "runtime live restore applies to model":
     var state = initRuntimeStateFromConfig(baseConfig())
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     var restore = LiveRestoreState(activeTag: 2, focusedWindow: 50)
     restore.outputTags[1] = 1
@@ -3681,7 +3681,7 @@ suite "Runtime state primitives":
 
     discard state.applyRuntimeUpdate(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 50, appId: "browser", title: "Browser"
+        kind: MsgKind.WindowCreated, windowId: 50, appId: "browser", title: "Browser"
       )
     )
     discard state.applyRuntimeLayoutProjection()
@@ -3733,7 +3733,7 @@ suite "Runtime state primitives":
     )
 
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "term", title: "Term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "term", title: "Term")
     )
     check state.model.tagForSlot(4) != NullTagId
     check state.readRuntimeSnapshot().workspaces.anyIt(
@@ -3764,7 +3764,7 @@ suite "Runtime state primitives":
   test "layout projection reads and applies directly from state":
     var state = initRuntimeStateFromConfig(baseConfig())
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "term", title: "Terminal")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "term", title: "Terminal")
     )
     let projection = state.applyRuntimeLayoutProjection()
 
@@ -3775,7 +3775,7 @@ suite "Runtime state primitives":
   test "snapshot and live restore reads come from state":
     var state = initRuntimeStateFromConfig(baseConfig())
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "term", title: "Terminal")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "term", title: "Terminal")
     )
 
     let snapshot = state.readRuntimeSnapshot()
@@ -3802,13 +3802,13 @@ suite "Runtime state primitives":
   test "direct reducer keeps invariants over a short lifecycle":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     for msg in [
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "a", title: "A"),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "b", title: "B"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "a", title: "A"),
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "b", title: "B"),
       Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1),
       Msg(kind: MsgKind.CmdMoveToWorkspaceIndex, workspaceIndex: 2),
       Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2),
       Msg(kind: MsgKind.CmdToggleFloating),
-      Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 1),
+      Msg(kind: MsgKind.WindowDestroyed, destroyedId: 1),
     ]:
       let (next, _) = model.update(msg)
       model = next
@@ -3821,7 +3821,7 @@ suite "Runtime state primitives":
   test "invariants reject focused window not placed on tag":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     let (next, _) = model.update(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "a", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "a", title: "A")
     )
     model = next
 
@@ -3841,7 +3841,7 @@ suite "Runtime state primitives":
   test "invariants reject minimized focused window":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     let (next, _) = model.update(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "a", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "a", title: "A")
     )
     model = next
 
@@ -3855,11 +3855,11 @@ suite "Runtime state primitives":
   test "invariants reject active output tag drift":
     var model = initRuntimeStateFromConfig(baseConfig()).model
     let (outputModel, _) = model.update(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model = outputModel
     let (next, _) = model.update(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "a", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "a", title: "A")
     )
     model = next
 

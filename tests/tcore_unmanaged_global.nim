@@ -56,13 +56,13 @@ suite "Core Runtime Logic: unmanaged global windows":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1200, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1200, height: 800)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Main")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "pet", title: "Pet")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "pet", title: "Pet")
     )
 
     let petId = model.windowForExternal(ExternalWindowId(2))
@@ -90,13 +90,13 @@ suite "Core Runtime Logic: unmanaged global windows":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Main")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 9, appId: "camera", title: "Cam")
+      Msg(kind: MsgKind.WindowCreated, windowId: 9, appId: "camera", title: "Cam")
     )
 
     check model.instructionGeom(9).w > 0
@@ -112,14 +112,14 @@ suite "Core Runtime Logic: unmanaged global windows":
       Config(windowRules: @[WindowRule(appIdMatch: "hud", openUnmanagedGlobal: true)])
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Main")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdToggleFullscreen))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 7, appId: "hud", title: "HUD")
+      Msg(kind: MsgKind.WindowCreated, windowId: 7, appId: "hud", title: "HUD")
     )
 
     let projection = model.layoutProjection()
@@ -140,7 +140,7 @@ suite "Core Runtime Logic: unmanaged global windows":
     ).model
     model.applyLiveRestore(restore)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 44, appId: "camera", title: "Cam")
+      Msg(kind: MsgKind.WindowCreated, windowId: 44, appId: "camera", title: "Cam")
     )
 
     let winId = model.windowForExternal(ExternalWindowId(44))

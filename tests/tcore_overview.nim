@@ -101,7 +101,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Opening overview initializes visible selection":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
 
     let effects = model.updateModel(Msg(kind: MsgKind.CmdOpenOverview))
@@ -121,11 +121,11 @@ suite "Core Runtime Logic: overview navigation":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
 
@@ -145,7 +145,7 @@ suite "Core Runtime Logic: overview navigation":
     check model.selectedOverviewWindow() == WindowId(2)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlModifiersChanged, oldModifiers: 64'u32, newModifiers: 0)
+      Msg(kind: MsgKind.ModifiersChanged, oldModifiers: 64'u32, newModifiers: 0)
     )
 
     check not model.overviewActive
@@ -159,7 +159,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview tab command is ignored while tab mode is off":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
 
     let effects =
@@ -172,11 +172,11 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview shell focus clear preserves selected window":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
-    let effects = model.updateModel(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 0))
+    let effects = model.updateModel(Msg(kind: MsgKind.FocusChanged, newFocusedId: 0))
 
     check model.overviewActive
     check model.selectedOverviewWindow() == WindowId(1)
@@ -220,14 +220,14 @@ suite "Core Runtime Logic: overview navigation":
   test "Scroller overview projects workspace previews":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -253,12 +253,12 @@ suite "Core Runtime Logic: overview navigation":
   test "Scroller overview fits the full horizontal strip":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     for id in 1'u32 .. 3'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -300,7 +300,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Vertical scroller overview fits the full vertical strip":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.VerticalScroller)
@@ -308,7 +308,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 3'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -349,12 +349,12 @@ suite "Core Runtime Logic: overview navigation":
   test "Scroller overview centers focused edge columns on screen":
     var firstModel = configuredModel()
     firstModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     for id in 1'u32 .. 3'u32:
       firstModel.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -379,12 +379,12 @@ suite "Core Runtime Logic: overview navigation":
 
     var lastModel = configuredModel()
     lastModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     for id in 1'u32 .. 3'u32:
       lastModel.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -410,7 +410,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Vertical scroller overview centers focused edge rows in preview":
     var firstModel = configuredModel()
     firstModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     firstModel.applyMsg(
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.VerticalScroller)
@@ -418,7 +418,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 3'u32:
       firstModel.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -441,7 +441,7 @@ suite "Core Runtime Logic: overview navigation":
 
     var lastModel = configuredModel()
     lastModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     lastModel.applyMsg(
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.VerticalScroller)
@@ -449,7 +449,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 3'u32:
       lastModel.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -473,12 +473,12 @@ suite "Core Runtime Logic: overview navigation":
   test "Mixed layout overview previews stay isolated":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     for id in 1'u32 .. 3'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Scroller " & $id,
@@ -494,7 +494,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 4'u32 .. 6'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Vertical " & $id,
@@ -510,7 +510,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 7'u32 .. 9'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Grid " & $id,
@@ -550,10 +550,10 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview clips overflowing workspace preview contents":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
@@ -562,7 +562,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 2'u32 .. 4'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -591,14 +591,14 @@ suite "Core Runtime Logic: overview navigation":
   test "Non-scroller overview projects workspace previews":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -621,7 +621,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview renders bundled Janet layout as finder strip":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
@@ -630,7 +630,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 3'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -665,7 +665,7 @@ suite "Core Runtime Logic: overview navigation":
     )
     var model = initRuntimeStateFromConfig(config).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(
@@ -673,10 +673,10 @@ suite "Core Runtime Logic: overview navigation":
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -710,21 +710,21 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview renders frame layouts as finder strips":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFrameSplitHorizontal))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -736,26 +736,26 @@ suite "Core Runtime Logic: overview navigation":
     check frameWindows.anyIt(it.windowId == 2'u32)
     check frameWindows.anyIt(it.windowId == 3'u32)
 
-    discard model.updateModel(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 3))
+    discard model.updateModel(Msg(kind: MsgKind.FocusChanged, newFocusedId: 3))
     check not model.overviewActive
     check model.focusedWindowId() == 3
 
     var notion = configuredModel()
     notion.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     notion.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("notion"))
     )
     notion.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 4, appId: "app", title: "Four")
+      Msg(kind: MsgKind.WindowCreated, windowId: 4, appId: "app", title: "Four")
     )
     notion.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 5, appId: "app", title: "Five")
+      Msg(kind: MsgKind.WindowCreated, windowId: 5, appId: "app", title: "Five")
     )
     notion.applyMsg(Msg(kind: MsgKind.CmdFrameSplitHorizontal))
     notion.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 6, appId: "app", title: "Six")
+      Msg(kind: MsgKind.WindowCreated, windowId: 6, appId: "app", title: "Six")
     )
     notion.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -769,19 +769,19 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview renders BSP layouts as finder strips":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("bsp"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 4, appId: "app", title: "Four")
+      Msg(kind: MsgKind.WindowCreated, windowId: 4, appId: "app", title: "Four")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 5, appId: "app", title: "Five")
+      Msg(kind: MsgKind.WindowCreated, windowId: 5, appId: "app", title: "Five")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 6, appId: "app", title: "Six")
+      Msg(kind: MsgKind.WindowCreated, windowId: 6, appId: "app", title: "Six")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -801,21 +801,21 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview renders i3 split layouts as finder strips":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -837,19 +837,19 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview renders i3 tabbed layouts as finder strips without tab chrome":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "app", title: "Two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeLayoutTabbed))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
@@ -877,24 +877,24 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview exposes every i3 tabbed column window":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "app", title: "Two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 13, appId: "app", title: "Four")
+      Msg(kind: MsgKind.WindowCreated, windowId: 13, appId: "app", title: "Four")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 11))
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeLayoutTabbed))
@@ -912,13 +912,13 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview renders notion previews as finder strips without frame chrome":
     var notion = configuredModel()
     notion.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     notion.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("notion"))
     )
     notion.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 4, appId: "app", title: "Four")
+      Msg(kind: MsgKind.WindowCreated, windowId: 4, appId: "app", title: "Four")
     )
     notion.applyMsg(Msg(kind: MsgKind.CmdFrameSplitHorizontal))
     check notion.tagData(notion.activeTag).get().nativeLayoutId.nativeLayoutIdString() ==
@@ -941,7 +941,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview overlay resolves bundled Janet badges and custom indicators":
     var bundled = configuredModel()
     bundled.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     bundled.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("deck"))
@@ -949,7 +949,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 4'u32:
       bundled.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -979,7 +979,7 @@ suite "Core Runtime Logic: overview navigation":
     var custom = initRuntimeStateFromConfig(config).model
     custom.overviewScrollerIndicators = true
     custom.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     custom.applyMsg(
       Msg(
@@ -989,7 +989,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 3'u32:
       custom.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -1008,13 +1008,13 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview finder includes floating windows":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("grid"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
       Msg(
@@ -1039,7 +1039,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 5'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -1071,10 +1071,10 @@ suite "Core Runtime Logic: overview navigation":
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     let tagId = model.activeTag
     let frameId = model.tagData(tagId).get().focusedFrame
@@ -1086,7 +1086,7 @@ suite "Core Runtime Logic: overview navigation":
     model.applyMsg(Msg(kind: MsgKind.CmdFrameTabNext))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlFrameTabClicked,
+        kind: MsgKind.FrameTabClicked,
         frameClickContainerKind: FrameTabContainerKind.FrameTree,
         frameClickContainerId: uint32(frameId),
         frameClickWindowId: focused,
@@ -1104,7 +1104,7 @@ suite "Core Runtime Logic: overview navigation":
     for id in 1'u32 .. 3'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -1159,7 +1159,7 @@ suite "Core Runtime Logic: overview navigation":
       var model = configuredModel()
       model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: mode))
       model.applyMsg(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+        Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
       )
       model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
       model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
@@ -1192,15 +1192,15 @@ suite "Core Runtime Logic: overview navigation":
   test "Unified overview vertical boundary still moves workspaces":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1227,7 +1227,7 @@ suite "Core Runtime Logic: overview navigation":
   test "Unified overview skips empty workspace previews":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -1266,15 +1266,15 @@ suite "Core Runtime Logic: overview navigation":
     var model = configuredModel()
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1297,15 +1297,15 @@ suite "Core Runtime Logic: overview navigation":
   test "Unified overview workspace crossing updates shell workspaces":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1331,14 +1331,14 @@ suite "Core Runtime Logic: overview navigation":
     var model = configuredModel()
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid))
     for id in 3'u32 .. 6'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -1357,11 +1357,11 @@ suite "Core Runtime Logic: overview navigation":
   test "Unified overview workspace navigation visits visible previews and wraps":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1389,11 +1389,11 @@ suite "Core Runtime Logic: overview navigation":
   test "Unified overview keeps workspace navigation live":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1411,14 +1411,14 @@ suite "Core Runtime Logic: overview navigation":
   test "Unified overview keeps preview style after navigating to grid workspace":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid, layoutTargetTag: 2)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1433,11 +1433,11 @@ suite "Core Runtime Logic: overview navigation":
   test "Overview selection skips empty workspace without window fallback":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -1458,11 +1458,11 @@ suite "Core Runtime Logic: overview navigation":
   test "Selecting overview window commits focus":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))

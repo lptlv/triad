@@ -13,18 +13,18 @@ proc addTestOutput(
 ) =
   model.applyMsg(
     Msg(
-      kind: MsgKind.WlOutputDimensions,
+      kind: MsgKind.OutputDimensions,
       outputId: externalId,
       width: width,
       height: height,
     )
   )
   model.applyMsg(
-    Msg(kind: MsgKind.WlOutputName, nameOutputId: externalId, outputName: name)
+    Msg(kind: MsgKind.OutputName, nameOutputId: externalId, outputName: name)
   )
   model.applyMsg(
     Msg(
-      kind: MsgKind.WlOutputPosition,
+      kind: MsgKind.OutputPosition,
       positionOutputId: externalId,
       outputX: x,
       outputY: y,
@@ -45,13 +45,13 @@ proc inactiveOutputLocalFocusScenario(
     )
   ).model
   model.applyMsg(
-    Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 2560, height: 1440)
+    Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 2560, height: 1440)
   )
-  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-2"))
+  model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-2"))
   model.applyMsg(
-    Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1920, height: 1080)
+    Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1920, height: 1080)
   )
-  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-3"))
+  model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-3"))
 
   let middle = model.outputForExternal(ExternalOutputId(1))
   let left = model.outputForExternal(ExternalOutputId(2))
@@ -61,11 +61,11 @@ proc inactiveOutputLocalFocusScenario(
   discard model.setOutputTag(left, tag3)
 
   model.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "term", title: "term")
+    Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "term", title: "term")
   )
   model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
   model.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 30, appId: "files", title: "files")
+    Msg(kind: MsgKind.WindowCreated, windowId: 30, appId: "files", title: "files")
   )
 
   case layoutId
@@ -93,10 +93,10 @@ proc inactiveOutputLocalFocusScenario(
     discard
 
   model.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 31, appId: "shell", title: "shell")
+    Msg(kind: MsgKind.WindowCreated, windowId: 31, appId: "shell", title: "shell")
   )
   model.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 32, appId: "log", title: "log")
+    Msg(kind: MsgKind.WindowCreated, windowId: 32, appId: "log", title: "log")
   )
   if layoutId == "i3-tabbed":
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeLayoutTabbed))
@@ -117,7 +117,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
     model.addTestOutput(1, "DP-2", 0, 0, 1000, 800)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "term", title: "term")
     )
 
     let indexEffects =
@@ -130,11 +130,11 @@ suite "Core Runtime Logic: output sticky scratchpad":
   test "Output identity events store make model and description":
     var model = initRuntimeStateFromConfig(Config()).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputIdentity,
+        kind: MsgKind.OutputIdentity,
         identityOutputId: 2,
         outputMake: "Dell Inc.",
         outputModel: "DELL U2720Q",
@@ -142,7 +142,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputDescription,
+        kind: MsgKind.OutputDescription,
         descriptionOutputId: 2,
         outputDescription: "Dell Inc. 27 inch",
       )
@@ -161,13 +161,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
 
     let tagId = model.tagForSlot(2)
@@ -183,13 +183,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
 
     let tagId = model.tagForSlot(2)
@@ -206,18 +206,18 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 900, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 900, height: 600)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-1"))
 
     let tagId = model.tagForSlot(2)
     let outputId = model.outputForExternal(ExternalOutputId(3))
@@ -232,13 +232,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let pinnedOutput = model.outputForExternal(ExternalOutputId(1))
     let activeOutput = model.outputForExternal(ExternalOutputId(2))
@@ -265,13 +265,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let pinnedOutput = model.outputForExternal(ExternalOutputId(1))
     let wrongOutput = model.outputForExternal(ExternalOutputId(2))
@@ -296,9 +296,9 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let fallbackOutput = model.outputForExternal(ExternalOutputId(2))
     let tag2 = model.tagForSlot(2)
@@ -319,13 +319,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let pinnedOutput = model.outputForExternal(ExternalOutputId(1))
     let sideOutput = model.outputForExternal(ExternalOutputId(2))
@@ -360,13 +360,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
 
     let outputId = model.outputForExternal(ExternalOutputId(2))
@@ -380,16 +380,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
     var state =
       initRuntimeStateFromConfig(Config(workspaces: WorkspaceConfig(defaultCount: 3)))
     state.model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     state.model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "eDP-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "eDP-1")
     )
     state.model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     state.model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     let originalOutput = state.model.activeOutput
 
@@ -411,29 +411,29 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
+        kind: MsgKind.OutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 2560, height: 1440)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 2560, height: 1440)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
+      Msg(kind: MsgKind.OutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
     )
 
     let right = model.outputForExternal(ExternalOutputId(1))
@@ -455,21 +455,21 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 1, outputX: 0, outputY: 0)
+      Msg(kind: MsgKind.OutputPosition, positionOutputId: 1, outputX: 0, outputY: 0)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
@@ -502,9 +502,9 @@ suite "Core Runtime Logic: output sticky scratchpad":
     discard model.setActiveOutput(source)
     discard model.setActiveWorkspace(movedTag)
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "source"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "source"))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "target"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "target"))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
 
@@ -558,13 +558,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
     check model.activeOutput == center
     check model.tagData(workspace4).get().slot == 4
     check model.activeTag == workspace4
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 40, appId: "four"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 40, appId: "four"))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-3"))
     check model.workspaceOutput(workspace4) == left
     check model.manualWorkspaceOutputTargets[workspace4] == "DP-3"
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "one"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "one"))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-3"))
     check model.workspaceOutput(workspace1) == left
     check model.workspaceOutput(workspace4) == left
@@ -577,11 +577,11 @@ suite "Core Runtime Logic: output sticky scratchpad":
     check model.activeOutput == center
     check model.tagData(centerDynamicWorkspace).get().slot > 3
     check model.activeTag == centerDynamicWorkspace
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 50, appId: "five"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 50, appId: "five"))
     check model.workspaceOutput(workspace1) == left
     check model.workspaceOutput(workspace4) == left
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 50))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 50))
 
     check model.workspaceOutput(workspace1) == left
     check model.workspaceOutput(workspace4) == left
@@ -604,7 +604,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     let left = model.outputForExternal(ExternalOutputId(3))
     let workspace1 = model.tagForSlot(1)
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "one"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "one"))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-3"))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusOutput, outputTarget: "DP-2"))
     check model.activeOutput == center
@@ -662,10 +662,10 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
 
     let first = model.outputForExternal(ExternalOutputId(1))
@@ -681,17 +681,17 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 1, outputX: 0, outputY: 0)
+      Msg(kind: MsgKind.OutputPosition, positionOutputId: 1, outputX: 0, outputY: 0)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     discard model.setOutputTag(
@@ -702,20 +702,20 @@ suite "Core Runtime Logic: output sticky scratchpad":
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "left", title: "Left")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "left", title: "Left")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "right", title: "Right")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "right", title: "Right")
     )
     check model.activeOutput == model.outputForExternal(ExternalOutputId(2))
 
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 10))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 10))
     check model.activeOutput == model.outputForExternal(ExternalOutputId(1))
     check model.activeTag == model.tagForSlot(1)
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "next", title: "Next")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "next", title: "Next")
     )
     check model.snapshotWindow(11).workspaceIdx == 1
 
@@ -724,29 +724,29 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
+        kind: MsgKind.OutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 2560, height: 1440)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 2560, height: 1440)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
+      Msg(kind: MsgKind.OutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
     )
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
@@ -773,29 +773,29 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 4))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
+        kind: MsgKind.OutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 2560, height: 1440)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 2560, height: 1440)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
+      Msg(kind: MsgKind.OutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
     )
 
     let right = model.outputForExternal(ExternalOutputId(1))
@@ -836,29 +836,29 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
+        kind: MsgKind.OutputPosition, positionOutputId: 1, outputX: 4480, outputY: 180
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 2560, height: 1440)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 2560, height: 1440)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1920, outputY: 0
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
+      Msg(kind: MsgKind.OutputPosition, positionOutputId: 3, outputX: 0, outputY: 180)
     )
 
     let right = model.outputForExternal(ExternalOutputId(1))
@@ -869,15 +869,15 @@ suite "Core Runtime Logic: output sticky scratchpad":
     discard model.setOutputTag(right, model.tagForSlot(3))
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "left", title: "Left")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "left", title: "Left")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "middle", title: "Middle")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "middle", title: "Middle")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 30, appId: "right", title: "Right")
+      Msg(kind: MsgKind.WindowCreated, windowId: 30, appId: "right", title: "Right")
     )
 
     let projection = model.layoutProjection()
@@ -896,13 +896,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 2560, height: 1440)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 2560, height: 1440)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-2"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1920, height: 1080)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-3"))
 
     let middle = model.outputForExternal(ExternalOutputId(1))
     let left = model.outputForExternal(ExternalOutputId(2))
@@ -912,14 +912,14 @@ suite "Core Runtime Logic: output sticky scratchpad":
     discard model.setOutputTag(left, tag3)
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "term", title: "term")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 30, appId: "files", title: "files")
+      Msg(kind: MsgKind.WindowCreated, windowId: 30, appId: "files", title: "files")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 31, appId: "shell", title: "shell")
+      Msg(kind: MsgKind.WindowCreated, windowId: 31, appId: "shell", title: "shell")
     )
     model.focusExternal(31)
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
@@ -939,16 +939,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 5))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1200, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1200, height: 800)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1200, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1200, outputY: 0
       )
     )
 
@@ -964,14 +964,14 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("monocle"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 50, appId: "kitty", title: "shell")
+      Msg(kind: MsgKind.WindowCreated, windowId: 50, appId: "kitty", title: "shell")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 51, appId: "kitty", title: "btop")
+      Msg(kind: MsgKind.WindowCreated, windowId: 51, appId: "kitty", title: "btop")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "browser", title: "web")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "browser", title: "web")
     )
 
     let localFocused = model.windowForExternal(ExternalWindowId(51))
@@ -1056,7 +1056,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
       check bars[0].tabs.len >= 2
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlFrameTabClicked,
+          kind: MsgKind.FrameTabClicked,
           frameClickContainerKind: bars[0].containerKind,
           frameClickContainerId: bars[0].frameId,
           frameClickWindowId: bars[0].tabs[1].windowId,
@@ -1073,16 +1073,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     let right = model.outputForExternal(ExternalOutputId(1))
@@ -1102,16 +1102,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1135,16 +1135,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1167,16 +1167,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1198,16 +1198,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1222,7 +1222,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.activeOutput = second
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "kitty", title: "Term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "kitty", title: "Term")
     )
 
     check model.snapshotWindow(11).workspaceIdx == 2
@@ -1236,16 +1236,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1258,7 +1258,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 12,
         appId: "spawned",
         title: "Spawned",
@@ -1279,16 +1279,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1299,7 +1299,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 13,
         appId: "ruled",
         title: "Ruled",
@@ -1320,16 +1320,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1342,7 +1342,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 14,
         appId: "float",
         title: "Float",
@@ -1360,16 +1360,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     let left = model.outputForExternal(ExternalOutputId(1))
@@ -1378,15 +1378,15 @@ suite "Core Runtime Logic: output sticky scratchpad":
     discard model.setOutputTag(right, model.tagForSlot(2))
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "left", title: "Left")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "left", title: "Left")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "right", title: "Right")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "right", title: "Right")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 10))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "next", title: "Next")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "next", title: "Next")
     )
 
     check model.activeOutput == left
@@ -1402,16 +1402,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     let left = model.outputForExternal(ExternalOutputId(1))
@@ -1421,7 +1421,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "float", title: "Float")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "float", title: "Float")
     )
 
     let geom = model.snapshotWindow(20).floatingGeom
@@ -1435,25 +1435,25 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 800, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 800, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 3, outputX: 1900, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 3, outputX: 1900, outputY: 0
       )
     )
     let left = model.outputForExternal(ExternalOutputId(1))
@@ -1464,15 +1464,15 @@ suite "Core Runtime Logic: output sticky scratchpad":
     discard model.setOutputTag(right, model.tagForSlot(3))
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "one", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "one", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "two", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "two", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 30, appId: "three", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 30, appId: "three", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
 
@@ -1497,17 +1497,17 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 1))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
 
     let second = model.outputForExternal(ExternalOutputId(2))
     let third = model.outputForExternal(ExternalOutputId(3))
@@ -1626,7 +1626,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 6))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 60, appId: "editor", title: "Code")
+      Msg(kind: MsgKind.WindowCreated, windowId: 60, appId: "editor", title: "Code")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     discard model.pruneDynamicWorkspaces()
@@ -1646,7 +1646,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     let occupiedTag = model.ensureWorkspaceSlot(4)
     discard model.setActiveWorkspace(occupiedTag)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 61, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 61, appId: "term", title: "term")
     )
     discard model.setActiveWorkspace(model.tagForSlot(1))
 
@@ -1727,13 +1727,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let first = model.outputForExternal(ExternalOutputId(1))
     let second = model.outputForExternal(ExternalOutputId(2))
@@ -1761,13 +1761,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let first = model.outputForExternal(ExternalOutputId(1))
     let second = model.outputForExternal(ExternalOutputId(2))
@@ -1776,7 +1776,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.applyMsg(Msg(kind: MsgKind.CmdNewWorkspace))
     let dynamicTag = model.tagForSlot(3)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 40, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 40, appId: "term", title: "term")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
 
@@ -1790,9 +1790,9 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
 
     let outputId = model.outputForExternal(ExternalOutputId(1))
     discard model.setActiveOutput(outputId)
@@ -1801,7 +1801,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     let occupiedTag = model.ensureWorkspaceSlot(5)
     discard model.setActiveWorkspace(occupiedTag)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 50, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 50, appId: "term", title: "term")
     )
     discard model.setActiveWorkspace(model.tagForSlot(1))
     model.refreshVisibleWorkspaceSlots()
@@ -1826,13 +1826,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let first = model.outputForExternal(ExternalOutputId(1))
     let second = model.outputForExternal(ExternalOutputId(2))
@@ -1846,7 +1846,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     discard model.setActiveOutput(second)
     discard model.setActiveWorkspace(occupiedTag)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 51, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 51, appId: "term", title: "term")
     )
     model.refreshVisibleWorkspaceSlots()
 
@@ -1874,13 +1874,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let first = model.outputForExternal(ExternalOutputId(1))
     let second = model.outputForExternal(ExternalOutputId(2))
@@ -1900,13 +1900,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let first = model.outputForExternal(ExternalOutputId(1))
     let second = model.outputForExternal(ExternalOutputId(2))
@@ -1914,7 +1914,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 4))
     let dynamicTag = model.tagForSlot(4)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 41, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 41, appId: "term", title: "term")
     )
     discard model.setOutputTag(second, model.tagForSlot(2))
     discard model.setActiveOutput(first)
@@ -1930,13 +1930,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
 
@@ -1957,16 +1957,16 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 4))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
 
@@ -1980,20 +1980,20 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 4))
     ).model
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1")
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2")
     )
     restoredModel.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     restoredModel.applyLiveRestore(restore.pendingRestoreState())
@@ -2015,13 +2015,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.applyLiveRestore(restore)
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     check model.activeWorkspaceSlot() == 3
 
@@ -2030,22 +2030,22 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 4))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 4))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-3"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 40, appId: "chat", title: "chat")
+      Msg(kind: MsgKind.WindowCreated, windowId: 40, appId: "chat", title: "chat")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
 
@@ -2056,26 +2056,26 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 4))
     ).model
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1")
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2")
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1000, height: 700)
     )
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3")
     )
     restoredModel.applyLiveRestore(restore.pendingRestoreState())
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 40, appId: "chat", title: "chat")
+      Msg(kind: MsgKind.WindowCreated, windowId: 40, appId: "chat", title: "chat")
     )
 
     var workspace4 = ShellWorkspace()
@@ -2092,17 +2092,17 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 4))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-3"))
 
     var restore = PendingRestoreState(activeSlot: 1)
     restore.tags[4] = RestoredTagData(slot: 4, name: "chat")
@@ -2124,9 +2124,9 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusOutput, outputTarget: "DP-2"))
     model.applyMsg(Msg(kind: MsgKind.CmdNewWorkspace))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 50, appId: "term", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 50, appId: "term", title: "term")
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 50))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 50))
 
     check model.workspaceOutput(workspace4) == left
     check model.manualWorkspaceOutputTargets[workspace4] == "DP-3"
@@ -2136,27 +2136,27 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "HDMI-A-1")
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: 2))
+    model.applyMsg(Msg(kind: MsgKind.OutputRemoved, removedOutputId: 2))
 
     check model.workspaceOutput(model.tagForSlot(2)) == model.primaryOutput
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
 
     let outputId = model.outputForExternal(ExternalOutputId(2))
@@ -2185,25 +2185,25 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputIdentity,
+        kind: MsgKind.OutputIdentity,
         identityOutputId: 2,
         outputMake: "Dell Inc.",
         outputModel: "DELL U2720Q",
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 900, height: 700)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputDescription,
+        kind: MsgKind.OutputDescription,
         descriptionOutputId: 3,
         outputDescription: "BenQ PD3220U",
       )
@@ -2215,8 +2215,8 @@ suite "Core Runtime Logic: output sticky scratchpad":
       model.outputForExternal(ExternalOutputId(3)), model.tagForSlot(3)
     )
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 4, appId: "chat"))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 5, appId: "docs"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 4, appId: "chat"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 5, appId: "docs"))
 
     check model.snapshotWindow(4).workspaceIdx == 2
     check model.snapshotWindow(5).workspaceIdx == 3
@@ -2237,14 +2237,14 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputIdentity,
+        kind: MsgKind.OutputIdentity,
         identityOutputId: 2,
         outputMake: "Unknown",
         outputModel: "Unknown",
@@ -2255,7 +2255,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "chat", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "chat", title: "Main")
     )
 
     check model.snapshotWindow(3).workspaceIdx == 1
@@ -2268,11 +2268,11 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "chat", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "chat", title: "Main")
     )
 
     check model.snapshotWindow(3).workspaceIdx == 1
@@ -2294,13 +2294,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     discard model.setOutputTag(
@@ -2309,7 +2309,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "chat", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "chat", title: "Main")
     )
 
     check model.snapshotWindow(3).workspaceIdx == 3
@@ -2334,18 +2334,18 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 3, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 3, width: 900, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 3, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 3, outputName: "DP-2"))
     discard model.setOutputTag(
       model.outputForExternal(ExternalOutputId(2)), model.tagForSlot(3)
     )
@@ -2354,7 +2354,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "chat", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "chat", title: "Main")
     )
 
     let hdmi = model.outputForExternal(ExternalOutputId(2))
@@ -2381,14 +2381,14 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "eDP-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "eDP-1")
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "chat", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "chat", title: "Main")
     )
 
     check model.snapshotWindow(3).workspaceIdx == 2
@@ -2412,24 +2412,24 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     discard model.setOutputTag(
       model.outputForExternal(ExternalOutputId(2)), model.tagForSlot(2)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "parent", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "parent", title: "Main")
     )
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 11,
         createdParentWindowId: 10,
         appId: "dialog",
@@ -2463,13 +2463,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     discard model.setOutputTag(
@@ -2482,7 +2482,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 50,
         appId: "generic-app",
         title: "Old title",
@@ -2520,7 +2520,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "status", title: "bar")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "status", title: "bar")
     )
     let winId = model.windowForExternal(ExternalWindowId(20))
 
@@ -2533,7 +2533,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     check model.activeWorkspaceFocusId() == 20
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 21, appId: "local", title: "main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 21, appId: "local", title: "main")
     )
     check model.activeWorkspaceFocusId() == 21
 
@@ -2557,7 +2557,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 22, appId: "app", title: "single")
+      Msg(kind: MsgKind.WindowCreated, windowId: 22, appId: "app", title: "single")
     )
     let winId = model.windowForExternal(ExternalWindowId(22))
 
@@ -2574,7 +2574,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 30, appId: "hud", title: "HUD")
+      Msg(kind: MsgKind.WindowCreated, windowId: 30, appId: "hud", title: "HUD")
     )
     let winId = model.windowForExternal(ExternalWindowId(30))
     let win = model.windowData(winId).get()
@@ -2593,7 +2593,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 31, appId: "panel", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 31, appId: "panel", title: "Main")
     )
     let winId = model.windowForExternal(ExternalWindowId(31))
     check not model.windowData(winId).get().isOverlay
@@ -2631,13 +2631,13 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 32, appId: "term", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 32, appId: "term", title: "A")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 33, appId: "hud", title: "HUD")
+      Msg(kind: MsgKind.WindowCreated, windowId: 33, appId: "hud", title: "HUD")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 34, appId: "term", title: "B")
+      Msg(kind: MsgKind.WindowCreated, windowId: 34, appId: "term", title: "B")
     )
 
     var daemon = initTriadDaemon()
@@ -2671,7 +2671,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 23, appId: "status", title: "bar")
+      Msg(kind: MsgKind.WindowCreated, windowId: 23, appId: "status", title: "bar")
     )
     let winId = model.windowForExternal(ExternalWindowId(23))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 4))
@@ -2699,11 +2699,11 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     dialogModel.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 24, appId: "parent", title: "main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 24, appId: "parent", title: "main")
     )
     dialogModel.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 25,
         createdParentWindowId: 24,
         appId: "child",
@@ -2730,11 +2730,11 @@ suite "Core Runtime Logic: output sticky scratchpad":
       )
     ).model
     plainModel.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 26, appId: "parent", title: "main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 26, appId: "parent", title: "main")
     )
     plainModel.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 27,
         createdParentWindowId: 26,
         appId: "child",
@@ -2761,7 +2761,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 28, appId: "status", title: "bar")
+      Msg(kind: MsgKind.WindowCreated, windowId: 28, appId: "status", title: "bar")
     )
     let winId = model.windowForExternal(ExternalWindowId(28))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
@@ -2780,7 +2780,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 29, appId: "term", title: "home")
+      Msg(kind: MsgKind.WindowCreated, windowId: 29, appId: "term", title: "home")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
 
@@ -2790,7 +2790,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
     restoredModel.applyLiveRestore(restore.pendingRestoreState())
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 29, appId: "term", title: "home")
+      Msg(kind: MsgKind.WindowCreated, windowId: 29, appId: "term", title: "home")
     )
     restoredModel.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     restoredModel.applyMsg(Msg(kind: MsgKind.CmdRestoreScratchpad))
@@ -2816,7 +2816,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 29, appId: "status", title: "bar")
+      Msg(kind: MsgKind.WindowCreated, windowId: 29, appId: "status", title: "bar")
     )
     check model.restoreWindowJson(29)["is_sticky"].getBool()
     let restore = parseLiveRestoreJson(model.liveRestoreJson()).get()
@@ -2826,7 +2826,7 @@ suite "Core Runtime Logic: output sticky scratchpad":
     ).model
     restoredModel.applyLiveRestore(restore.pendingRestoreState())
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 29, appId: "status", title: "bar")
+      Msg(kind: MsgKind.WindowCreated, windowId: 29, appId: "status", title: "bar")
     )
     let restoredId = restoredModel.windowForExternal(ExternalWindowId(29))
 

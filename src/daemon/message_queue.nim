@@ -26,7 +26,7 @@ proc dropQueuedOutputRemovals*(daemon: var TriadDaemon): int =
   var kept: Deque[QueuedMsg]
   while daemon.msgQueue.len > 0:
     let queued = daemon.msgQueue.popFirst()
-    if queued.msg.kind == MsgKind.WlOutputRemoved:
+    if queued.msg.kind == MsgKind.OutputRemoved:
       inc result
     else:
       kept.addLast(queued)

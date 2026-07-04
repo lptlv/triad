@@ -267,7 +267,7 @@ suite "X11 admission pipeline":
     )
 
     check step.admission.messages.len == 1
-    check step.admission.messages[0].kind == MsgKind.WlWindowDimensions
+    check step.admission.messages[0].kind == MsgKind.WindowDimensions
     check step.admission.effects.len > 0
     check step.admission.effects.anyIt(it.kind == EffectKind.EffRenderDirty)
     check step.intents.len == 0
@@ -305,7 +305,7 @@ suite "X11 admission pipeline":
     )
 
     check step.admission.messages.len == 1
-    check step.admission.messages[0].kind == MsgKind.WlWindowStateChanged
+    check step.admission.messages[0].kind == MsgKind.WindowStateChanged
     check step.admission.effects.len > 0
     check step.admission.effects.anyIt(it.kind == EffectKind.EffRenderDirty)
     check step.intents.len == 0
@@ -327,7 +327,7 @@ suite "X11 admission pipeline":
     )
 
     check step.admission.messages.len == 1
-    check step.admission.messages[0].kind == MsgKind.WlWindowParent
+    check step.admission.messages[0].kind == MsgKind.WindowParent
     check step.layoutRequests.len > 0
     check step.requests.anyIt(
       it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x51
@@ -350,7 +350,7 @@ suite "X11 admission pipeline":
     )
 
     check step.admission.messages.len == 1
-    check step.admission.messages[0].kind == MsgKind.WlWindowDimensionsHint
+    check step.admission.messages[0].kind == MsgKind.WindowDimensionsHint
     check step.layoutRequests.len > 0
     check step.requests.anyIt(
       it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x52
@@ -371,7 +371,7 @@ suite "X11 admission pipeline":
     )
 
     check step.admission.messages.len == 1
-    check step.admission.messages[0].kind == MsgKind.WlWindowStateChanged
+    check step.admission.messages[0].kind == MsgKind.WindowStateChanged
     check step.admission.messages[0].stateFullscreen
     check step.admission.messages[0].stateUrgent
     check step.layoutRequests.len > 0

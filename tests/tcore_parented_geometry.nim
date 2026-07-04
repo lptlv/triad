@@ -6,7 +6,7 @@ suite "Core Runtime Logic: parented geometry":
     model.seedCameraWindows(2)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -16,7 +16,7 @@ suite "Core Runtime Logic: parented geometry":
 
     discard model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
 
     let order = model.layoutProjection().instructions.mapIt(uint32(it.windowId))
@@ -27,14 +27,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Manual parented popup wider than parent stays centered and clamped":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -59,15 +59,15 @@ suite "Core Runtime Logic: parented geometry":
   test "Size-forced parented popup can overhang parent":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     let parentGeom = model.instructionGeom(1)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -76,7 +76,7 @@ suite "Core Runtime Logic: parented geometry":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 2,
         minWidth: parentGeom.w + 120,
         minHeight: 140,
@@ -94,14 +94,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Manual parented popup resize disables parent auto fit":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -130,14 +130,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Manual parented popup move uses free position":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -166,14 +166,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Parented popup larger than screen shrinks to screen":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -191,7 +191,7 @@ suite "Core Runtime Logic: parented geometry":
     model.seedCameraWindows(3)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -210,7 +210,7 @@ suite "Core Runtime Logic: parented geometry":
     model.seedCameraWindows(3)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -240,14 +240,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Parented floating stack keeps children and newer siblings above":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -256,7 +256,7 @@ suite "Core Runtime Logic: parented geometry":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -271,14 +271,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Focused popup rises above newer sibling in stack history":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -287,7 +287,7 @@ suite "Core Runtime Logic: parented geometry":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -295,7 +295,7 @@ suite "Core Runtime Logic: parented geometry":
       )
     )
 
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 2))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 2))
 
     let order = model.layoutProjection().instructions.mapIt(uint32(it.windowId))
     check order.find(3'u32) < order.find(2'u32)
@@ -303,15 +303,15 @@ suite "Core Runtime Logic: parented geometry":
   test "Large parented primary surface tiles after size hint":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     let parentGeom = model.instructionGeom(1)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "editor",
@@ -320,7 +320,7 @@ suite "Core Runtime Logic: parented geometry":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 2,
         minWidth: int32(float32(parentGeom.w) * 0.95'f32),
         minHeight: int32(float32(parentGeom.h) * 0.95'f32),
@@ -331,7 +331,7 @@ suite "Core Runtime Logic: parented geometry":
 
     let child = model.snapshotWindow(2)
     check not child.isFloating
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 2))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 2))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
     check model.focusedWindowId() == 1
 
@@ -349,15 +349,15 @@ suite "Core Runtime Logic: parented geometry":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     let parentGeom = model.instructionGeom(1)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "editor",
@@ -366,7 +366,7 @@ suite "Core Runtime Logic: parented geometry":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 2,
         minWidth: int32(float32(parentGeom.w) * 0.95'f32),
         minHeight: int32(float32(parentGeom.h) * 0.95'f32),
@@ -381,14 +381,14 @@ suite "Core Runtime Logic: parented geometry":
   test "Manual tiled parented child is not refloated by later hints":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -400,7 +400,7 @@ suite "Core Runtime Logic: parented geometry":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 2,
         minWidth: 260,
         minHeight: 140,
@@ -420,7 +420,7 @@ suite "Core Runtime Logic: parented geometry":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 3,
         appId: "pinentry",
@@ -464,17 +464,17 @@ suite "Core Runtime Logic: parented geometry":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Window 1")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Window 1")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Window 2")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Window 2")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         appId: "keepassxc",
         title: "KeePassXC",
@@ -486,7 +486,7 @@ suite "Core Runtime Logic: parented geometry":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 3,
         appId: "pinentry",
@@ -521,17 +521,17 @@ suite "Core Runtime Logic: parented geometry":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Window 1")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Window 1")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Window 2")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Window 2")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         appId: "keepassxc",
         title: "KeePassXC",
@@ -543,7 +543,7 @@ suite "Core Runtime Logic: parented geometry":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 3,
         appId: "pinentry",
@@ -565,7 +565,7 @@ suite "Core Runtime Logic: parented geometry":
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 3,
         appId: "pinentry",
@@ -575,7 +575,7 @@ suite "Core Runtime Logic: parented geometry":
 
     check model.pendingDialogFocusWindows.len == 1
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 3))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 3))
 
     check model.pendingDialogFocusWindows.len == 0
 
@@ -586,7 +586,7 @@ suite "Core Runtime Logic: parented geometry":
 
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: 4,
           createdParentWindowId: 3,
           appId: "pinentry",
@@ -618,7 +618,7 @@ suite "Core Runtime Logic: parented geometry":
     let parentGeom = model.instructionGeom(1)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -637,7 +637,7 @@ suite "Core Runtime Logic: parented geometry":
     model.focusExternal(4)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         createdParentWindowId: 4,
         appId: "pinentry",
@@ -668,15 +668,15 @@ suite "Core Runtime Logic: parented geometry":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",

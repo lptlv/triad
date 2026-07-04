@@ -22,7 +22,7 @@ proc onOutputDimensions(
     outputId = output.id(), width = width, height = height
   daemon.enqueue(
     Msg(
-      kind: MsgKind.WlOutputDimensions,
+      kind: MsgKind.OutputDimensions,
       outputId: output.id(),
       width: width,
       height: height,
@@ -57,7 +57,7 @@ proc onOutputRemoved(data: pointer, output: ptr RiverOutputV1) =
       outputId = id, droppedQueuedRemovals = dropped
     output.destroy()
     return
-  daemon.enqueue(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: id))
+  daemon.enqueue(Msg(kind: MsgKind.OutputRemoved, removedOutputId: id))
   output.destroy()
 
 proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
@@ -71,7 +71,7 @@ proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
   if daemon.outputGlobalNames.hasKey(name):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputName,
+        kind: MsgKind.OutputName,
         nameOutputId: outputId,
         outputName: daemon.outputGlobalNames[name],
       )
@@ -80,7 +80,7 @@ proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
     let identity = daemon.outputGlobalIdentities[name]
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputIdentity,
+        kind: MsgKind.OutputIdentity,
         identityOutputId: outputId,
         outputMake: identity.make,
         outputModel: identity.modelName,
@@ -89,7 +89,7 @@ proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
   if daemon.outputGlobalDescriptions.hasKey(name):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputDescription,
+        kind: MsgKind.OutputDescription,
         descriptionOutputId: outputId,
         outputDescription: daemon.outputGlobalDescriptions[name],
       )
@@ -97,7 +97,7 @@ proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
   if daemon.outputGlobalRefreshRates.hasKey(name):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputRefreshRate,
+        kind: MsgKind.OutputRefreshRate,
         refreshOutputId: outputId,
         outputRefreshRate: daemon.outputGlobalRefreshRates[name],
       )
@@ -106,7 +106,7 @@ proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
     let metadata = daemon.outputGlobalPhysicalMetadata[name]
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputPhysicalMetadata,
+        kind: MsgKind.OutputPhysicalMetadata,
         metadataOutputId: outputId,
         outputPhysicalWidth: metadata.physicalWidth,
         outputPhysicalHeight: metadata.physicalHeight,
@@ -116,7 +116,7 @@ proc onOutputWlOutput(data: pointer, output: ptr RiverOutputV1, name: uint32) =
   if daemon.outputGlobalScales.hasKey(name):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputScale,
+        kind: MsgKind.OutputScale,
         scaleOutputId: outputId,
         outputScale: daemon.outputGlobalScales[name],
       )
@@ -146,7 +146,7 @@ proc onWlOutputGeometry(
   if daemon.outputGlobalOwners.hasKey(globalName):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputIdentity,
+        kind: MsgKind.OutputIdentity,
         identityOutputId: daemon.outputGlobalOwners[globalName],
         outputMake: $make,
         outputModel: $model,
@@ -154,7 +154,7 @@ proc onWlOutputGeometry(
     )
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputPhysicalMetadata,
+        kind: MsgKind.OutputPhysicalMetadata,
         metadataOutputId: daemon.outputGlobalOwners[globalName],
         outputPhysicalWidth: physicalWidth,
         outputPhysicalHeight: physicalHeight,
@@ -185,7 +185,7 @@ proc onWlOutputMode(
     if daemon.outputGlobalOwners.hasKey(globalName):
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlOutputRefreshRate,
+          kind: MsgKind.OutputRefreshRate,
           refreshOutputId: daemon.outputGlobalOwners[globalName],
           outputRefreshRate: refresh,
         )
@@ -207,7 +207,7 @@ proc onWlOutputScale(data: pointer, output: ptr Output, factor: int32) =
   if daemon.outputGlobalOwners.hasKey(globalName):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputScale,
+        kind: MsgKind.OutputScale,
         scaleOutputId: daemon.outputGlobalOwners[globalName],
         outputScale: float32(factor),
       )
@@ -226,7 +226,7 @@ proc onWlOutputName(data: pointer, output: ptr Output, name: cstring) =
   if daemon.outputGlobalOwners.hasKey(globalName):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputName,
+        kind: MsgKind.OutputName,
         nameOutputId: daemon.outputGlobalOwners[globalName],
         outputName: outputName,
       )
@@ -243,7 +243,7 @@ proc onWlOutputDescription(data: pointer, output: ptr Output, description: cstri
   if daemon.outputGlobalOwners.hasKey(globalName):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputDescription,
+        kind: MsgKind.OutputDescription,
         descriptionOutputId: daemon.outputGlobalOwners[globalName],
         outputDescription: $description,
       )
@@ -256,7 +256,7 @@ proc onOutputPosition(data: pointer, output: ptr RiverOutputV1, x: int32, y: int
   info "Output position changed", outputId = output.id(), x = x, y = y
   daemon.enqueue(
     Msg(
-      kind: MsgKind.WlOutputPosition,
+      kind: MsgKind.OutputPosition,
       positionOutputId: output.id(),
       outputX: x,
       outputY: y,

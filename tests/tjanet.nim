@@ -2712,7 +2712,7 @@ suite "embedded Janet runtime":
     var afterAdded = before
     afterAdded.outputs = @[baseOutput, addedOutput]
     let addedMessages = daemon.collectJanetScriptMessages(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 2560, height: 1440),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 2560, height: 1440),
       before,
       afterAdded,
     )
@@ -2725,7 +2725,7 @@ suite "embedded Janet runtime":
     var afterChanged = before
     afterChanged.outputs = @[changedOutput]
     let changedMessages = daemon.collectJanetScriptMessages(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "HDMI-A-2"),
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "HDMI-A-2"),
       before,
       afterChanged,
     )
@@ -2738,7 +2738,7 @@ suite "embedded Janet runtime":
     var beforeRemoved = before
     beforeRemoved.outputs = @[baseOutput, removedOutput]
     let removedMessages = daemon.collectJanetScriptMessages(
-      Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: 3), beforeRemoved, before
+      Msg(kind: MsgKind.OutputRemoved, removedOutputId: 3), beforeRemoved, before
     )
 
     check removedMessages.len == 1
@@ -2747,7 +2747,7 @@ suite "embedded Janet runtime":
     check removedMessages[0].msg.focusTag == 4
 
     let unchangedMessages = daemon.collectJanetScriptMessages(
-      Msg(kind: MsgKind.WlOutputRefreshRate, refreshOutputId: 1, outputRefreshRate: 0),
+      Msg(kind: MsgKind.OutputRefreshRate, refreshOutputId: 1, outputRefreshRate: 0),
       before,
       before,
     )
@@ -2757,7 +2757,7 @@ suite "embedded Janet runtime":
     var fallbackOnly = before
     fallbackOnly.outputs = @[ShellOutput(id: 0, name: "triad-0", w: 1920, h: 1080)]
     let fallbackReplacementMessages = daemon.collectJanetScriptMessages(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1080),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1920, height: 1080),
       fallbackOnly,
       before,
     )

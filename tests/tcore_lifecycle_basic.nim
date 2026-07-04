@@ -5,7 +5,7 @@ suite "Core Runtime Logic: lifecycle basic":
     var model = configuredModel()
     let (nextModel, effects) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 100,
         appId: "firefox",
         title: "Mozilla Firefox",
@@ -25,16 +25,16 @@ suite "Core Runtime Logic: lifecycle basic":
   test "New active-tag window focuses and retargets camera":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     discard model.layoutInstructions()
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     discard model.layoutInstructions()
 
@@ -47,19 +47,19 @@ suite "Core Runtime Logic: lifecycle basic":
   test "New active-tag window records focus under layer focus":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     discard model.layoutInstructions()
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
-    discard model.updateModel(Msg(kind: MsgKind.WlLayerFocusExclusive))
+    discard model.updateModel(Msg(kind: MsgKind.LayerFocusExclusive))
 
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
-    discard model.updateModel(Msg(kind: MsgKind.WlLayerFocusNone))
+    discard model.updateModel(Msg(kind: MsgKind.LayerFocusNone))
     discard model.layoutInstructions()
 
     check model.focusedWindowId() == 2
@@ -69,15 +69,15 @@ suite "Core Runtime Logic: lifecycle basic":
   test "Deferred admission hides unparented River window until settled":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "app",
         title: "Two",
@@ -94,7 +94,7 @@ suite "Core Runtime Logic: lifecycle basic":
     )
     check model.snapshotWindow(2).id == 0'u32
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowAdmissionSettled, admissionWindowId: 2))
+    model.applyMsg(Msg(kind: MsgKind.WindowAdmissionSettled, admissionWindowId: 2))
 
     check model.windowData(childId).get().admissionState == WindowAdmissionState.Admitted
     check model.focusedWindowId() == 2
@@ -105,14 +105,14 @@ suite "Core Runtime Logic: lifecycle basic":
   test "Late parent admits deferred child directly as floating popup":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "xdg-desktop-portal-gtk",
         title: "Open Document",
@@ -125,7 +125,7 @@ suite "Core Runtime Logic: lifecycle basic":
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowParent, childWindowId: 2, parentWindowId: 1)
+      Msg(kind: MsgKind.WindowParent, childWindowId: 2, parentWindowId: 1)
     )
 
     let childId = model.windowForExternal(ExternalWindowId(2))
@@ -152,18 +152,18 @@ suite "Core Runtime Logic: lifecycle basic":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 1, appId: "okular", title: "Document"
+        kind: MsgKind.WindowCreated, windowId: 1, appId: "okular", title: "Document"
       )
     )
     let parentGeom = model.instructionGeom(1)
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "xdg-desktop-portal-gtk",
         title: "Open Document",
@@ -171,7 +171,7 @@ suite "Core Runtime Logic: lifecycle basic":
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowParent, childWindowId: 2, parentWindowId: 1)
+      Msg(kind: MsgKind.WindowParent, childWindowId: 2, parentWindowId: 1)
     )
 
     let childGeom = model.instructionGeom(2)
@@ -182,27 +182,27 @@ suite "Core Runtime Logic: lifecycle basic":
   test "Late parent reclassifies admitted child as floating popup":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "xdg-desktop-portal-gtk",
         title: "Open Document",
         deferAdmission: true,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowAdmissionSettled, admissionWindowId: 2))
+    model.applyMsg(Msg(kind: MsgKind.WindowAdmissionSettled, admissionWindowId: 2))
     check model.layoutProjection().instructions.mapIt(uint32(it.windowId)).contains(
       2'u32
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowParent, childWindowId: 2, parentWindowId: 1)
+      Msg(kind: MsgKind.WindowParent, childWindowId: 2, parentWindowId: 1)
     )
 
     let childId = model.windowForExternal(ExternalWindowId(2))

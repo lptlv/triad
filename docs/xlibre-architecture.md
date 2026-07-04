@@ -237,8 +237,8 @@ Matching `KeyPress` and `ButtonPress` events are converted back into the same
 `dispatch-binding` path used by IPC, so real input and synthetic dispatch share
 command validation and execution. Interactive pointer bindings can also start
 the existing model pointer operation path for floating windows; motion and
-release events from the active X11 grab are translated to `WlPointerDelta` and
-`WlPointerRelease`, then executed as configure-window requests. The Xvfb smoke
+release events from the active X11 grab are translated to `PointerDelta` and
+`PointerRelease`, then executed as configure-window requests. The Xvfb smoke
 test uses XTEST, when available, to fake `Super+h`, `Super+Shift+/`,
 `Super+q`, `Super+Tab`, `Super+x`, `Super+t`, `Super+middle`, `Super+button10`,
 `Super+wheel-up`, plus `Super+left` move and `Super+right` resize drags of a

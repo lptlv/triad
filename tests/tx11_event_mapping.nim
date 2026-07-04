@@ -290,7 +290,7 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 3
-    check messages[0].kind == MsgKind.WlWindowCreated
+    check messages[0].kind == MsgKind.WindowCreated
     check messages[0].windowId == 42
     check messages[0].createdParentWindowId == 7
     check messages[0].createdPid == 1234
@@ -298,11 +298,11 @@ suite "X11 event mapping":
     check messages[0].title == "Terminal"
     check messages[0].createdIdentifier == "x11:0x0000002a"
     check not messages[0].deferAdmission
-    check messages[1].kind == MsgKind.WlWindowDimensions
+    check messages[1].kind == MsgKind.WindowDimensions
     check messages[1].dimensionsWindowId == 42
     check messages[1].actualWidth == 800
     check messages[1].actualHeight == 600
-    check messages[2].kind == MsgKind.WlWindowPid
+    check messages[2].kind == MsgKind.WindowPid
     check messages[2].pidWindowId == 42
     check messages[2].windowPid == 1234
 
@@ -315,12 +315,12 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 3
-    check messages[0].kind == MsgKind.WlWindowCreated
+    check messages[0].kind == MsgKind.WindowCreated
     check messages[0].windowId == 43
     check messages[0].appId == "app"
-    check messages[1].kind == MsgKind.WlWindowDimensions
+    check messages[1].kind == MsgKind.WindowDimensions
     check messages[1].dimensionsWindowId == 43
-    check messages[2].kind == MsgKind.WlWindowPid
+    check messages[2].kind == MsgKind.WindowPid
     check messages[2].pidWindowId == 43
 
   test "window discovery maps client size hints":
@@ -340,7 +340,7 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 3
-    check messages[2].kind == MsgKind.WlWindowDimensionsHint
+    check messages[2].kind == MsgKind.WindowDimensionsHint
     check messages[2].hintWindowId == 44
     check messages[2].minWidth == 320
     check messages[2].minHeight == 200
@@ -363,10 +363,10 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check destroyed.len == 1
-    check destroyed[0].kind == MsgKind.WlWindowDestroyed
+    check destroyed[0].kind == MsgKind.WindowDestroyed
     check destroyed[0].destroyedId == 11
     check unmapped.len == 1
-    check unmapped[0].kind == MsgKind.WlWindowDestroyed
+    check unmapped[0].kind == MsgKind.WindowDestroyed
     check unmapped[0].destroyedId == 12
 
   test "connected output maps to dimensions, name, and position messages":
@@ -378,14 +378,14 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 3
-    check messages[0].kind == MsgKind.WlOutputDimensions
+    check messages[0].kind == MsgKind.OutputDimensions
     check messages[0].outputId == 3
     check messages[0].width == 2560
     check messages[0].height == 1440
-    check messages[1].kind == MsgKind.WlOutputName
+    check messages[1].kind == MsgKind.OutputName
     check messages[1].nameOutputId == 3
     check messages[1].outputName == "DP-1"
-    check messages[2].kind == MsgKind.WlOutputPosition
+    check messages[2].kind == MsgKind.OutputPosition
     check messages[2].positionOutputId == 3
     check messages[2].outputX == 1920
     check messages[2].outputY == 0
@@ -397,7 +397,7 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 1
-    check messages[0].kind == MsgKind.WlOutputRemoved
+    check messages[0].kind == MsgKind.OutputRemoved
     check messages[0].removedOutputId == 4
 
   test "focused event maps to focus changed and unfocused event is ignored":
@@ -409,7 +409,7 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check focused.len == 1
-    check focused[0].kind == MsgKind.WlFocusChanged
+    check focused[0].kind == MsgKind.FocusChanged
     check focused[0].newFocusedId == 88
     check unfocused.len == 0
 
@@ -420,7 +420,7 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 1
-    check messages[0].kind == MsgKind.WlWindowDimensions
+    check messages[0].kind == MsgKind.WindowDimensions
     check messages[0].dimensionsWindowId == 1
     check messages[0].actualWidth == 640
     check messages[0].actualHeight == 480
@@ -475,37 +475,37 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check title.len == 1
-    check title[0].kind == MsgKind.WlWindowTitle
+    check title[0].kind == MsgKind.WindowTitle
     check title[0].titleWindowId == 1
     check title[0].updatedTitle == "Updated"
     check appId.len == 1
-    check appId[0].kind == MsgKind.WlWindowAppId
+    check appId[0].kind == MsgKind.WindowAppId
     check appId[0].appIdWindowId == 1
     check appId[0].updatedAppId == "kitty"
     check pid.len == 1
-    check pid[0].kind == MsgKind.WlWindowPid
+    check pid[0].kind == MsgKind.WindowPid
     check pid[0].pidWindowId == 1
     check pid[0].windowPid == 4321
     check transient.len == 1
-    check transient[0].kind == MsgKind.WlWindowParent
+    check transient[0].kind == MsgKind.WindowParent
     check transient[0].childWindowId == 2
     check transient[0].parentWindowId == 1
     check normalHints.len == 1
-    check normalHints[0].kind == MsgKind.WlWindowDimensionsHint
+    check normalHints[0].kind == MsgKind.WindowDimensionsHint
     check normalHints[0].hintWindowId == 3
     check normalHints[0].minWidth == 320
     check normalHints[0].minHeight == 200
     check normalHints[0].maxWidth == 1280
     check normalHints[0].maxHeight == 900
     check wmHints.len == 1
-    check wmHints[0].kind == MsgKind.WlWindowStateChanged
+    check wmHints[0].kind == MsgKind.WindowStateChanged
     check wmHints[0].stateWindowId == 4
     check wmHints[0].stateFullscreen
     check not wmHints[0].stateMaximized
     check wmHints[0].stateMinimized
     check wmHints[0].stateUrgent
     check wmHintsCleared.len == 1
-    check wmHintsCleared[0].kind == MsgKind.WlWindowStateChanged
+    check wmHintsCleared[0].kind == MsgKind.WindowStateChanged
     check wmHintsCleared[0].stateFullscreen
     check not wmHintsCleared[0].stateUrgent
 
@@ -526,14 +526,14 @@ suite "X11 event mapping":
     ).messagesFor()
 
     check messages.len == 1
-    check messages[0].kind == MsgKind.WlWindowStateChanged
+    check messages[0].kind == MsgKind.WindowStateChanged
     check messages[0].stateWindowId == 1
     check messages[0].stateFullscreen
     check messages[0].stateMaximized
     check messages[0].stateMinimized
     check messages[0].stateUrgent
     check cleared.len == 1
-    check cleared[0].kind == MsgKind.WlWindowStateChanged
+    check cleared[0].kind == MsgKind.WindowStateChanged
     check not cleared[0].stateFullscreen
     check not cleared[0].stateMaximized
     check not cleared[0].stateMinimized

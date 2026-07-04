@@ -196,12 +196,12 @@ suite "X11 model admission":
       )
 
     check configured.messages.len == 1
-    check configured.messages[0].kind == MsgKind.WlWindowDimensions
+    check configured.messages[0].kind == MsgKind.WindowDimensions
     check configured.effects.hasEffect(EffectKind.EffRenderDirty)
     check title.messages.len == 1
-    check title.messages[0].kind == MsgKind.WlWindowTitle
+    check title.messages[0].kind == MsgKind.WindowTitle
     check appId.messages.len == 1
-    check appId.messages[0].kind == MsgKind.WlWindowAppId
+    check appId.messages[0].kind == MsgKind.WindowAppId
 
     let win = model.snapshotWindow(21)
     check win.actualW == 640
@@ -238,7 +238,7 @@ suite "X11 model admission":
     )
 
     check parented.messages.len == 1
-    check parented.messages[0].kind == MsgKind.WlWindowParent
+    check parented.messages[0].kind == MsgKind.WindowParent
     check parented.messages[0].childWindowId == 31
     check parented.messages[0].parentWindowId == 30
     check model.snapshotWindow(31).parentId == 30
@@ -277,7 +277,7 @@ suite "X11 model admission":
     )
 
     check hinted.messages.len == 1
-    check hinted.messages[0].kind == MsgKind.WlWindowDimensionsHint
+    check hinted.messages[0].kind == MsgKind.WindowDimensionsHint
     let winId = model.windowForExternal(ExternalWindowId(32))
     check winId != NullWindowId
     let win = model.windowData(winId)
@@ -331,7 +331,7 @@ suite "X11 model admission":
     )
 
     check urgent.messages.len == 1
-    check urgent.messages[0].kind == MsgKind.WlWindowStateChanged
+    check urgent.messages[0].kind == MsgKind.WindowStateChanged
     var win = model.snapshotWindow(33)
     check win.isFullscreen
     check win.isMinimized
@@ -385,7 +385,7 @@ suite "X11 model admission":
       )
 
     check state.messages.len == 1
-    check state.messages[0].kind == MsgKind.WlWindowStateChanged
+    check state.messages[0].kind == MsgKind.WindowStateChanged
     check state.effects.hasEffect(EffectKind.EffRenderDirty)
 
     var win = model.snapshotWindow(22)

@@ -18,14 +18,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "gimp", title: "Image")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "gimp", title: "Image")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "gimp-tool",
@@ -33,7 +33,7 @@ suite "Core Runtime Logic: floating rules":
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "terminal", title: "Shell")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "terminal", title: "Shell")
     )
 
     let childId = model.windowForExternal(ExternalWindowId(2))
@@ -68,14 +68,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "gimp", title: "Image")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "gimp", title: "Image")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "gimp-tool",
@@ -120,10 +120,10 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 800)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "pip", title: "PiP")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "pip", title: "PiP")
     )
 
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -150,10 +150,10 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 800)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "picker", title: "Pick")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "picker", title: "Pick")
     )
 
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -183,10 +183,10 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 800)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "anchored", title: "Pick")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "anchored", title: "Pick")
     )
 
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -206,11 +206,11 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "utility", title: "Tool")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "utility", title: "Tool")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 1,
         minWidth: 260,
         minHeight: 140,
@@ -250,7 +250,7 @@ suite "Core Runtime Logic: floating rules":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 1, appId: "bounded-tool", title: "Tool"
+        kind: MsgKind.WindowCreated, windowId: 1, appId: "bounded-tool", title: "Tool"
       )
     )
 
@@ -283,10 +283,10 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 800)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "dropdown", title: "Drop")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "dropdown", title: "Drop")
     )
 
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -310,14 +310,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "editor", title: "Doc")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "editor", title: "Doc")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -353,11 +353,11 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 800)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 1, appId: "scratch", title: "Scratch"
+        kind: MsgKind.WindowCreated, windowId: 1, appId: "scratch", title: "Scratch"
       )
     )
     model.applyMsg(Msg(kind: MsgKind.CmdToggleFloating))
@@ -383,17 +383,17 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "browser", title: "Docs")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "browser", title: "Docs")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "gimp", title: "Welcome")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "gimp", title: "Welcome")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         appId: "gimp",
         title: "GNU Image Manipulation Program",
@@ -409,7 +409,7 @@ suite "Core Runtime Logic: floating rules":
     check abs(leadGeom.rectCenter().x - mainGeom.rectCenter().x) <= 1
     check abs(leadGeom.rectCenter().y - mainGeom.rectCenter().y) <= 1
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 2))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 2))
     check model.focusedWindowId() == 3
 
   test "Specific startup floating rule inherits broad app workspace":
@@ -432,14 +432,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "browser", title: "Docs")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "browser", title: "Docs")
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "gimp", title: "Welcome")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "gimp", title: "Welcome")
     )
     let win = model.snapshotWindow(2)
 
@@ -475,14 +475,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "gimp", title: "Image")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "gimp", title: "Image")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "gimp-tool",
@@ -514,24 +514,24 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "browser", title: "Docs")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "browser", title: "Docs")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "gimp", title: "Welcome")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "gimp", title: "Welcome")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "krita", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "krita", title: "Main")
     )
     check model.shellSnapshot().workspaces[0].columns.len == 2
     check model.shellSnapshot().workspaces[0].columns[1].windows == @[uint32(3)]
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 3))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 3))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         appId: "gimp",
         title: "GNU Image Manipulation Program",
@@ -539,7 +539,7 @@ suite "Core Runtime Logic: floating rules":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         appId: "gimp",
         title: "GNU Image Manipulation Program 2",
@@ -561,16 +561,16 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 1))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "utility",
@@ -603,14 +603,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "gimp", title: "Image")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "gimp", title: "Image")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "gimp-tool",
@@ -640,14 +640,14 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -671,15 +671,15 @@ suite "Core Runtime Logic: floating rules":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
 
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -692,7 +692,7 @@ suite "Core Runtime Logic: floating rules":
     check child.workspaceIdx == 2
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowParent, childWindowId: 2, parentWindowId: 1)
+      Msg(kind: MsgKind.WindowParent, childWindowId: 2, parentWindowId: 1)
     )
     let afterParentEvent = model.snapshotWindow(2)
     check afterParentEvent.tagId.isSome and afterParentEvent.tagId.get() == 2
@@ -701,15 +701,15 @@ suite "Core Runtime Logic: floating rules":
   test "Fixed-size hint opens normal window as floating":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "dialog", title: "Tool")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "dialog", title: "Tool")
     )
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 1,
         minWidth: 260,
         minHeight: 140,

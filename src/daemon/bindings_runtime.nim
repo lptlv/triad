@@ -1015,19 +1015,19 @@ proc onSeatShellSurfaceInteraction(
     let id = shellSurface.id()
     daemon.shellSurfacePointers[id] = shellSurface
     trace "Seat shell surface interaction", shellSurfaceId = id
-    daemon.enqueue(Msg(kind: MsgKind.WlShellSurfaceInteraction, shellSurfaceId: id))
+    daemon.enqueue(Msg(kind: MsgKind.ShellSurfaceInteraction, shellSurfaceId: id))
 
 proc onOpDelta(data: pointer, seat: ptr RiverSeatV1, dx: int32, dy: int32) =
   let daemon = callbackDaemon(data, "op delta")
   if daemon == nil:
     return
-  daemon.enqueue(Msg(kind: MsgKind.WlPointerDelta, dx: dx, dy: dy))
+  daemon.enqueue(Msg(kind: MsgKind.PointerDelta, dx: dx, dy: dy))
 
 proc onOpRelease(data: pointer, seat: ptr RiverSeatV1) =
   let daemon = callbackDaemon(data, "op release")
   if daemon == nil:
     return
-  daemon.enqueue(Msg(kind: MsgKind.WlPointerRelease))
+  daemon.enqueue(Msg(kind: MsgKind.PointerRelease))
 
 proc onSeatPointerPosition(data: pointer, seat: ptr RiverSeatV1, x: int32, y: int32) =
   let daemon = callbackDaemon(data, "seat pointer position")
@@ -1039,7 +1039,7 @@ proc onSeatPointerPosition(data: pointer, seat: ptr RiverSeatV1, x: int32, y: in
   if daemon[].currentModel.recentWindowsActive:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlRecentWindowPointerMotion, recentPointerX: x, recentPointerY: y
+        kind: MsgKind.RecentWindowPointerMotion, recentPointerX: x, recentPointerY: y
       )
     )
   if daemon[].updateOverviewHotCornerState(seat.id(), x, y):
@@ -1241,7 +1241,7 @@ proc onWlPointerFrame(data: pointer, pointer: ptr Pointer) =
 
   daemon.enqueue(
     Msg(
-      kind: MsgKind.WlOverviewWheel,
+      kind: MsgKind.OverviewWheel,
       overviewWheelX: point.x,
       overviewWheelY: point.y,
       overviewWheelHorizontal: overviewHorizontal,
@@ -1435,7 +1435,7 @@ proc dispatchFrameTabClick(
   )
   daemon.enqueue(
     Msg(
-      kind: MsgKind.WlFrameTabClicked,
+      kind: MsgKind.FrameTabClicked,
       frameClickContainerKind: bar.containerKind,
       frameClickContainerId: bar.frameId,
       frameClickWindowId: targetWindowId,
@@ -1453,7 +1453,7 @@ proc dispatchFrameEmptyFocus(daemon: var TriadDaemon, surfaceId: uint32): bool =
   if surf.kind != ProtocolSurfaceKind.PskFrameEmpty or surf.frameId == 0:
     return false
   daemon.enqueue(
-    Msg(kind: MsgKind.WlFrameEmptyFocused, frameFocusFrameId: surf.frameId)
+    Msg(kind: MsgKind.FrameEmptyFocused, frameFocusFrameId: surf.frameId)
   )
   true
 
@@ -1555,7 +1555,7 @@ proc onXkbSeatModifiersUpdate(
     return
   trace "XKB modifiers updated", xkbSeatId = seat.id(), old = old, new = new
   daemon.enqueue(
-    Msg(kind: MsgKind.WlModifiersChanged, oldModifiers: old, newModifiers: new)
+    Msg(kind: MsgKind.ModifiersChanged, oldModifiers: old, newModifiers: new)
   )
 
 var xkbSeatListener* = riverXkb.RiverXkbBindingsSeatV1Listener(
@@ -1659,7 +1659,7 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
       let target = daemon[].overviewWindowAtPointer(seat)
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlOverviewPointerDragRequested,
+          kind: MsgKind.OverviewPointerDragRequested,
           overviewDragWinId: target,
           overviewDragSeat: seat,
           overviewDragX: point.x,
@@ -1672,7 +1672,7 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
         PointerOpKind.OpOverviewScroll:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlOverviewPointerScrollRequested,
+          kind: MsgKind.OverviewPointerScrollRequested,
           overviewScrollSeat: seat,
           overviewScrollX: point.x,
           overviewScrollY: point.y,
@@ -1688,12 +1688,12 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
     case daemon.pointerBindingKinds[id]
     of PointerOpKind.OpMove:
       daemon.enqueue(
-        Msg(kind: MsgKind.WlPointerMoveRequested, moveWinId: target, moveSeat: seat)
+        Msg(kind: MsgKind.PointerMoveRequested, moveWinId: target, moveSeat: seat)
       )
     of PointerOpKind.OpResize:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlPointerResizeRequested,
+          kind: MsgKind.PointerResizeRequested,
           resizeWinId: target,
           resizeSeat: seat,
           resizeEdges: RiverEdgeBottom or RiverEdgeRight,
@@ -1744,7 +1744,7 @@ proc onLayerOutputNonExclusive(
     )
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlOutputUsable,
+        kind: MsgKind.OutputUsable,
         usableOutputId: outputId,
         usableX: x,
         usableY: y,
@@ -1764,7 +1764,7 @@ proc onLayerSeatFocusExclusive(
   if daemon == nil:
     return
   trace "Layer shell focus exclusive"
-  daemon.enqueue(Msg(kind: MsgKind.WlLayerFocusExclusive))
+  daemon.enqueue(Msg(kind: MsgKind.LayerFocusExclusive))
 
 proc onLayerSeatFocusNonExclusive(
     data: pointer, seat: ptr riverLayer.RiverLayerShellSeatV1
@@ -1773,13 +1773,13 @@ proc onLayerSeatFocusNonExclusive(
   if daemon == nil:
     return
   trace "Layer shell focus non-exclusive"
-  daemon.enqueue(Msg(kind: MsgKind.WlLayerFocusNonExclusive))
+  daemon.enqueue(Msg(kind: MsgKind.LayerFocusNonExclusive))
 
 proc onLayerSeatFocusNone(data: pointer, seat: ptr riverLayer.RiverLayerShellSeatV1) =
   let daemon = callbackDaemon(data, "layer seat focus none")
   if daemon == nil:
     return
-  daemon.enqueue(Msg(kind: MsgKind.WlLayerFocusNone))
+  daemon.enqueue(Msg(kind: MsgKind.LayerFocusNone))
   daemon[].requestManage("layer focus none")
 
 var layerSeatListener* = riverLayer.RiverLayerShellSeatV1Listener(

@@ -101,16 +101,16 @@ proc generatedMsg(rng: var FuzzRng, model: Model, nextWindow: var uint32): Msg =
   case rng.pick(42)
   of 0:
     result = Msg(
-      kind: MsgKind.WlWindowCreated,
+      kind: MsgKind.WindowCreated,
       windowId: nextWindow,
       appId: "app-" & $nextWindow,
       title: "window-" & $nextWindow,
     )
     inc nextWindow
   of 1:
-    result = Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: rng.chooseWindow(model))
+    result = Msg(kind: MsgKind.WindowDestroyed, destroyedId: rng.chooseWindow(model))
   of 2:
-    result = Msg(kind: MsgKind.WlFocusChanged, newFocusedId: rng.chooseWindow(model))
+    result = Msg(kind: MsgKind.FocusChanged, newFocusedId: rng.chooseWindow(model))
   of 3:
     result =
       Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: uint32(1 + rng.pick(6)))
@@ -158,17 +158,17 @@ proc generatedMsg(rng: var FuzzRng, model: Model, nextWindow: var uint32): Msg =
     result = Msg(kind: MsgKind.CmdAdjustGaps, deltaG: rng.chooseDelta(8))
   of 18:
     result = Msg(
-      kind: MsgKind.WlOutputDimensions,
+      kind: MsgKind.OutputDimensions,
       outputId: uint32(1 + rng.pick(3)),
       width: int32(640 + rng.pick(1920)),
       height: int32(480 + rng.pick(1080)),
     )
   of 19:
     result =
-      Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: uint32(1 + rng.pick(3)))
+      Msg(kind: MsgKind.OutputRemoved, removedOutputId: uint32(1 + rng.pick(3)))
   of 20:
     result = Msg(
-      kind: MsgKind.WlWindowDimensions,
+      kind: MsgKind.WindowDimensions,
       dimensionsWindowId: rng.chooseWindow(model),
       actualWidth: int32(rng.pick(2000)),
       actualHeight: int32(rng.pick(1200)),
@@ -204,17 +204,17 @@ proc generatedMsg(rng: var FuzzRng, model: Model, nextWindow: var uint32): Msg =
     result = Msg(kind: MsgKind.CmdSelectWindow)
   of 35:
     result = Msg(
-      kind: MsgKind.WlWindowMaximizeRequested,
+      kind: MsgKind.WindowMaximizeRequested,
       maximizeRequestId: rng.chooseWindow(model),
     )
   of 36:
     result = Msg(
-      kind: MsgKind.WlWindowUnmaximizeRequested,
+      kind: MsgKind.WindowUnmaximizeRequested,
       unmaximizeRequestId: rng.chooseWindow(model),
     )
   of 37:
     result = Msg(
-      kind: MsgKind.WlWindowMinimizeRequested,
+      kind: MsgKind.WindowMinimizeRequested,
       minimizeRequestId: rng.chooseWindow(model),
     )
   of 38:

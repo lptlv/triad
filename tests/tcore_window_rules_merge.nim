@@ -51,7 +51,7 @@ suite "Core Runtime Logic: window rules merge":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 1,
         appId: "term",
         title: "Shell",
@@ -60,7 +60,7 @@ suite "Core Runtime Logic: window rules merge":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "app",
         title: "Editor",
@@ -79,7 +79,7 @@ suite "Core Runtime Logic: window rules merge":
     check not model.shellSnapshot().windows.anyIt(uint32(it.id) == 1)
     check model.snapshotWindow(2).swallowedBy == uint32(1)
 
-    model.applyMsg(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 2))
+    model.applyMsg(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 2))
 
     check model.swallowingWindow(host) == NullWindowId
     check model.columnHeads(1) == @[1'u32]
@@ -98,7 +98,7 @@ suite "Core Runtime Logic: window rules merge":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 1,
         appId: "term",
         title: "Shell",
@@ -107,7 +107,7 @@ suite "Core Runtime Logic: window rules merge":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "app",
         title: "Editor",
@@ -136,7 +136,7 @@ suite "Core Runtime Logic: window rules merge":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 1,
         appId: "term",
         title: "Shell",
@@ -145,7 +145,7 @@ suite "Core Runtime Logic: window rules merge":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "app",
         title: "Editor",
@@ -173,7 +173,7 @@ suite "Core Runtime Logic: window rules merge":
     restored.applyLiveRestore(state.pendingRestoreState())
     restored.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 1,
         appId: "term",
         title: "Shell",
@@ -182,7 +182,7 @@ suite "Core Runtime Logic: window rules merge":
     )
     restored.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "app",
         title: "Editor",

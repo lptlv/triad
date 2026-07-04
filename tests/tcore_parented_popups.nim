@@ -4,10 +4,10 @@ suite "Core Runtime Logic: parented popups":
   test "Parented window opens floating over parent without moving camera":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     let parentGeom = model.instructionGeom(1)
     discard model.layoutInstructions()
@@ -15,7 +15,7 @@ suite "Core Runtime Logic: parented popups":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -43,15 +43,15 @@ suite "Core Runtime Logic: parented popups":
   test "Deck popup preserves parent column position":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Deck))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "kitty", title: "btop")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "kitty", title: "btop")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "org.kde.okular",
         title: "Okular",
@@ -65,7 +65,7 @@ suite "Core Runtime Logic: parented popups":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         createdParentWindowId: 2,
         appId: "xdg-desktop-portal-gtk",
@@ -85,15 +85,15 @@ suite "Core Runtime Logic: parented popups":
   test "Floating parented popup stays out of public columns":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Deck))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "kitty", title: "btop")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "kitty", title: "btop")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "org.kde.okular",
         title: "Okular",
@@ -101,7 +101,7 @@ suite "Core Runtime Logic: parented popups":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         createdParentWindowId: 2,
         appId: "xdg-desktop-portal-gtk",
@@ -137,18 +137,18 @@ suite "Core Runtime Logic: parented popups":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 1, appId: "okular", title: "Document"
+        kind: MsgKind.WindowCreated, windowId: 1, appId: "okular", title: "Document"
       )
     )
     let parentGeom = model.instructionGeom(1)
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "xdg-desktop-portal-gtk",
@@ -164,14 +164,14 @@ suite "Core Runtime Logic: parented popups":
   test "Late parent event floats child without moving camera":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "pinentry",
         title: "Passphrase",
@@ -181,7 +181,7 @@ suite "Core Runtime Logic: parented popups":
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowParent, childWindowId: 2, parentWindowId: 1)
+      Msg(kind: MsgKind.WindowParent, childWindowId: 2, parentWindowId: 1)
     )
     discard model.layoutInstructions()
 
@@ -200,16 +200,16 @@ suite "Core Runtime Logic: parented popups":
   test "Parented inactive-workspace window stays on parent workspace silently":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 2))
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -233,14 +233,14 @@ suite "Core Runtime Logic: parented popups":
   test "Parented floating window follows parent projection":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -265,7 +265,7 @@ suite "Core Runtime Logic: parented popups":
     model.setViewport(1, targetX = 400.0, currentX = 400.0)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -287,7 +287,7 @@ suite "Core Runtime Logic: parented popups":
     model.seedCameraWindows(3)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -309,7 +309,7 @@ suite "Core Runtime Logic: parented popups":
     model.seedCameraWindows(3)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -337,7 +337,7 @@ suite "Core Runtime Logic: parented popups":
     model.setViewport(1, targetX = 400.0, currentX = 400.0)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -357,7 +357,7 @@ suite "Core Runtime Logic: parented popups":
     model.setViewport(1, targetX = 400.0, currentX = 400.0)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -366,7 +366,7 @@ suite "Core Runtime Logic: parented popups":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -375,7 +375,7 @@ suite "Core Runtime Logic: parented popups":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 6,
         createdParentWindowId: 4,
         appId: "pinentry",
@@ -394,7 +394,7 @@ suite "Core Runtime Logic: parented popups":
     model.seedCameraWindows(3)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -403,7 +403,7 @@ suite "Core Runtime Logic: parented popups":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -411,9 +411,9 @@ suite "Core Runtime Logic: parented popups":
       )
     )
 
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 2))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 2))
     check model.focusedWindowId() == 2
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2))
 
     check model.focusedWindowId() == 2
@@ -423,7 +423,7 @@ suite "Core Runtime Logic: parented popups":
     model.seedCameraWindows(3)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -432,7 +432,7 @@ suite "Core Runtime Logic: parented popups":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -440,8 +440,8 @@ suite "Core Runtime Logic: parented popups":
       )
     )
 
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 4))
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 4))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2))
 
     check model.focusedWindowId() == 4
@@ -452,7 +452,7 @@ suite "Core Runtime Logic: parented popups":
     model.setViewport(1, targetX = 400.0, currentX = 400.0)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
@@ -461,16 +461,16 @@ suite "Core Runtime Logic: parented popups":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         createdParentWindowId: 2,
         appId: "pinentry",
         title: "Second",
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 4))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 4))
 
-    discard model.updateModel(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 4))
+    discard model.updateModel(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 4))
 
     check model.focusedWindowId() == 5
 
@@ -479,16 +479,16 @@ suite "Core Runtime Logic: parented popups":
     model.seedCameraWindows(3)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
         title: "Passphrase",
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 4))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 4))
 
-    discard model.updateModel(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 4))
+    discard model.updateModel(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 4))
 
     check model.focusedWindowId() == 2
 
@@ -497,19 +497,19 @@ suite "Core Runtime Logic: parented popups":
     model.seedCameraWindows(3)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 2,
         appId: "pinentry",
         title: "Passphrase",
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 2))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 2))
     discard model.layoutInstructions()
     let parentTarget = model.viewport(1).targetViewportXOffset
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
 
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 4))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 4))
     discard model.layoutInstructions()
 
     check model.focusedWindowId() == 4

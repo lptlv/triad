@@ -46,7 +46,7 @@ proc onWindowAppId(data: pointer, win: ptr RiverWindowV1, appId: cstring) =
     daemon.pendingWindows[id].appId = appIdText
   elif daemon[].currentModel.hasRiverWindow(id):
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: id, updatedAppId: appIdText)
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: id, updatedAppId: appIdText)
     )
 
 proc onWindowTitle(data: pointer, win: ptr RiverWindowV1, title: cstring) =
@@ -60,7 +60,7 @@ proc onWindowTitle(data: pointer, win: ptr RiverWindowV1, title: cstring) =
     daemon.pendingWindows[id].title = titleText
   elif daemon[].currentModel.hasRiverWindow(id):
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: id, updatedTitle: titleText)
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: id, updatedTitle: titleText)
     )
 
 proc onWindowClosed(data: pointer, win: ptr RiverWindowV1) =
@@ -69,7 +69,7 @@ proc onWindowClosed(data: pointer, win: ptr RiverWindowV1) =
     return
   let id = win.id()
   info "Window closed", windowId = id
-  daemon.enqueue(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: id))
+  daemon.enqueue(Msg(kind: MsgKind.WindowDestroyed, destroyedId: id))
   daemon[].forgetWindow(id)
 
 proc onWindowDimensionsHint(
@@ -97,7 +97,7 @@ proc onWindowDimensionsHint(
   elif daemon[].currentModel.hasRiverWindow(win.id()):
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: win.id(),
         minWidth: minWidth,
         minHeight: minHeight,
@@ -120,7 +120,7 @@ proc onWindowDimensions(
   else:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: win.id(),
         actualWidth: width,
         actualHeight: height,
@@ -142,7 +142,7 @@ proc onWindowParent(data: pointer, win: ptr RiverWindowV1, parent: ptr RiverWind
   else:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowParent, childWindowId: win.id(), parentWindowId: parentId
+        kind: MsgKind.WindowParent, childWindowId: win.id(), parentWindowId: parentId
       )
     )
 
@@ -157,7 +157,7 @@ proc onWindowDecorationHint(data: pointer, win: ptr RiverWindowV1, hint: uint32)
   else:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowDecorationHint,
+        kind: MsgKind.WindowDecorationHint,
         decorationWindowId: win.id(),
         decorationHint: hint,
       )
@@ -171,7 +171,7 @@ proc onWindowPointerMoveRequested(
     return
   debug "Pointer move requested", windowId = win.id()
   daemon.enqueue(
-    Msg(kind: MsgKind.WlPointerMoveRequested, moveWinId: win.id(), moveSeat: seat)
+    Msg(kind: MsgKind.PointerMoveRequested, moveWinId: win.id(), moveSeat: seat)
   )
 
 proc onWindowPointerResizeRequested(
@@ -183,7 +183,7 @@ proc onWindowPointerResizeRequested(
   debug "Pointer resize requested", windowId = win.id(), edges = edges
   daemon.enqueue(
     Msg(
-      kind: MsgKind.WlPointerResizeRequested,
+      kind: MsgKind.PointerResizeRequested,
       resizeWinId: win.id(),
       resizeSeat: seat,
       resizeEdges: edges,
@@ -198,7 +198,7 @@ proc onWindowShowMenuRequested(
     return
   debug "Window menu requested", windowId = win.id(), x = x, y = y
   daemon.enqueue(
-    Msg(kind: MsgKind.WlWindowMenuRequested, menuWindowId: win.id(), menuX: x, menuY: y)
+    Msg(kind: MsgKind.WindowMenuRequested, menuWindowId: win.id(), menuX: x, menuY: y)
   )
 
 proc onWindowMaximizeRequested(data: pointer, win: ptr RiverWindowV1) =
@@ -213,7 +213,7 @@ proc onWindowMaximizeRequested(data: pointer, win: ptr RiverWindowV1) =
     trace "Consumed self-generated maximize acknowledgement", windowId = win.id()
   else:
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: win.id())
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: win.id())
     )
 
 proc onWindowUnmaximizeRequested(data: pointer, win: ptr RiverWindowV1) =
@@ -227,7 +227,7 @@ proc onWindowUnmaximizeRequested(data: pointer, win: ptr RiverWindowV1) =
     trace "Consumed self-generated unmaximize acknowledgement", windowId = win.id()
   else:
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowUnmaximizeRequested, unmaximizeRequestId: win.id())
+      Msg(kind: MsgKind.WindowUnmaximizeRequested, unmaximizeRequestId: win.id())
     )
 
 proc onWindowFullscreenRequested(
@@ -244,7 +244,7 @@ proc onWindowFullscreenRequested(
   else:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: win.id(),
         fullscreenOutputId: requestedOutput,
       )
@@ -261,7 +261,7 @@ proc onWindowExitFullscreenRequested(data: pointer, win: ptr RiverWindowV1) =
   else:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowExitFullscreenRequested, exitFullscreenRequestId: win.id()
+        kind: MsgKind.WindowExitFullscreenRequested, exitFullscreenRequestId: win.id()
       )
     )
 
@@ -275,7 +275,7 @@ proc onWindowMinimizeRequested(data: pointer, win: ptr RiverWindowV1) =
     daemon.pendingWindows[win.id()].isMaximized = false
   else:
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowMinimizeRequested, minimizeRequestId: win.id())
+      Msg(kind: MsgKind.WindowMinimizeRequested, minimizeRequestId: win.id())
     )
 
 proc onWindowUnreliablePid(
@@ -289,7 +289,7 @@ proc onWindowUnreliablePid(
     daemon.pendingWindows[win.id()].pid = max(0'i32, unreliablePid)
   elif daemon[].currentModel.hasRiverWindow(win.id()):
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowPid, pidWindowId: win.id(), windowPid: unreliablePid)
+      Msg(kind: MsgKind.WindowPid, pidWindowId: win.id(), windowPid: unreliablePid)
     )
   trace "Window unreliable pid received", windowId = win.id(), pid = unreliablePid
 
@@ -304,7 +304,7 @@ proc onWindowPresentationHint(data: pointer, win: ptr RiverWindowV1, hint: uint3
   else:
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowPresentationHint,
+        kind: MsgKind.WindowPresentationHint,
         presentationWindowId: win.id(),
         presentationHint: hint,
       )
@@ -321,7 +321,7 @@ proc onWindowIdentifier(data: pointer, win: ptr RiverWindowV1, identifier: cstri
     daemon.pendingWindows[id].identifier = text
   else:
     daemon.enqueue(
-      Msg(kind: MsgKind.WlWindowIdentifier, identifierWindowId: id, identifier: text)
+      Msg(kind: MsgKind.WindowIdentifier, identifierWindowId: id, identifier: text)
     )
 
 var riverWindowListener* = RiverWindowV1Listener(

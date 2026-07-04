@@ -161,7 +161,7 @@ for pattern in \
   "xinput devices count=" \
   "windows count=" \
   "backend_event OutputDiscovered" \
-  "dry_run_msg WlOutput" \
+  "dry_run_msg Output" \
   "probe complete once=true"; do
   if ! grep -q "$pattern" "$log"; then
     printf '%s\n' "tx11_probe_smoke: missing log pattern: $pattern" >&2
@@ -355,7 +355,7 @@ for pattern in \
   "axis grabs configured count=" \
   "xlibre_axis_grabs requested=" \
   "backend_event MapRequested" \
-  "model_msg WlWindowCreated" \
+  "model_msg WindowCreated" \
   "layout_x11_request configure window=" \
   "live_xcb applied configure window=" \
   "x11_request map window=" \

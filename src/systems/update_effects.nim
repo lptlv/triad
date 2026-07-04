@@ -68,12 +68,12 @@ proc renderDirty*(reason: string): Effect =
 
 proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
   case kind
-  of MsgKind.WlWindowCreated, MsgKind.WlWindowDestroyed, MsgKind.WlFocusChanged,
-      MsgKind.WlWindowFullscreenRequested, MsgKind.WlWindowExitFullscreenRequested,
-      MsgKind.WlWindowParent, MsgKind.WlWindowMaximizeRequested,
-      MsgKind.WlWindowUnmaximizeRequested, MsgKind.WlWindowMinimizeRequested,
-      MsgKind.WlWindowStateChanged, MsgKind.WlWindowIdentifier, MsgKind.WlWindowAppId,
-      MsgKind.WlWindowTitle, MsgKind.WlWindowDimensionsHint, MsgKind.CmdFocusNext,
+  of MsgKind.WindowCreated, MsgKind.WindowDestroyed, MsgKind.FocusChanged,
+      MsgKind.WindowFullscreenRequested, MsgKind.WindowExitFullscreenRequested,
+      MsgKind.WindowParent, MsgKind.WindowMaximizeRequested,
+      MsgKind.WindowUnmaximizeRequested, MsgKind.WindowMinimizeRequested,
+      MsgKind.WindowStateChanged, MsgKind.WindowIdentifier, MsgKind.WindowAppId,
+      MsgKind.WindowTitle, MsgKind.WindowDimensionsHint, MsgKind.CmdFocusNext,
       MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection, MsgKind.CmdFocusLast,
       MsgKind.CmdFocusTagLeft, MsgKind.CmdFocusTagRight,
       MsgKind.CmdFocusOccupiedTagLeft, MsgKind.CmdFocusOccupiedTagRight,
@@ -106,20 +106,20 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
 
 proc shouldBroadcastOutputsChanged*(kind: MsgKind): bool =
   case kind
-  of MsgKind.WlOutputDimensions, MsgKind.WlOutputName, MsgKind.WlOutputPosition,
-      MsgKind.WlOutputRefreshRate, MsgKind.WlOutputPhysicalMetadata,
-      MsgKind.WlOutputScale, MsgKind.WlOutputUsable, MsgKind.WlOutputRemoved:
+  of MsgKind.OutputDimensions, MsgKind.OutputName, MsgKind.OutputPosition,
+      MsgKind.OutputRefreshRate, MsgKind.OutputPhysicalMetadata,
+      MsgKind.OutputScale, MsgKind.OutputUsable, MsgKind.OutputRemoved:
     true
   else:
     false
 
 proc shouldBroadcastTriadLayoutChanged*(kind: MsgKind): bool =
   case kind
-  of MsgKind.WlWindowCreated, MsgKind.WlWindowDestroyed, MsgKind.WlWindowDimensionsHint,
-      MsgKind.WlWindowParent, MsgKind.WlWindowFullscreenRequested,
-      MsgKind.WlWindowExitFullscreenRequested, MsgKind.WlWindowMaximizeRequested,
-      MsgKind.WlWindowUnmaximizeRequested, MsgKind.WlWindowMinimizeRequested,
-      MsgKind.WlWindowStateChanged, MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout,
+  of MsgKind.WindowCreated, MsgKind.WindowDestroyed, MsgKind.WindowDimensionsHint,
+      MsgKind.WindowParent, MsgKind.WindowFullscreenRequested,
+      MsgKind.WindowExitFullscreenRequested, MsgKind.WindowMaximizeRequested,
+      MsgKind.WindowUnmaximizeRequested, MsgKind.WindowMinimizeRequested,
+      MsgKind.WindowStateChanged, MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout,
       MsgKind.CmdSwitchLayout, MsgKind.CmdSetMasterCount, MsgKind.CmdSetMasterRatio,
       MsgKind.CmdAdjustMasterCount, MsgKind.CmdAdjustMasterRatio,
       MsgKind.CmdMaximizeColumn, MsgKind.CmdResizeWidth, MsgKind.CmdResizeHeight,
@@ -150,7 +150,7 @@ proc shouldBroadcastTriadLayoutChanged*(kind: MsgKind): bool =
     false
 
 proc shouldBroadcastTriadStateChanged*(kind: MsgKind): bool =
-  if kind in {MsgKind.WlWindowTitle, MsgKind.WlWindowDimensions}:
+  if kind in {MsgKind.WindowTitle, MsgKind.WindowDimensions}:
     return false
   kind.shouldBroadcastTriadLayoutChanged() or kind.shouldBroadcastWindowsChanged() or
     kind.shouldBroadcastOutputsChanged() or
@@ -188,7 +188,7 @@ proc workspaceSnapshotChanged*(before, after: ShellSnapshot): bool =
 
 proc isFocusChangingCommand*(kind: MsgKind): bool =
   kind in {
-    MsgKind.WlFocusChanged, MsgKind.CmdFocusNext, MsgKind.CmdFocusPrev,
+    MsgKind.FocusChanged, MsgKind.CmdFocusNext, MsgKind.CmdFocusPrev,
     MsgKind.CmdFocusDirection, MsgKind.CmdFocusLast, MsgKind.CmdFocusTagLeft,
     MsgKind.CmdFocusTagRight, MsgKind.CmdFocusOccupiedTagLeft,
     MsgKind.CmdFocusOccupiedTagRight, MsgKind.CmdFocusColumnFirst,
@@ -199,12 +199,12 @@ proc isFocusChangingCommand*(kind: MsgKind): bool =
     MsgKind.CmdSelectWindow, MsgKind.CmdRecentWindowConfirm,
     MsgKind.CmdFocusNextInGroup, MsgKind.CmdToggleScratchpad,
     MsgKind.CmdToggleNamedScratchpad, MsgKind.CmdRestoreScratchpad,
-    MsgKind.WlShellSurfaceInteraction,
+    MsgKind.ShellSurfaceInteraction,
   }
 
 proc shouldCollapseAfterUpdate*(kind: MsgKind): bool =
   kind in {
-    MsgKind.WlWindowDestroyed, MsgKind.CmdMoveToTag, MsgKind.CmdMoveWindowToTag,
+    MsgKind.WindowDestroyed, MsgKind.CmdMoveToTag, MsgKind.CmdMoveWindowToTag,
     MsgKind.CmdMoveWindowUpOrToWorkspaceUp, MsgKind.CmdMoveWindowDownOrToWorkspaceDown,
     MsgKind.CmdMoveToWorkspaceIndex, MsgKind.CmdMoveWindowToWorkspaceIndex,
     MsgKind.CmdMoveToOutput, MsgKind.CmdMoveToScratchpad,
@@ -216,7 +216,7 @@ proc isOverviewPreviewCommand(kind: MsgKind): bool =
     MsgKind.CmdFocusNext, MsgKind.CmdFocusPrev, MsgKind.CmdFocusDirection,
     MsgKind.CmdFocusWindowById, MsgKind.CmdFocusWindowOrWorkspaceUp,
     MsgKind.CmdFocusWindowOrWorkspaceDown, MsgKind.CmdOverviewTab,
-    MsgKind.WlOverviewWheel,
+    MsgKind.OverviewWheel,
   }
 
 proc isFocusPreservingLayoutCommand(kind: MsgKind): bool =
@@ -289,7 +289,7 @@ proc addMaximizedPresentationEffect(
   effects.addSetMaximizedEffect(win.id, present)
 
 proc shouldRequestManageDirty(kind: MsgKind): bool =
-  kind notin {MsgKind.WlWindowTitle, MsgKind.WlWindowDimensions}
+  kind notin {MsgKind.WindowTitle, MsgKind.WindowDimensions}
 
 proc fullscreenWindow(snapshot: ShellSnapshot, winId: uint32): Option[ShellWindow] =
   let win = snapshot.windowById(winId)
@@ -311,9 +311,9 @@ proc shouldSyncFullscreenPresentation(
       before.overviewActive != after.overviewActive:
     return true
   kind in {
-    MsgKind.WlManageStart, MsgKind.WlWindowCreated, MsgKind.WlWindowDestroyed,
-    MsgKind.WlWindowAppId, MsgKind.WlWindowFullscreenRequested,
-    MsgKind.WlWindowExitFullscreenRequested, MsgKind.WlOutputRemoved,
+    MsgKind.ManageStart, MsgKind.WindowCreated, MsgKind.WindowDestroyed,
+    MsgKind.WindowAppId, MsgKind.WindowFullscreenRequested,
+    MsgKind.WindowExitFullscreenRequested, MsgKind.OutputRemoved,
     MsgKind.CmdToggleFullscreen, MsgKind.CmdToggleFullscreenById,
     MsgKind.CmdSetWindowFullscreenById, MsgKind.CmdExitFullscreenById,
     MsgKind.CmdToggleOverview, MsgKind.CmdOpenOverview, MsgKind.CmdCloseOverview,
@@ -363,9 +363,9 @@ proc shouldSyncMaximizedPresentation(
       before.overviewActive != after.overviewActive:
     return true
   kind in {
-    MsgKind.WlManageStart, MsgKind.WlWindowCreated, MsgKind.WlWindowDestroyed,
-    MsgKind.WlWindowAppId, MsgKind.WlWindowMaximizeRequested,
-    MsgKind.WlWindowUnmaximizeRequested, MsgKind.WlWindowMinimizeRequested,
+    MsgKind.ManageStart, MsgKind.WindowCreated, MsgKind.WindowDestroyed,
+    MsgKind.WindowAppId, MsgKind.WindowMaximizeRequested,
+    MsgKind.WindowUnmaximizeRequested, MsgKind.WindowMinimizeRequested,
     MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout,
     MsgKind.CmdMaximizeColumn, MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize,
     MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
@@ -432,7 +432,7 @@ proc addPostUpdateEffects*(
     effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: afterFocus))
   elif (
     msg.kind in {MsgKind.CmdCloseOverview, MsgKind.CmdSelectWindow} or (
-      msg.kind == MsgKind.WlModifiersChanged and before.overviewActive and
+      msg.kind == MsgKind.ModifiersChanged and before.overviewActive and
       not after.overviewActive
     )
   ) and afterFocus != 0:
@@ -445,23 +445,23 @@ proc addPostUpdateEffects*(
 
   if dirty and
       msg.kind in {
-        MsgKind.WlWindowCreated, MsgKind.WlWindowAppId, MsgKind.WlWindowTitle,
-        MsgKind.WlWindowDimensions, MsgKind.WlWindowStateChanged,
+        MsgKind.WindowCreated, MsgKind.WindowAppId, MsgKind.WindowTitle,
+        MsgKind.WindowDimensions, MsgKind.WindowStateChanged,
       }:
     let openedId =
       case msg.kind
-      of MsgKind.WlWindowCreated: msg.windowId
-      of MsgKind.WlWindowAppId: msg.appIdWindowId
-      of MsgKind.WlWindowTitle: msg.titleWindowId
-      of MsgKind.WlWindowDimensions: msg.dimensionsWindowId
-      of MsgKind.WlWindowStateChanged: msg.stateWindowId
+      of MsgKind.WindowCreated: msg.windowId
+      of MsgKind.WindowAppId: msg.appIdWindowId
+      of MsgKind.WindowTitle: msg.titleWindowId
+      of MsgKind.WindowDimensions: msg.dimensionsWindowId
+      of MsgKind.WindowStateChanged: msg.stateWindowId
       else: 0'u32
     effects.add(broadcastWindowChanged(openedId))
 
   if dirty and msg.kind.shouldRequestManageDirty() and
       not effects.hasEffect(EffectKind.EffManageDirty):
     effects.add(Effect(kind: EffectKind.EffManageDirty))
-  if dirty and msg.kind in {MsgKind.WlWindowDimensions, MsgKind.WlWindowStateChanged}:
+  if dirty and msg.kind in {MsgKind.WindowDimensions, MsgKind.WindowStateChanged}:
     effects.add(renderDirty("effect:" & $msg.kind))
 
   if dirty or collapsed or pruned:

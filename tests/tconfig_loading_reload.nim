@@ -24,11 +24,11 @@ suite "KDL Configuration Parser: loading reload":
     )
     var state = initial
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 7, appId: "brave", title: "Brave")
+      Msg(kind: MsgKind.WindowCreated, windowId: 7, appId: "brave", title: "Brave")
     )
     discard state.applyRuntimeUpdate(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 7,
         actualWidth: 1200,
         actualHeight: 800,
@@ -581,14 +581,14 @@ output "DP-1" {
     )
 
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "HDMI-A-1")
     )
     discard state.applyRuntimeUpdate(
       Msg(
-        kind: MsgKind.WlOutputUsable,
+        kind: MsgKind.OutputUsable,
         usableOutputId: 1,
         usableX: 0,
         usableY: 24,

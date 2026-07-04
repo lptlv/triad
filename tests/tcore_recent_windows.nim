@@ -38,16 +38,16 @@ proc backgroundOpenedRecentModel(): Model =
     )
   ).model
   result.applyMsg(
-    Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1200, height: 800)
+    Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1200, height: 800)
   )
   result.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "one")
+    Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "one")
   )
   result.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "two")
+    Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "two")
   )
   result.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "background", title: "bg")
+    Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "background", title: "bg")
   )
 
 suite "Core Runtime Logic: recent windows":
@@ -69,7 +69,7 @@ suite "Core Runtime Logic: recent windows":
     check uint32(model.selectedRecentWindow()) == 2
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlModifiersChanged, oldModifiers: 8'u32, newModifiers: 0)
+      Msg(kind: MsgKind.ModifiersChanged, oldModifiers: 8'u32, newModifiers: 0)
     )
     check not model.recentWindowsActive
     check model.focusedWindowId() == 2
@@ -96,16 +96,16 @@ suite "Core Runtime Logic: recent windows":
   test "recent-window app-id filter skips other applications":
     var model = recentModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1200, height: 800)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1200, height: 800)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "editor", title: "one")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "editor", title: "one")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "browser", title: "two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "browser", title: "two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "editor", title: "three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "editor", title: "three")
     )
 
     discard model.updateModel(
@@ -143,10 +143,10 @@ suite "Core Runtime Logic: recent windows":
   test "duplicate pending recent focus does not reset debounce":
     var model = recentModel(debounceMs = 750)
     model.seedCameraWindows(3)
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
 
     discard model.updateModel(Msg(kind: MsgKind.CmdTick, tickElapsedMs: 400))
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
     discard model.updateModel(Msg(kind: MsgKind.CmdTick, tickElapsedMs: 350))
 
     check model.recentWindowHistory[^1] == WindowId(1)
@@ -155,10 +155,10 @@ suite "Core Runtime Logic: recent windows":
   test "duplicate committed recent focus does not arm debounce":
     var model = recentModel(debounceMs = 750)
     model.seedCameraWindows(3)
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
     discard model.updateModel(Msg(kind: MsgKind.CmdTick, tickElapsedMs: 750))
 
-    model.applyMsg(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    model.applyMsg(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
 
     check model.recentWindowHistory[^1] == WindowId(1)
     check model.pendingRecentFocusWindow == NullWindowId
@@ -191,7 +191,7 @@ suite "Core Runtime Logic: recent windows":
     let target = previews[0]
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlRecentWindowPointerMotion,
+        kind: MsgKind.RecentWindowPointerMotion,
         recentPointerX: target.geom.x + target.geom.w div 2,
         recentPointerY: target.geom.y + target.geom.h div 2,
       )
@@ -213,25 +213,25 @@ suite "Core Runtime Logic: recent windows":
   test "recent-window previews are bounded by output-aware sizing":
     var model = recentModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "wide", title: "Wide")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "wide", title: "Wide")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 1,
         actualWidth: 4000,
         actualHeight: 500,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "tall", title: "Tall")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "tall", title: "Tall")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 2,
         actualWidth: 500,
         actualHeight: 4000,
@@ -260,21 +260,21 @@ suite "Core Runtime Logic: recent windows":
   test "recent-window presentation dimensions do not overwrite source dimensions":
     var model = recentModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "one", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "one", title: "One")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 1,
         actualWidth: 1200,
         actualHeight: 800,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "two", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "two", title: "Two")
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdRecentWindowNext))
 
@@ -283,7 +283,7 @@ suite "Core Runtime Logic: recent windows":
     let external = uint32(before.externalId)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: external,
         actualWidth: 16,
         actualHeight: 16,
@@ -299,21 +299,21 @@ suite "Core Runtime Logic: recent windows":
   test "recent-window previews recover from poisoned minimum source dimensions":
     var model = recentModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "poisoned", title: "Tiny")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "poisoned", title: "Tiny")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 1,
         actualWidth: 16,
         actualHeight: 16,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "normal", title: "Normal")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "normal", title: "Normal")
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdRecentWindowNext))
 
@@ -355,7 +355,7 @@ suite "Core Runtime Logic: recent windows":
     let target = before.filterIt(not it.selected)[0]
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlRecentWindowPointerMotion,
+        kind: MsgKind.RecentWindowPointerMotion,
         recentPointerX: target.geom.x + target.geom.w div 2,
         recentPointerY: target.geom.y + target.geom.h div 2,
       )

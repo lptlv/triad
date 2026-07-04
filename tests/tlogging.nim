@@ -197,7 +197,7 @@ exit 1
 
   test "runtime loop behavior sample is aggregated":
     let source = readFile("src/daemon/app.nim")
-    let renderStart = source.find("if msg.kind == MsgKind.WlRenderStart:")
+    let renderStart = source.find("if msg.kind == MsgKind.RenderStart:")
     let cmdTick = source.find("if msg.kind == MsgKind.CmdTick:")
     let sampleWrite = source.find("writeBehaviorEvent(\n    \"runtime_loop_sample\"")
 
@@ -230,7 +230,7 @@ exit 1
     check updateSource.contains(
       "dirty and msg.kind != MsgKind.CmdTick and model.windowRuleStateMatchersEnabled()"
     )
-    check updateSource.contains("MsgKind.WlWindowTitle, MsgKind.CmdTick")
+    check updateSource.contains("MsgKind.WindowTitle, MsgKind.CmdTick")
     check appSource.contains("AnimationManageReason")
     check appSource.contains("if msg.kind == MsgKind.CmdTick:")
 
@@ -351,7 +351,7 @@ exit 1
       Config(workspaces: WorkspaceConfig(defaultCount: 1))
     ).model
     let created = Msg(
-      kind: MsgKind.WlWindowCreated,
+      kind: MsgKind.WindowCreated,
       windowId: 42,
       createdParentWindowId: 0,
       createdSwallowHostWindowId: 0,
@@ -364,7 +364,7 @@ exit 1
     let (afterCreated, _) = model.update(created)
     model = afterCreated
     discard model.update(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 42, updatedAppId: "gimp")
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: 42, updatedAppId: "gimp")
     )
 
     var events: seq[JsonNode]
@@ -375,11 +375,11 @@ exit 1
     check events.len == 2
     let birth = events[0]
     check birth["event"].getStr() == "runtime_update"
-    check birth["kind"].getStr() == "WlWindowCreated"
+    check birth["kind"].getStr() == "WindowCreated"
     check birth["tracked_windows"]["after"][0]["id"].getInt() == 42
     let appId = events[1]
     check appId["event"].getStr() == "runtime_update"
-    check appId["kind"].getStr() == "WlWindowAppId"
+    check appId["kind"].getStr() == "WindowAppId"
     check appId["tracked_windows"]["after"][0]["app_id"].getStr() == "gimp"
 
   test "runtime update behavior event records layout transition":
@@ -432,13 +432,13 @@ exit 1
       )
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "app", title: "One")
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, appId: "app", title: "Two")
     )
     discard state.applyRuntimeLayoutProjection("test render", "CmdSwitchLayout")
 
@@ -479,13 +479,13 @@ exit 1
       )
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "app", title: "One")
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, appId: "app", title: "Two")
     )
     discard state.applyRuntimeUpdate(Msg(kind: MsgKind.CmdOpenOverview))
     discard state.applyRuntimeLayoutProjection("overview render", "CmdOpenOverview")
@@ -523,19 +523,19 @@ exit 1
       )
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 11, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 11, appId: "app", title: "One")
     )
 
-    discard state.applyRuntimeLayoutProjection("render layout", "WlRenderStart")
-    discard state.applyRuntimeLayoutProjection("render layout", "WlRenderStart")
-    discard state.applyRuntimeLayoutProjection("manage layout", "WlManageStart")
+    discard state.applyRuntimeLayoutProjection("render layout", "RenderStart")
+    discard state.applyRuntimeLayoutProjection("render layout", "RenderStart")
+    discard state.applyRuntimeLayoutProjection("manage layout", "ManageStart")
     discard state.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 12, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 12, appId: "app", title: "Two")
     )
-    discard state.applyRuntimeLayoutProjection("manage layout", "WlManageStart")
+    discard state.applyRuntimeLayoutProjection("manage layout", "ManageStart")
 
     var projectionEvents: seq[JsonNode] = @[]
     for line in readFile(behaviorLogPath()).strip().splitLines():
@@ -562,20 +562,20 @@ exit 1
     var model = initRuntimeStateFromConfig(Config()).model
     (model, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 9,
         appId: "sublime_text",
         title: "Sublime Text",
       )
     )
     discard
-      model.update(Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 9))
+      model.update(Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 9))
 
     let lines = readFile(behaviorLogPath()).strip().splitLines()
     check lines.len >= 1
     let event = parseJson(lines[^1])
     check event["event"].getStr() == "runtime_update"
-    check event["kind"].getStr() == "WlWindowMaximizeRequested"
+    check event["kind"].getStr() == "WindowMaximizeRequested"
     check event["tracked_windows"]["after"][0]["id"].getInt() == 9
     check event["tracked_windows"]["after"][0]["maximized"].getBool()
     var maxEffect = newJNull()
@@ -599,18 +599,18 @@ exit 1
     putEnv("TRIAD_BEHAVIOR_LOG", "1")
     putEnv("TRIAD_BEHAVIOR_LOG_DIR", dir)
     var model = initRuntimeStateFromConfig(Config()).model
-    (model, _) = model.update(Msg(kind: MsgKind.WlSessionLocked))
-    discard model.update(Msg(kind: MsgKind.WlSessionUnlocked))
+    (model, _) = model.update(Msg(kind: MsgKind.SessionLocked))
+    discard model.update(Msg(kind: MsgKind.SessionUnlocked))
 
     let lines = readFile(behaviorLogPath()).strip().splitLines()
     check lines.len == 2
     let locked = parseJson(lines[0])
     let unlocked = parseJson(lines[1])
     check locked["event"].getStr() == "runtime_update"
-    check locked["kind"].getStr() == "WlSessionLocked"
+    check locked["kind"].getStr() == "SessionLocked"
     check not locked["before"]["session_locked"].getBool()
     check locked["after"]["session_locked"].getBool()
-    check unlocked["kind"].getStr() == "WlSessionUnlocked"
+    check unlocked["kind"].getStr() == "SessionUnlocked"
     check unlocked["before"]["session_locked"].getBool()
     check not unlocked["after"]["session_locked"].getBool()
 

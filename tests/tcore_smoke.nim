@@ -12,8 +12,8 @@ suite "Core Runtime Logic: smoke":
     model.seedCameraWindows(2)
     check model.focusedWindowId() == 2
 
-    discard model.updateModel(Msg(kind: MsgKind.WlLayerFocusExclusive))
-    discard model.updateModel(Msg(kind: MsgKind.WlSessionLocked))
+    discard model.updateModel(Msg(kind: MsgKind.LayerFocusExclusive))
+    discard model.updateModel(Msg(kind: MsgKind.SessionLocked))
     check model.sessionLocked
     check model.layerFocusExclusive
 
@@ -22,7 +22,7 @@ suite "Core Runtime Logic: smoke":
     check model.focusedWindowId() == 2
     check lockedEffects.len == 0
 
-    let unlockEffects = model.updateModel(Msg(kind: MsgKind.WlSessionUnlocked))
+    let unlockEffects = model.updateModel(Msg(kind: MsgKind.SessionUnlocked))
     check not model.sessionLocked
     check not model.layerFocusExclusive
     check model.focusedWindowId() == 2

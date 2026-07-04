@@ -613,7 +613,7 @@ proc processQueuedMessages(configPath: string): bool =
     let msg = queued.msg
     daemon.messageKindCounts.incCounter($msg.kind)
 
-    if msg.kind == MsgKind.WlPointerRelease:
+    if msg.kind == MsgKind.PointerRelease:
       if daemon.runtimeState.model.pointerOp.kind != PointerOpKind.OpNone:
         if daemon.lastPointerOpSeat != nil:
           daemon.executeEffect(
@@ -635,7 +635,7 @@ proc processQueuedMessages(configPath: string): bool =
         result = true
       continue
 
-    if msg.kind == MsgKind.WlRenderStart:
+    if msg.kind == MsgKind.RenderStart:
       inc daemon.perfCounters.renderStarts
       daemon.riverPhase = RiverPhase.RiverRender
       if daemon.canSkipRenderStart():
@@ -653,7 +653,7 @@ proc processQueuedMessages(configPath: string): bool =
       daemon.renderDesiredPlacements()
       for windowId in daemon.runtimeState.pendingAdmissionWindowIds():
         daemon.enqueue(
-          Msg(kind: MsgKind.WlWindowAdmissionSettled, admissionWindowId: windowId)
+          Msg(kind: MsgKind.WindowAdmissionSettled, admissionWindowId: windowId)
         )
       daemon.executeEffect(Effect(kind: EffectKind.EffRenderFinish))
       daemon.markRenderCleanAfterFullRender()
@@ -699,7 +699,7 @@ proc processQueuedMessages(configPath: string): bool =
     let effects = syncRuntimeUpdate("message", msg)
     for eff in effects:
       daemon.effectKindCounts.incCounter($eff.kind)
-    if msg.kind != MsgKind.WlPointerRelease and previousPointerOpActive and
+    if msg.kind != MsgKind.PointerRelease and previousPointerOpActive and
         daemon.runtimeState.model.pointerOp.kind == PointerOpKind.OpNone and
         daemon.lastPointerOpSeat != nil:
       daemon.executeEffect(
@@ -720,7 +720,7 @@ proc processQueuedMessages(configPath: string): bool =
         daemon.runtimeState.model,
         "command " & $msg.kind,
       )
-    if msg.kind == MsgKind.WlWindowDestroyed:
+    if msg.kind == MsgKind.WindowDestroyed:
       daemon.lastFullscreenRequests.del(msg.destroyedId)
       daemon.lastMaximizedRequests.del(msg.destroyedId)
       daemon.noteWindowDestroyedForMemoryPressure()
@@ -758,7 +758,7 @@ proc processQueuedMessages(configPath: string): bool =
         daemon.runtimeState.model.keyboardShortcutsInhibited():
       daemon.requestBindingReconfigure("binding profile changed")
 
-    if msg.kind == MsgKind.WlManageStart:
+    if msg.kind == MsgKind.ManageStart:
       daemon.riverPhase = RiverPhase.RiverManage
       let manageReason = daemon.activeManageReason
       daemon.activeManageReason = ""

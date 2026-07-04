@@ -7,12 +7,12 @@ import update_commands, update_effects, update_events, update_maintenance, windo
 
 proc shouldLogRuntimeUpdate(kind: MsgKind): bool =
   kind in {
-    MsgKind.WlWindowCreated, MsgKind.WlWindowDestroyed, MsgKind.WlWindowAppId,
-    MsgKind.WlWindowMaximizeRequested, MsgKind.WlWindowUnmaximizeRequested,
-    MsgKind.WlWindowMinimizeRequested, MsgKind.WlWindowFullscreenRequested,
-    MsgKind.WlWindowStateChanged, MsgKind.WlWindowExitFullscreenRequested,
-    MsgKind.WlSessionLocked, MsgKind.WlSessionUnlocked, MsgKind.WlFocusChanged,
-    MsgKind.WlFrameTabClicked, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
+    MsgKind.WindowCreated, MsgKind.WindowDestroyed, MsgKind.WindowAppId,
+    MsgKind.WindowMaximizeRequested, MsgKind.WindowUnmaximizeRequested,
+    MsgKind.WindowMinimizeRequested, MsgKind.WindowFullscreenRequested,
+    MsgKind.WindowStateChanged, MsgKind.WindowExitFullscreenRequested,
+    MsgKind.SessionLocked, MsgKind.SessionUnlocked, MsgKind.FocusChanged,
+    MsgKind.FrameTabClicked, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
     MsgKind.CmdFocusTagRight, MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace,
     MsgKind.CmdFocusOutput, MsgKind.CmdMoveToTag, MsgKind.CmdMoveToTagLeft,
     MsgKind.CmdMoveToTagRight, MsgKind.CmdMoveWorkspaceToOutput,
@@ -55,27 +55,27 @@ proc addTrackedWindowId(ids: var seq[uint32], id: uint32) =
 
 proc addMsgWindowId(ids: var seq[uint32], msg: Msg) =
   case msg.kind
-  of MsgKind.WlWindowCreated:
+  of MsgKind.WindowCreated:
     ids.addTrackedWindowId(msg.windowId)
-  of MsgKind.WlWindowDestroyed:
+  of MsgKind.WindowDestroyed:
     ids.addTrackedWindowId(msg.destroyedId)
-  of MsgKind.WlFocusChanged:
+  of MsgKind.FocusChanged:
     ids.addTrackedWindowId(msg.newFocusedId)
-  of MsgKind.WlFrameTabClicked:
+  of MsgKind.FrameTabClicked:
     ids.addTrackedWindowId(msg.frameClickWindowId)
-  of MsgKind.WlWindowAppId:
+  of MsgKind.WindowAppId:
     ids.addTrackedWindowId(msg.appIdWindowId)
-  of MsgKind.WlWindowMaximizeRequested:
+  of MsgKind.WindowMaximizeRequested:
     ids.addTrackedWindowId(msg.maximizeRequestId)
-  of MsgKind.WlWindowUnmaximizeRequested:
+  of MsgKind.WindowUnmaximizeRequested:
     ids.addTrackedWindowId(msg.unmaximizeRequestId)
-  of MsgKind.WlWindowMinimizeRequested:
+  of MsgKind.WindowMinimizeRequested:
     ids.addTrackedWindowId(msg.minimizeRequestId)
-  of MsgKind.WlWindowStateChanged:
+  of MsgKind.WindowStateChanged:
     ids.addTrackedWindowId(msg.stateWindowId)
-  of MsgKind.WlWindowFullscreenRequested:
+  of MsgKind.WindowFullscreenRequested:
     ids.addTrackedWindowId(msg.fullscreenRequestId)
-  of MsgKind.WlWindowExitFullscreenRequested:
+  of MsgKind.WindowExitFullscreenRequested:
     ids.addTrackedWindowId(msg.exitFullscreenRequestId)
   of MsgKind.CmdMoveWindowToTag:
     ids.addTrackedWindowId(msg.moveWindowId)
@@ -165,10 +165,10 @@ proc isLayoutCommand(kind: MsgKind): bool =
 
 proc needsFullSnapshotAlways(kind: MsgKind): bool =
   case kind
-  of MsgKind.WlPointerDelta, MsgKind.WlRecentWindowPointerMotion,
-      MsgKind.WlOverviewPointerScrollRequested, MsgKind.WlPointerMoveRequested,
-      MsgKind.WlPointerResizeRequested, MsgKind.WlOverviewPointerDragRequested,
-      MsgKind.WlWindowTitle, MsgKind.CmdTick:
+  of MsgKind.PointerDelta, MsgKind.RecentWindowPointerMotion,
+      MsgKind.OverviewPointerScrollRequested, MsgKind.PointerMoveRequested,
+      MsgKind.PointerResizeRequested, MsgKind.OverviewPointerDragRequested,
+      MsgKind.WindowTitle, MsgKind.CmdTick:
     false
   else:
     true
@@ -255,7 +255,7 @@ proc updateInPlace*(
 
   let step =
     case msg.kind
-    of MsgKind.WlWindowCreated .. MsgKind.WlModifiersChanged:
+    of MsgKind.WindowCreated .. MsgKind.ModifiersChanged:
       model.applyEvent(msg)
     of MsgKind.CmdSetLayout .. MsgKind.CmdScreenshot:
       model.applyCommand(msg, movementEval)
@@ -263,7 +263,7 @@ proc updateInPlace*(
     effects.add(effect)
   var dirty = step.dirty
 
-  if msg.kind == MsgKind.WlManageStart and not dirty and effects.len == 0:
+  if msg.kind == MsgKind.ManageStart and not dirty and effects.len == 0:
     return effects
 
   let maintenance = model.applyUpdateMaintenance(msg.kind)

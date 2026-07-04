@@ -4,14 +4,14 @@ suite "Core Runtime Logic: restore identity":
   test "Live restore preserves popup parent relationship":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         createdParentWindowId: 1,
         appId: "pinentry",
@@ -24,15 +24,15 @@ suite "Core Runtime Logic: restore identity":
 
     var restoredModel = cameraModel()
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     restoredModel.applyLiveRestore(restore.pendingRestoreState())
     restoredModel.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Parent")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Parent")
     )
     restoredModel.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "pinentry",
         title: "Passphrase",
@@ -54,7 +54,7 @@ suite "Core Runtime Logic: restore identity":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 70,
         appId: "generic-app",
         title: "New title",
@@ -92,7 +92,7 @@ suite "Core Runtime Logic: restore identity":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 70,
         appId: "generic-app",
         title: "New title",
@@ -123,7 +123,7 @@ suite "Core Runtime Logic: restore identity":
 
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 70,
         appId: "generic-app",
         title: "New title",
@@ -133,7 +133,7 @@ suite "Core Runtime Logic: restore identity":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowIdentifier,
+        kind: MsgKind.WindowIdentifier,
         identifierWindowId: 70,
         identifier: "stable-target",
       )
@@ -188,18 +188,18 @@ suite "Core Runtime Logic: restore identity":
     var model = cameraModel()
     model.applyLiveRestore(restore)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 132, appId: "kitty", title: "new")
+      Msg(kind: MsgKind.WindowCreated, windowId: 132, appId: "kitty", title: "new")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowIdentifier,
+        kind: MsgKind.WindowIdentifier,
         identifierWindowId: 132,
         identifier: "kitty-main",
       )
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 131,
         appId: "brave-origin-nightly",
         title: "Inbox",
@@ -207,17 +207,17 @@ suite "Core Runtime Logic: restore identity":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowIdentifier,
+        kind: MsgKind.WindowIdentifier,
         identifierWindowId: 131,
         identifier: "brave-id",
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 133, appId: "kitty", title: "editor")
+      Msg(kind: MsgKind.WindowCreated, windowId: 133, appId: "kitty", title: "editor")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowIdentifier,
+        kind: MsgKind.WindowIdentifier,
         identifierWindowId: 133,
         identifier: "kitty-editor",
       )
@@ -254,7 +254,7 @@ suite "Core Runtime Logic: restore identity":
     model.applyLiveRestore(restore)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 130,
         appId: "brave-browser",
         title: "GitHub",
@@ -263,7 +263,7 @@ suite "Core Runtime Logic: restore identity":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 129,
         appId: "kitty",
         title: "triad",
@@ -272,7 +272,7 @@ suite "Core Runtime Logic: restore identity":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 131,
         appId: "kitty",
         title: "nimble liveReload ~/d/triad",
@@ -309,7 +309,7 @@ suite "Core Runtime Logic: restore identity":
     model.applyLiveRestore(restore)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 10,
         appId: "kitty",
         title: "focused",
@@ -322,7 +322,7 @@ suite "Core Runtime Logic: restore identity":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 11,
         appId: "kitty",
         title: "later",
@@ -369,17 +369,17 @@ suite "Core Runtime Logic: restore identity":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     discard model.layoutInstructions()
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
     let beforeViewport = model.viewport(1)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "chat", title: "Chat")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "chat", title: "Chat")
     )
     discard model.layoutInstructions()
     let snapshot = model.shellSnapshot()
@@ -418,15 +418,15 @@ suite "Core Runtime Logic: restore identity":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "org.gimp.GIMP",
         title: "Welcome to GIMP",
@@ -440,7 +440,7 @@ suite "Core Runtime Logic: restore identity":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         appId: "org.gimp.GIMP",
         title: "Private Welcome",

@@ -23,13 +23,13 @@ suite "Core Runtime Logic: window rules placement":
         )
       ).model
       model.applyMsg(
-        Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+        Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
       )
       model.applyMsg(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+        Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
       )
       let effects = model.updateModel(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "target", title: "Two")
+        Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "target", title: "Two")
       )
       let snapshot = model.shellSnapshot()
 
@@ -59,14 +59,14 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "target", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "target", title: "Two")
     )
     let winId = model.windowForExternal(ExternalWindowId(2))
     let tag2 = model.tagForSlot(2)
@@ -106,15 +106,15 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     let beforeViewport = model.viewport(1)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "target", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "target", title: "Two")
     )
     let winId = model.windowForExternal(ExternalWindowId(2))
 
@@ -147,11 +147,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "sized", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "sized", title: "Main")
     )
     let placement =
       model.firstWindowPosition(model.windowForExternal(ExternalWindowId(2)))
@@ -183,11 +183,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "sized", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "sized", title: "Main")
     )
     let placement =
       model.firstWindowPosition(model.windowForExternal(ExternalWindowId(2)))
@@ -214,11 +214,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "single", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "single", title: "Main")
     )
     let singleGeom = model.instructionGeom(2)
     check singleGeom.x == 100
@@ -227,7 +227,7 @@ suite "Core Runtime Logic: window rules placement":
     check singleGeom.h == 700
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "plain", title: "Second")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "plain", title: "Second")
     )
     let multiGeom = model.instructionGeom(2)
     check multiGeom.x == 0
@@ -252,11 +252,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "single", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "single", title: "Main")
     )
     let geom = model.instructionGeom(2)
 
@@ -291,11 +291,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "sized", title: "Tall")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "sized", title: "Tall")
     )
     let placement =
       model.firstWindowPosition(model.windowForExternal(ExternalWindowId(2)))
@@ -328,11 +328,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "video", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "video", title: "Main")
     )
     let win = model.snapshotWindow(2)
 
@@ -357,11 +357,11 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "bounded", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "bounded", title: "Main")
     )
     var win = model.windowData(model.windowForExternal(ExternalWindowId(2))).get()
     check win.clientMinWidth == 0
@@ -370,7 +370,7 @@ suite "Core Runtime Logic: window rules placement":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 2,
         minWidth: 300,
         minHeight: 200,
@@ -409,14 +409,14 @@ suite "Core Runtime Logic: window rules placement":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "bounded", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "bounded", title: "Main")
     )
     var win = model.windowData(model.windowForExternal(ExternalWindowId(2))).get()
     check win.minWidth == 500
     check win.maxWidth == 0
 
     var effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 2, updatedTitle: "Small Dialog")
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: 2, updatedTitle: "Small Dialog")
     )
     check effects.anyIt(it.kind == EffectKind.EffManageDirty)
     win = model.windowData(model.windowForExternal(ExternalWindowId(2))).get()
@@ -424,7 +424,7 @@ suite "Core Runtime Logic: window rules placement":
     check win.maxWidth == 900
 
     effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 2, updatedTitle: "Main")
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: 2, updatedTitle: "Main")
     )
     check effects.anyIt(it.kind == EffectKind.EffManageDirty)
     win = model.windowData(model.windowForExternal(ExternalWindowId(2))).get()
@@ -441,19 +441,19 @@ suite "Core Runtime Logic: window rules placement":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "plain", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "plain", title: "Main")
     )
     check model.windowData(model.windowForExternal(ExternalWindowId(2))).get().minHeight ==
       0
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 2, updatedAppId: "bounded")
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: 2, updatedAppId: "bounded")
     )
     check model.windowData(model.windowForExternal(ExternalWindowId(2))).get().minHeight ==
       400
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 2, updatedAppId: "plain")
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: 2, updatedAppId: "plain")
     )
     check model.windowData(model.windowForExternal(ExternalWindowId(2))).get().minHeight ==
       0
@@ -467,7 +467,7 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "bounded", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "bounded", title: "Main")
     )
     check model.windowData(model.windowForExternal(ExternalWindowId(2))).get().minWidth ==
       500
@@ -505,7 +505,7 @@ suite "Core Runtime Logic: window rules placement":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 2, appId: "fixed-rule", title: "Main"
+        kind: MsgKind.WindowCreated, windowId: 2, appId: "fixed-rule", title: "Main"
       )
     )
 
@@ -523,13 +523,13 @@ suite "Core Runtime Logic: window rules placement":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 2, appId: "fixed-client", title: "Main"
+        kind: MsgKind.WindowCreated, windowId: 2, appId: "fixed-client", title: "Main"
       )
     )
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 2,
         minWidth: 260,
         minHeight: 140,
@@ -557,13 +557,13 @@ suite "Core Runtime Logic: window rules placement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "HDMI-A-1")
+      Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "HDMI-A-1")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     discard model.setOutputTag(
@@ -572,7 +572,7 @@ suite "Core Runtime Logic: window rules placement":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "chat", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "chat", title: "Main")
     )
 
     check model.snapshotWindow(3).workspaceIdx == 2

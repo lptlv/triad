@@ -5,11 +5,11 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Shell snapshot exposes active workspace focus globally":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "browser", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "browser", title: "Two")
     )
 
     var snapshot = model.shellSnapshot()
@@ -38,10 +38,10 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Window focus broadcasts native state change":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
 
     let effects =
@@ -60,23 +60,23 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Shell snapshot exposes output refresh rate":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1080)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1920, height: 1080)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputRefreshRate, refreshOutputId: 1, outputRefreshRate: 144000
+        kind: MsgKind.OutputRefreshRate, refreshOutputId: 1, outputRefreshRate: 144000
       )
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPhysicalMetadata,
+        kind: MsgKind.OutputPhysicalMetadata,
         metadataOutputId: 1,
         outputPhysicalWidth: 600,
         outputPhysicalHeight: 340,
         outputTransform: 1,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputScale, scaleOutputId: 1, outputScale: 2.0))
+    model.applyMsg(Msg(kind: MsgKind.OutputScale, scaleOutputId: 1, outputScale: 2.0))
 
     let snapshot = model.shellSnapshot()
     check snapshot.outputs.len == 1
@@ -94,7 +94,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
 
   test "Native Triad layout state exposes shell workspace fields":
     var model = configuredModel()
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term"))
 
     let snapshot = model.shellSnapshot()
     let layout = triadLayoutStateJson(snapshot)
@@ -125,11 +125,11 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Workspace focus broadcasts native workspace snapshot":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "browser", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "browser", title: "Two")
     )
 
     let effects =
@@ -155,16 +155,16 @@ suite "Core Runtime Logic: shell snapshot ipc":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
@@ -185,19 +185,19 @@ suite "Core Runtime Logic: shell snapshot ipc":
       Config(workspaces: WorkspaceConfig(defaultCount: 2))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-3"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-3"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+        kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "source"))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "source"))
 
     let effects = model.updateModel(
       Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2")
@@ -243,13 +243,13 @@ suite "Core Runtime Logic: shell snapshot ipc":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 1000, height: 700)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
 
     let second = model.outputForExternal(ExternalOutputId(2))
     let dynamicTag = model.ensureWorkspaceSlot(4)
@@ -268,7 +268,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "Slot4")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "Slot4")
     )
     model.refreshVisibleWorkspaceSlots()
 
@@ -283,7 +283,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Empty dynamic workspaces prune after focus leaves":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
@@ -317,7 +317,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Scratchpad restore returns window to previous workspace":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
     model.requireTagShellSemantics("scratchpad hidden scenario")
@@ -338,14 +338,14 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Scratchpad toggle cycles standard windows in send order":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "term", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "term", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
 
@@ -374,10 +374,10 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Scratchpad toggle focuses shown window and restores workspace focus":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
 
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToScratchpad))
@@ -397,13 +397,13 @@ suite "Core Runtime Logic: shell snapshot ipc":
     var model = configuredModel()
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "term", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "term", title: "Three")
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
     discard model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2))
@@ -421,14 +421,14 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Standard scratchpad toggle skips hidden named scratchpads":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "files", title: "Files")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "files", title: "Files")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToNamedScratchpad, scratchpadName: "files"))
 
@@ -441,14 +441,14 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Standard scratchpad toggle hides visible named scratchpad first":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "files", title: "Files")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "files", title: "Files")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToNamedScratchpad, scratchpadName: "files"))
     model.applyMsg(Msg(kind: MsgKind.CmdToggleNamedScratchpad, scratchpadName: "files"))
@@ -464,14 +464,14 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Scratchpad restore with no visible window restores next standard candidate":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "term", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "term", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToScratchpad))
 
@@ -487,16 +487,16 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Manage start keeps compositor focus on visible scratchpad":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
 
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToScratchpad))
     discard model.updateModel(Msg(kind: MsgKind.CmdToggleScratchpad))
 
-    let effects = model.updateModel(Msg(kind: MsgKind.WlManageStart))
+    let effects = model.updateModel(Msg(kind: MsgKind.ManageStart))
     check model.scratchpadVisible()
     check model.focusedWindowId() == 2
     check effects.hasFocusEffect(2)
@@ -506,10 +506,10 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Manage start with unchanged normal focus is a no-op":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
 
-    let effects = model.updateModel(Msg(kind: MsgKind.WlManageStart))
+    let effects = model.updateModel(Msg(kind: MsgKind.ManageStart))
 
     check effects.len == 0
     check model.focusedWindowId() == 1
@@ -518,10 +518,10 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Clicking visible scratchpad reasserts compositor focus":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Two")
     )
 
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToScratchpad))
@@ -549,11 +549,11 @@ suite "Core Runtime Logic: shell snapshot ipc":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "st-yazi", title: "Files")
+      Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "st-yazi", title: "Files")
     )
 
     let winId = model.windowForExternal(ExternalWindowId(10))
@@ -579,22 +579,22 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Closing transient window keeps focus on active workspace":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "brave", title: "Browser")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "brave", title: "Browser")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 2, appId: "thunar", title: "Pictures"
+        kind: MsgKind.WindowCreated, windowId: 2, appId: "thunar", title: "Pictures"
       )
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 3, appId: "kitty", title: "Terminal A"
+        kind: MsgKind.WindowCreated, windowId: 3, appId: "kitty", title: "Terminal A"
       )
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 4, appId: "kitty", title: "Terminal B"
+        kind: MsgKind.WindowCreated, windowId: 4, appId: "kitty", title: "Terminal B"
       )
     )
 
@@ -602,7 +602,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 5,
         appId: "image-viewer",
         title: "Screenshot",
@@ -610,7 +610,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     )
 
     let effects =
-      model.updateModel(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 5))
+      model.updateModel(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 5))
 
     check model.shellSnapshot().activeTag == 1
     check model.activeWorkspaceFocusId() == 2
@@ -623,16 +623,16 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Closing last dynamic workspace window still collapses workspace":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Dynamic")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Dynamic")
     )
 
     let effects =
-      model.updateModel(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 2))
+      model.updateModel(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 2))
     let snapshot = model.shellSnapshot()
 
     check snapshot.activeTag == 3
@@ -645,15 +645,15 @@ suite "Core Runtime Logic: shell snapshot ipc":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "Slot4")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "Slot4")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Slot5")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Slot5")
     )
     # Active = slot 5, window 1 on slot 4, window 2 on slot 5
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 4))
-    discard model.updateModel(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 1))
+    discard model.updateModel(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 1))
 
     let snapshot = model.shellSnapshot()
     # Slot 4 pruned; occupied slot 5 keeps its number.
@@ -670,18 +670,18 @@ suite "Core Runtime Logic: shell snapshot ipc":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "Slot4")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "term", title: "Slot4")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "term", title: "Slot5")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "term", title: "Slot5")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTagRight))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "term", title: "Slot6")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "term", title: "Slot6")
     )
     # Active = slot 6, windows on 4, 5, 6; close window on slot 5 (middle gap)
-    discard model.updateModel(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: 2))
+    discard model.updateModel(Msg(kind: MsgKind.WindowDestroyed, destroyedId: 2))
 
     let snapshot = model.shellSnapshot()
     # Slot 5 pruned; occupied slot 6 keeps its number.
@@ -697,7 +697,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Overview order deduplicates multi-tag windows":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     let tag2 = model.tagForSlot(2)
     let col2 = model.addColumn(tag2)
@@ -712,7 +712,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     var model = configuredModel()
     let (nextModel, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 130, appId: "float-me", title: "Tool"
+        kind: MsgKind.WindowCreated, windowId: 130, appId: "float-me", title: "Tool"
       )
     )
     let snapshot = nextModel.shellSnapshot()
@@ -747,11 +747,11 @@ suite "Core Runtime Logic: shell snapshot ipc":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 131,
         appId: "fixed-float",
         title: "Tool",
@@ -785,7 +785,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     ).model
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 132,
         appId: "bounded-float",
         title: "Tool",
@@ -801,7 +801,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     var model = configuredModel()
     let (nextModel, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 140,
         appId: "qemu-system-x86_64",
         title: "Void",
@@ -851,12 +851,12 @@ suite "Core Runtime Logic: shell snapshot ipc":
 
   test "Live restore JSON preserves split-tree nodes":
     var model = configuredModel()
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 10))
     model.applyMsg(
       Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("i3"))
     )
     model.applyMsg(Msg(kind: MsgKind.CmdSplitTreeSplitVertical))
-    model.applyMsg(Msg(kind: MsgKind.WlWindowCreated, windowId: 11))
+    model.applyMsg(Msg(kind: MsgKind.WindowCreated, windowId: 11))
 
     let parsed = parseLiveRestoreJson(model.liveRestoreJson())
     check parsed.isSome
@@ -872,7 +872,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     var model = configuredModel()
     let (nextModel, effects) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 120,
         appId: "alacritty",
         title: "Alacritty",
@@ -890,11 +890,11 @@ suite "Core Runtime Logic: shell snapshot ipc":
   test "Native window title update stays incremental":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 120, appId: "alacritty", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 120, appId: "alacritty", title: "A")
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 120, updatedTitle: "B")
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: 120, updatedTitle: "B")
     )
 
     check effects.anyIt(

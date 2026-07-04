@@ -144,14 +144,14 @@ proc onSessionLocked(data: pointer, mgr: ptr RiverWindowManagerV1) =
   if daemon == nil:
     return
   info "River session locked"
-  daemon.enqueue(Msg(kind: MsgKind.WlSessionLocked))
+  daemon.enqueue(Msg(kind: MsgKind.SessionLocked))
 
 proc onSessionUnlocked(data: pointer, mgr: ptr RiverWindowManagerV1) =
   let daemon = callbackDaemon(data, "session unlocked")
   if daemon == nil:
     return
   info "River session unlocked"
-  daemon.enqueue(Msg(kind: MsgKind.WlSessionUnlocked))
+  daemon.enqueue(Msg(kind: MsgKind.SessionUnlocked))
 
 proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
   let daemon = callbackDaemon(data, "manage start")
@@ -165,7 +165,7 @@ proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     let spawnContext = daemon[].consumeSpawnPlacementForPid(pid)
     daemon.enqueue(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: id,
         createdParentWindowId: data.parentId,
         createdSwallowHostWindowId: daemon[].swallowHostForPendingWindow(id, data),
@@ -183,7 +183,7 @@ proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     if data.actualW > 0 or data.actualH > 0:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlWindowDimensions,
+          kind: MsgKind.WindowDimensions,
           dimensionsWindowId: id,
           actualWidth: data.actualW,
           actualHeight: data.actualH,
@@ -192,7 +192,7 @@ proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     if data.minWidth > 0 or data.minHeight > 0 or data.maxWidth > 0 or data.maxHeight > 0:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlWindowDimensionsHint,
+          kind: MsgKind.WindowDimensionsHint,
           hintWindowId: id,
           minWidth: data.minWidth,
           minHeight: data.minHeight,
@@ -203,7 +203,7 @@ proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     if data.hasDecorationHint:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlWindowDecorationHint,
+          kind: MsgKind.WindowDecorationHint,
           decorationWindowId: id,
           decorationHint: data.decorationHint,
         )
@@ -211,7 +211,7 @@ proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     if data.hasPresentationHint:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlWindowPresentationHint,
+          kind: MsgKind.WindowPresentationHint,
           presentationWindowId: id,
           presentationHint: data.presentationHint,
         )
@@ -219,28 +219,28 @@ proc onManageStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     if data.parentId != 0:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlWindowParent, childWindowId: id, parentWindowId: data.parentId
+          kind: MsgKind.WindowParent, childWindowId: id, parentWindowId: data.parentId
         )
       )
     if data.isFullscreen:
       daemon.enqueue(
         Msg(
-          kind: MsgKind.WlWindowFullscreenRequested,
+          kind: MsgKind.WindowFullscreenRequested,
           fullscreenRequestId: id,
           fullscreenOutputId: data.fullscreenOutput,
         )
       )
     if data.isMaximized:
       daemon.enqueue(
-        Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: id)
+        Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: id)
       )
     if data.isMinimized:
       daemon.enqueue(
-        Msg(kind: MsgKind.WlWindowMinimizeRequested, minimizeRequestId: id)
+        Msg(kind: MsgKind.WindowMinimizeRequested, minimizeRequestId: id)
       )
   daemon.pendingWindows.clear()
   daemon[].ageSpawnPlacementContexts()
-  daemon.enqueue(Msg(kind: MsgKind.WlManageStart))
+  daemon.enqueue(Msg(kind: MsgKind.ManageStart))
 
 proc onRenderStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
   let daemon = callbackDaemon(data, "render start")
@@ -255,7 +255,7 @@ proc onRenderStart(data: pointer, mgr: ptr RiverWindowManagerV1) =
     mgr.renderFinish()
     daemon[].riverPhase = RiverPhase.RiverIdle
     return
-  daemon.enqueue(Msg(kind: MsgKind.WlRenderStart))
+  daemon.enqueue(Msg(kind: MsgKind.RenderStart))
 
 proc onWindow(data: pointer, mgr: ptr RiverWindowManagerV1, win: ptr RiverWindowV1) =
   let daemon = callbackDaemon(data, "window")

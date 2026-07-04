@@ -10,23 +10,23 @@ proc hasOverviewBroadcast(effects: seq[Effect], open: bool): bool =
 proc twoOutputOverviewModel(): Model =
   result = configuredModel()
   result.applyMsg(
-    Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+    Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
   )
-  result.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+  result.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 1, outputName: "DP-1"))
   result.applyMsg(
-    Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+    Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
   )
   result.applyMsg(
-    Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0)
+    Msg(kind: MsgKind.OutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0)
   )
-  result.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+  result.applyMsg(Msg(kind: MsgKind.OutputName, nameOutputId: 2, outputName: "DP-2"))
   result.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
   )
   result.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
   result.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
   result.applyMsg(
-    Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+    Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
   )
   result.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
   result.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -53,14 +53,14 @@ suite "Core Runtime Logic: overview interactions":
   test "Dragging unified overview preview moves window without closing":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -71,16 +71,16 @@ suite "Core Runtime Logic: overview interactions":
       model.workspacePreviewRect(model.primaryScreen(), slots, 1).rectCenter()
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 1,
         overviewDragX: start.x,
         overviewDragY: start.y,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlPointerDelta, dx: target.x - start.x, dy: target.y - start.y)
+      Msg(kind: MsgKind.PointerDelta, dx: target.x - start.x, dy: target.y - start.y)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check model.overviewActive
     check model.activeTag == model.tagForSlot(1)
@@ -90,10 +90,10 @@ suite "Core Runtime Logic: overview interactions":
   test "Right-dragging unified overview pans hovered workspace camera":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
     let beforeViewport = model.viewport(1)
@@ -101,13 +101,13 @@ suite "Core Runtime Logic: overview interactions":
     let start = model.instructionGeom(1).rectCenter()
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlOverviewPointerScrollRequested,
+        kind: MsgKind.OverviewPointerScrollRequested,
         overviewScrollX: start.x,
         overviewScrollY: start.y,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlPointerDelta, dx: 50, dy: 0))
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerDelta, dx: 50, dy: 0))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check model.overviewActive
     check model.viewport(1).currentViewportXOffset ==
@@ -119,14 +119,14 @@ suite "Core Runtime Logic: overview interactions":
   test "Wheel over unified overview switches workspaces vertically":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -137,7 +137,7 @@ suite "Core Runtime Logic: overview interactions":
       .rectCenter()
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlOverviewWheel,
+        kind: MsgKind.OverviewWheel,
         overviewWheelX: target.x,
         overviewWheelY: target.y,
         overviewWheelHorizontal: 0,
@@ -156,13 +156,13 @@ suite "Core Runtime Logic: overview interactions":
   test "Wheel over unified overview focuses columns horizontally":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Scroller))
     for id in 1'u32 .. 3'u32:
       model.applyMsg(
         Msg(
-          kind: MsgKind.WlWindowCreated,
+          kind: MsgKind.WindowCreated,
           windowId: id,
           appId: "app",
           title: "Window " & $id,
@@ -177,7 +177,7 @@ suite "Core Runtime Logic: overview interactions":
       .rectCenter()
     let horizontalEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlOverviewWheel,
+        kind: MsgKind.OverviewWheel,
         overviewWheelX: target.x,
         overviewWheelY: target.y,
         overviewWheelHorizontal: 1,
@@ -192,11 +192,11 @@ suite "Core Runtime Logic: overview interactions":
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlModifiersChanged, oldModifiers: 0'u32, newModifiers: 1'u32)
+      Msg(kind: MsgKind.ModifiersChanged, oldModifiers: 0'u32, newModifiers: 1'u32)
     )
     let shiftEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlOverviewWheel,
+        kind: MsgKind.OverviewWheel,
         overviewWheelX: target.x,
         overviewWheelY: target.y,
         overviewWheelHorizontal: 0,
@@ -213,14 +213,14 @@ suite "Core Runtime Logic: overview interactions":
   test "Holding unified overview drag waits for release before moving window":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -231,14 +231,14 @@ suite "Core Runtime Logic: overview interactions":
       model.workspacePreviewRect(model.primaryScreen(), slots, 1).rectCenter()
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 1,
         overviewDragX: start.x,
         overviewDragY: start.y,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlPointerDelta, dx: target.x - start.x, dy: target.y - start.y)
+      Msg(kind: MsgKind.PointerDelta, dx: target.x - start.x, dy: target.y - start.y)
     )
     for _ in 0 ..< 47:
       model.applyMsg(Msg(kind: MsgKind.CmdTick))
@@ -248,7 +248,7 @@ suite "Core Runtime Logic: overview interactions":
     check model.firstWindowPosition(WindowId(1)).tagId == model.tagForSlot(1)
     check model.pointerOp.kind == PointerOpKind.OpOverviewDrag
 
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check model.overviewActive
     check model.activeTag == model.tagForSlot(1)
@@ -266,13 +266,13 @@ suite "Core Runtime Logic: overview interactions":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 0,
         overviewDragX: target.x + 1,
         overviewDragY: target.y + 1,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check not model.overviewActive
     check model.activeOutput == second
@@ -286,13 +286,13 @@ suite "Core Runtime Logic: overview interactions":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 2,
         overviewDragX: start.x,
         overviewDragY: start.y,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check not model.overviewActive
     check model.activeOutput == second
@@ -305,16 +305,16 @@ suite "Core Runtime Logic: overview interactions":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 2,
         overviewDragX: start.x,
         overviewDragY: start.y,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlPointerDelta, dx: target.x - start.x, dy: target.y - start.y)
+      Msg(kind: MsgKind.PointerDelta, dx: target.x - start.x, dy: target.y - start.y)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check model.overviewActive
     check model.pointerOp.kind == PointerOpKind.OpNone
@@ -333,16 +333,16 @@ suite "Core Runtime Logic: overview interactions":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 1,
         overviewDragX: start.x,
         overviewDragY: start.y,
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlPointerDelta, dx: target.x - start.x, dy: target.y - start.y)
+      Msg(kind: MsgKind.PointerDelta, dx: target.x - start.x, dy: target.y - start.y)
     )
-    model.applyMsg(Msg(kind: MsgKind.WlPointerRelease))
+    model.applyMsg(Msg(kind: MsgKind.PointerRelease))
 
     check model.overviewActive
     check model.activeTag == model.tagForSlot(1)
@@ -359,7 +359,7 @@ suite "Core Runtime Logic: overview interactions":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 1,
         overviewDragX: start.x,
         overviewDragY: start.y,
@@ -369,7 +369,7 @@ suite "Core Runtime Logic: overview interactions":
     let base = model.projectedInstruction(1).geom
     let boundary = firstScreen.x + firstScreen.w
     model.applyMsg(
-      Msg(kind: MsgKind.WlPointerDelta, dx: boundary - base.rectCenter().x, dy: 0)
+      Msg(kind: MsgKind.PointerDelta, dx: boundary - base.rectCenter().x, dy: 0)
     )
 
     let dragged = model.projectedInstruction(1)
@@ -391,16 +391,16 @@ suite "Core Runtime Logic: overview interactions":
   test "Clicking overview window commits focus":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusTag, focusTag: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
 
-    let effects = model.updateModel(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 2))
+    let effects = model.updateModel(Msg(kind: MsgKind.FocusChanged, newFocusedId: 2))
 
     check not model.overviewActive
     check model.activeTag == model.tagForSlot(2)
@@ -413,14 +413,14 @@ suite "Core Runtime Logic: overview interactions":
   test "Clicking blank unified overview workspace activates workspace":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -429,13 +429,13 @@ suite "Core Runtime Logic: overview interactions":
     let target = model.workspacePreviewRect(model.primaryScreen(), slots, 1)
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlOverviewPointerDragRequested,
+        kind: MsgKind.OverviewPointerDragRequested,
         overviewDragWinId: 0,
         overviewDragX: target.x + 1,
         overviewDragY: target.y + 1,
       )
     )
-    let effects = model.updateModel(Msg(kind: MsgKind.WlPointerRelease))
+    let effects = model.updateModel(Msg(kind: MsgKind.PointerRelease))
 
     check not model.overviewActive
     check model.activeTag == model.tagForSlot(2)
@@ -444,14 +444,14 @@ suite "Core Runtime Logic: overview interactions":
   test "Overview hides trailing dynamic empty workspace":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdOpenOverview))
@@ -510,10 +510,10 @@ suite "Core Runtime Logic: overview interactions":
     model.seedCameraWindows(1)
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.setViewport(2, targetX = 0.0, currentX = 0.0)
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
@@ -539,10 +539,10 @@ suite "Core Runtime Logic: overview interactions":
     model.seedCameraWindows(1)
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     model.setViewport(2, targetX = 250.0, currentX = 175.0)
     let workspace2Viewport = model.viewport(2)
@@ -589,7 +589,7 @@ suite "Core Runtime Logic: overview interactions":
 
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.setViewport(2, targetX = 75.0, currentX = 75.0)
     let workspace2Viewport = model.viewport(2)
@@ -618,7 +618,7 @@ suite "Core Runtime Logic: overview interactions":
     discard model.layoutInstructions()
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
 
-    let effects = model.updateModel(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: 1))
+    let effects = model.updateModel(Msg(kind: MsgKind.FocusChanged, newFocusedId: 1))
     discard model.layoutInstructions()
 
     check model.focusedWindowId() == 1

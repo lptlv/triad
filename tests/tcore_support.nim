@@ -166,12 +166,12 @@ proc setViewport*(
 
 proc seedCameraWindows*(model: var Model, count = 3'u32) =
   model.applyMsg(
-    Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+    Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
   )
   for id in 1'u32 .. count:
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: id,
         appId: "app",
         title: "Window " & $id,

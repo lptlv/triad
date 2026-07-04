@@ -217,12 +217,12 @@ proc writeScriptEvalEvent(evalResult: ScriptEvalResult) =
 
 proc shouldDispatchJanetScripts*(kind: MsgKind): bool =
   kind in {
-    MsgKind.WlWindowCreated, MsgKind.WlWindowAdmissionSettled,
-    MsgKind.WlWindowDestroyed, MsgKind.WlWindowTitle, MsgKind.WlWindowAppId,
-    MsgKind.WlFocusChanged, MsgKind.WlSessionLocked, MsgKind.WlSessionUnlocked,
-    MsgKind.WlOutputDimensions, MsgKind.WlOutputName, MsgKind.WlOutputIdentity,
-    MsgKind.WlOutputDescription, MsgKind.WlOutputPosition, MsgKind.WlOutputRefreshRate,
-    MsgKind.WlOutputRemoved, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
+    MsgKind.WindowCreated, MsgKind.WindowAdmissionSettled,
+    MsgKind.WindowDestroyed, MsgKind.WindowTitle, MsgKind.WindowAppId,
+    MsgKind.FocusChanged, MsgKind.SessionLocked, MsgKind.SessionUnlocked,
+    MsgKind.OutputDimensions, MsgKind.OutputName, MsgKind.OutputIdentity,
+    MsgKind.OutputDescription, MsgKind.OutputPosition, MsgKind.OutputRefreshRate,
+    MsgKind.OutputRemoved, MsgKind.CmdFocusTag, MsgKind.CmdFocusTagLeft,
     MsgKind.CmdFocusTagRight, MsgKind.CmdFocusOccupiedTagLeft,
     MsgKind.CmdFocusOccupiedTagRight, MsgKind.CmdFocusWorkspaceIndex,
     MsgKind.CmdNewWorkspace, MsgKind.CmdFocusWindowOrWorkspaceUp,
@@ -305,7 +305,7 @@ proc hookEvents(
     msg: Msg, before, after: ShellSnapshot, windowReadyEmitted: var HashSet[uint32]
 ): seq[JanetScriptEvent] =
   case msg.kind
-  of MsgKind.WlWindowCreated:
+  of MsgKind.WindowCreated:
     let win = after.windowById(msg.windowId)
     let fallback = ShellWindow(
       id: msg.windowId,
@@ -328,7 +328,7 @@ proc hookEvents(
       ),
       currentWindow,
     )
-  of MsgKind.WlWindowAdmissionSettled:
+  of MsgKind.WindowAdmissionSettled:
     let win = after.windowById(msg.admissionWindowId)
     if win.isSome and win.get().appId.windowAppIdReady() and
         msg.admissionWindowId notin windowReadyEmitted:
@@ -344,7 +344,7 @@ proc hookEvents(
       ),
       win,
     )
-  of MsgKind.WlWindowDestroyed:
+  of MsgKind.WindowDestroyed:
     let win = before.windowById(msg.destroyedId)
     result.addScriptEvent(
       "window-closed",
@@ -354,7 +354,7 @@ proc hookEvents(
       win,
     )
     windowReadyEmitted.excl(msg.destroyedId)
-  of MsgKind.WlWindowTitle:
+  of MsgKind.WindowTitle:
     let oldWin = before.windowById(msg.titleWindowId)
     let newWin = after.windowById(msg.titleWindowId)
     result.addScriptEvent(
@@ -371,7 +371,7 @@ proc hookEvents(
       ),
       newWin,
     )
-  of MsgKind.WlWindowAppId:
+  of MsgKind.WindowAppId:
     let oldWin = before.windowById(msg.appIdWindowId)
     let newWin = after.windowById(msg.appIdWindowId)
     if msg.updatedAppId.windowAppIdReady() and msg.appIdWindowId notin windowReadyEmitted and
@@ -394,7 +394,7 @@ proc hookEvents(
       ),
       newWin,
     )
-  of MsgKind.WlFocusChanged:
+  of MsgKind.FocusChanged:
     let oldWin = before.windowById(before.focusedWindowId())
     let newWin = after.windowById(after.focusedWindowId())
     result.addScriptEvent(
@@ -410,13 +410,13 @@ proc hookEvents(
       ),
       newWin,
     )
-  of MsgKind.WlSessionLocked:
+  of MsgKind.SessionLocked:
     result.addScriptEvent("session-locked", emptyEventStruct("session-locked"))
-  of MsgKind.WlSessionUnlocked:
+  of MsgKind.SessionUnlocked:
     result.addScriptEvent("session-unlocked", emptyEventStruct("session-unlocked"))
-  of MsgKind.WlOutputDimensions, MsgKind.WlOutputName, MsgKind.WlOutputIdentity,
-      MsgKind.WlOutputDescription, MsgKind.WlOutputPosition,
-      MsgKind.WlOutputRefreshRate, MsgKind.WlOutputRemoved:
+  of MsgKind.OutputDimensions, MsgKind.OutputName, MsgKind.OutputIdentity,
+      MsgKind.OutputDescription, MsgKind.OutputPosition,
+      MsgKind.OutputRefreshRate, MsgKind.OutputRemoved:
     result.addOutputLifecycleEvents(before, after)
   else:
     discard

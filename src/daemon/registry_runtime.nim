@@ -285,7 +285,7 @@ proc handleGlobalRemove*(data: pointer, registry: ptr Registry, name: uint32) =
     let outputId = daemon.outputGlobalOwners[name]
     daemon.outputGlobalOwners.del(name)
     daemon.enqueue(
-      Msg(kind: MsgKind.WlOutputName, nameOutputId: outputId, outputName: "")
+      Msg(kind: MsgKind.OutputName, nameOutputId: outputId, outputName: "")
     )
 
 var registryListener* =

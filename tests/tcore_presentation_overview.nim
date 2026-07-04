@@ -19,11 +19,11 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "video", title: "Movie")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "video", title: "Movie")
     )
     let win = model.snapshotWindow(2)
 
@@ -37,10 +37,10 @@ suite "Core Runtime Logic: presentation overview":
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 900, height: 700)
     )
 
     let primary = model.outputForExternal(ExternalOutputId(1))
@@ -54,7 +54,7 @@ suite "Core Runtime Logic: presentation overview":
     discard model.setActiveOutput(secondary)
     discard model.setActiveWorkspace(secondaryTag)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "kitty", title: "term")
+      Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "kitty", title: "term")
     )
 
     let focusedEffects = model.updateModel(Msg(kind: MsgKind.CmdToggleFullscreen))
@@ -96,11 +96,11 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "editor", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "editor", title: "Main")
     )
     let win = model.snapshotWindow(2)
 
@@ -117,10 +117,10 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "editor", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "editor", title: "Main")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdToggleMaximized))
 
@@ -150,10 +150,10 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "video", title: "Movie")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "video", title: "Movie")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdToggleFullscreen))
 
@@ -192,11 +192,11 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "docs", title: "Manual")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "docs", title: "Manual")
     )
     let placement =
       model.firstWindowPosition(model.windowForExternal(ExternalWindowId(2)))
@@ -218,11 +218,11 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "docs", title: "Manual")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "docs", title: "Manual")
     )
     let placement =
       model.firstWindowPosition(model.windowForExternal(ExternalWindowId(2)))
@@ -253,11 +253,11 @@ suite "Core Runtime Logic: presentation overview":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "conflict", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "conflict", title: "Main")
     )
     let placement =
       model.firstWindowPosition(model.windowForExternal(ExternalWindowId(2)))
@@ -294,7 +294,7 @@ suite "Core Runtime Logic: presentation overview":
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 50,
         appId: "generic-app",
         title: "Old title",
@@ -313,7 +313,7 @@ suite "Core Runtime Logic: presentation overview":
 
     let fullscreenEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 2,
         fullscreenOutputId: 0,
       )
@@ -332,7 +332,7 @@ suite "Core Runtime Logic: presentation overview":
     var model = cameraModel()
     model.seedCameraWindows(2)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 2)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 2)
     )
 
     let effects =
@@ -350,7 +350,7 @@ suite "Core Runtime Logic: presentation overview":
     var model = cameraModel()
     model.seedCameraWindows(2)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 2)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 2)
     )
     discard
       model.updateModel(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid))
@@ -367,7 +367,7 @@ suite "Core Runtime Logic: presentation overview":
     var model = cameraModel()
     model.seedCameraWindows(2)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 2)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 2)
     )
 
     for mode in [LayoutMode.MasterStack, LayoutMode.Deck, LayoutMode.Monocle]:
@@ -380,7 +380,7 @@ suite "Core Runtime Logic: presentation overview":
     var model = cameraModel()
     model.seedCameraWindows(2)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 2)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 2)
     )
 
     let minimizeEffects = model.updateModel(Msg(kind: MsgKind.CmdMinimize))
@@ -415,11 +415,11 @@ suite "Core Runtime Logic: presentation overview":
     model.seedCameraWindows(2)
 
     let firstMaxEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2))
     let secondMaxEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 2)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 2)
     )
 
     check model.snapshotWindow(1).isMaximized
@@ -428,7 +428,7 @@ suite "Core Runtime Logic: presentation overview":
 
     let popupEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 3, appId: "pinentry", title: "Password"
+        kind: MsgKind.WindowCreated, windowId: 3, appId: "pinentry", title: "Password"
       )
     )
     let screen = model.primaryScreen()
@@ -448,7 +448,7 @@ suite "Core Runtime Logic: presentation overview":
       Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1)
     )
     discard maximizedModel.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard maximizedModel.updateModel(
       Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2)
@@ -469,7 +469,7 @@ suite "Core Runtime Logic: presentation overview":
       Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1)
     )
     discard fullscreenModel.updateModel(
-      Msg(kind: MsgKind.WlWindowFullscreenRequested, fullscreenRequestId: 1)
+      Msg(kind: MsgKind.WindowFullscreenRequested, fullscreenRequestId: 1)
     )
     discard fullscreenModel.updateModel(
       Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2)
@@ -488,13 +488,13 @@ suite "Core Runtime Logic: presentation overview":
     var model = cameraModel()
     model.seedCameraWindows(3)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 3))
 
     let popupEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 3,
         appId: "xdg-desktop-portal-gtk",
@@ -520,16 +520,16 @@ suite "Core Runtime Logic: presentation overview":
     var model = cameraModel()
     model.seedCameraWindows(3)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 3))
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 3)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 3)
     )
 
     let popupEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         createdParentWindowId: 3,
         appId: "xdg-desktop-portal-gtk",
@@ -563,7 +563,7 @@ suite "Core Runtime Logic: presentation overview":
     model.seedCameraWindows(2)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 2,
         fullscreenOutputId: 0,
       )
@@ -571,7 +571,7 @@ suite "Core Runtime Logic: presentation overview":
 
     let popupEffects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 3, appId: "pinentry", title: "Password"
+        kind: MsgKind.WindowCreated, windowId: 3, appId: "pinentry", title: "Password"
       )
     )
     let screen = model.primaryScreen()
@@ -598,14 +598,14 @@ suite "Core Runtime Logic: presentation overview":
     model.seedCameraWindows(2)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 2,
         fullscreenOutputId: 0,
       )
     )
 
     let overlayEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "hud", title: "HUD")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "hud", title: "HUD")
     )
     let screen = model.primaryScreen()
 
@@ -623,7 +623,7 @@ suite "Core Runtime Logic: presentation overview":
     model.seedCameraWindows(1)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 1,
         fullscreenOutputId: 0,
       )
@@ -639,7 +639,7 @@ suite "Core Runtime Logic: presentation overview":
     var edgeModel = cameraModel()
     edgeModel.seedCameraWindows(1)
     discard edgeModel.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard edgeModel.updateModel(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -660,7 +660,7 @@ suite "Core Runtime Logic: presentation overview":
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.VerticalScroller)
     )
     discard edgeModel.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard edgeModel.updateModel(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -688,7 +688,7 @@ suite "Core Runtime Logic: presentation overview":
       Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid)
     )
     discard maximizedModel.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 2)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 2)
     )
     discard maximizedModel.updateModel(Msg(kind: MsgKind.CmdOpenOverview))
 
@@ -699,7 +699,7 @@ suite "Core Runtime Logic: presentation overview":
     model.seedCameraWindows(2)
     discard model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 2,
         fullscreenOutputId: 0,
       )
@@ -731,10 +731,10 @@ suite "Core Runtime Logic: presentation overview":
   test "Moving focused stacked window preserves focus":
     var model = configuredModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
 
     let tagId = model.tagForSlot(1)

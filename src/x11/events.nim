@@ -423,7 +423,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       return
     result.add(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: event.window.id,
         createdParentWindowId: event.window.parentId,
         createdPid: event.window.pid,
@@ -436,7 +436,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     if event.window.w > 0 or event.window.h > 0:
       result.add(
         Msg(
-          kind: MsgKind.WlWindowDimensions,
+          kind: MsgKind.WindowDimensions,
           dimensionsWindowId: event.window.id,
           actualWidth: event.window.w,
           actualHeight: event.window.h,
@@ -445,7 +445,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     if event.window.pid > 0:
       result.add(
         Msg(
-          kind: MsgKind.WlWindowPid,
+          kind: MsgKind.WindowPid,
           pidWindowId: event.window.id,
           windowPid: event.window.pid,
         )
@@ -454,7 +454,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
         event.window.maxH > 0:
       result.add(
         Msg(
-          kind: MsgKind.WlWindowDimensionsHint,
+          kind: MsgKind.WindowDimensionsHint,
           hintWindowId: event.window.id,
           minWidth: event.window.minW,
           minHeight: event.window.minH,
@@ -463,15 +463,15 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
         )
       )
   of X11BackendEventKind.WindowDestroyed, X11BackendEventKind.WindowUnmapped:
-    result.add(Msg(kind: MsgKind.WlWindowDestroyed, destroyedId: event.windowId))
+    result.add(Msg(kind: MsgKind.WindowDestroyed, destroyedId: event.windowId))
   of X11BackendEventKind.OutputDiscovered:
     if not event.output.connected:
-      result.add(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: event.output.id))
+      result.add(Msg(kind: MsgKind.OutputRemoved, removedOutputId: event.output.id))
       return
     if event.output.w > 0 or event.output.h > 0:
       result.add(
         Msg(
-          kind: MsgKind.WlOutputDimensions,
+          kind: MsgKind.OutputDimensions,
           outputId: event.output.id,
           width: event.output.w,
           height: event.output.h,
@@ -480,14 +480,14 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     if event.output.name.len > 0:
       result.add(
         Msg(
-          kind: MsgKind.WlOutputName,
+          kind: MsgKind.OutputName,
           nameOutputId: event.output.id,
           outputName: event.output.name,
         )
       )
     result.add(
       Msg(
-        kind: MsgKind.WlOutputPosition,
+        kind: MsgKind.OutputPosition,
         positionOutputId: event.output.id,
         outputX: event.output.x,
         outputY: event.output.y,
@@ -495,14 +495,14 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     )
   of X11BackendEventKind.FocusChanged:
     if event.focused:
-      result.add(Msg(kind: MsgKind.WlFocusChanged, newFocusedId: event.focusWindowId))
+      result.add(Msg(kind: MsgKind.FocusChanged, newFocusedId: event.focusWindowId))
   of X11BackendEventKind.ConfigureRequested:
     let requiredMask = X11ConfigureMaskWidth or X11ConfigureMaskHeight
     if (event.configure.valueMask and requiredMask) == requiredMask and
         event.configure.w > 0 and event.configure.h > 0:
       result.add(
         Msg(
-          kind: MsgKind.WlWindowDimensions,
+          kind: MsgKind.WindowDimensions,
           dimensionsWindowId: event.configure.windowId,
           actualWidth: event.configure.w,
           actualHeight: event.configure.h,
@@ -514,7 +514,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       if event.propertyValue.len > 0:
         result.add(
           Msg(
-            kind: MsgKind.WlWindowAppId,
+            kind: MsgKind.WindowAppId,
             appIdWindowId: event.propertyWindowId,
             updatedAppId: event.propertyValue.appIdFromWmClass(),
           )
@@ -522,7 +522,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     of "WM_NAME", "_NET_WM_NAME":
       result.add(
         Msg(
-          kind: MsgKind.WlWindowTitle,
+          kind: MsgKind.WindowTitle,
           titleWindowId: event.propertyWindowId,
           updatedTitle: event.propertyValue,
         )
@@ -531,7 +531,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       if event.propertyPid > 0:
         result.add(
           Msg(
-            kind: MsgKind.WlWindowPid,
+            kind: MsgKind.WindowPid,
             pidWindowId: event.propertyWindowId,
             windowPid: event.propertyPid,
           )
@@ -539,7 +539,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     of X11WmTransientFor:
       result.add(
         Msg(
-          kind: MsgKind.WlWindowParent,
+          kind: MsgKind.WindowParent,
           childWindowId: event.propertyWindowId,
           parentWindowId: event.propertyParentWindowId,
         )
@@ -547,7 +547,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
     of X11WmNormalHints:
       result.add(
         Msg(
-          kind: MsgKind.WlWindowDimensionsHint,
+          kind: MsgKind.WindowDimensionsHint,
           hintWindowId: event.propertyWindowId,
           minWidth: event.propertyMinWidth,
           minHeight: event.propertyMinHeight,
@@ -559,7 +559,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       let tokens = event.propertyValue.stateTokenSet()
       result.add(
         Msg(
-          kind: MsgKind.WlWindowStateChanged,
+          kind: MsgKind.WindowStateChanged,
           stateWindowId: event.propertyWindowId,
           stateFullscreen: tokens.hasState(X11StateFullscreen),
           stateMaximized:
@@ -573,7 +573,7 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       let tokens = event.propertyValue.stateTokenSet()
       result.add(
         Msg(
-          kind: MsgKind.WlWindowStateChanged,
+          kind: MsgKind.WindowStateChanged,
           stateWindowId: event.propertyWindowId,
           stateFullscreen: tokens.hasState(X11StateFullscreen),
           stateMaximized:

@@ -22,14 +22,14 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "game", title: "Game")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "game", title: "Game")
     )
     var policy = model.effectivePresentationMode()
     check policy.hasPreference
     check policy.mode == PresentationMode.PresentationAsync
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "docs", title: "Docs")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "docs", title: "Docs")
     )
     policy = model.effectivePresentationMode()
     check policy.hasPreference
@@ -55,13 +55,13 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "plain", title: "Plain")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "plain", title: "Plain")
     )
     var policy = model.effectivePresentationMode()
     check not policy.hasPreference
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "game", title: "Game")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "game", title: "Game")
     )
     policy = model.effectivePresentationMode()
     check policy.hasPreference
@@ -82,21 +82,21 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     var effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "video", title: "Video")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "video", title: "Video")
     )
     check effects.hasIdleInhibitEffect(true)
     check model.shellSnapshot().windows[0].idleInhibitMode ==
       WindowRuleIdleInhibitMode.IdleInhibitFocused
 
     effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "docs", title: "Docs")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "docs", title: "Docs")
     )
     check effects.hasIdleInhibitEffect(false)
 
     effects = model.updateModel(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
     check effects.hasIdleInhibitEffect(true)
 
-    effects = model.updateModel(Msg(kind: MsgKind.WlLayerFocusExclusive))
+    effects = model.updateModel(Msg(kind: MsgKind.LayerFocusExclusive))
     check effects.hasIdleInhibitEffect(false)
 
   test "Window rule idle-inhibit focused follows active scratchpad":
@@ -114,10 +114,10 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "video", title: "Video")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "video", title: "Video")
     )
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "docs", title: "Docs")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "docs", title: "Docs")
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToScratchpad))
 
@@ -143,15 +143,15 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     discard model.updateModel(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     discard model.updateModel(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 800, height: 600)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 2, width: 800, height: 600)
     )
     discard
       model.updateModel(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     var effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "video", title: "Video")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "video", title: "Video")
     )
     check effects.hasIdleInhibitEffect(true)
 
@@ -162,7 +162,7 @@ suite "Core Runtime Logic: window rules policy":
     check not effects.hasIdleInhibitEffect(false)
 
     effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowMinimizeRequested, minimizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMinimizeRequested, minimizeRequestId: 1)
     )
     check effects.hasIdleInhibitEffect(false)
 
@@ -185,7 +185,7 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "plain", title: "Plain")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "plain", title: "Plain")
     )
 
     let border = model.effectiveWindowBorder(WindowId(1))
@@ -222,7 +222,7 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Dialog")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Dialog")
     )
 
     let border = model.effectiveWindowBorder(WindowId(1))
@@ -254,10 +254,10 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Dialog")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Dialog")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Main")
     )
 
     check model.effectiveWindowBorder(WindowId(1)).width == 0
@@ -295,7 +295,7 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "App")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "App")
     )
 
     let unfocused = model.effectiveWindowBorder(WindowId(1), focused = false)
@@ -333,7 +333,7 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "App")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "App")
     )
 
     check model.effectiveWindowBorder(WindowId(1), focused = false).width == 0
@@ -367,7 +367,7 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Dialog")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Dialog")
     )
 
     let focused = model.effectiveWindowBorder(WindowId(1), focused = true)
@@ -397,13 +397,13 @@ suite "Core Runtime Logic: window rules policy":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Main")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Main")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Dialog")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Dialog")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "other", title: "Other")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "other", title: "Other")
     )
 
     check model.windowClipToGeometry(WindowId(1))

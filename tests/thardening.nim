@@ -262,8 +262,8 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
 
     daemon.enqueue(Msg(kind: MsgKind.CmdFocusTag, focusTag: 2))
-    daemon.enqueue(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: 1))
-    daemon.enqueue(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: 2))
+    daemon.enqueue(Msg(kind: MsgKind.OutputRemoved, removedOutputId: 1))
+    daemon.enqueue(Msg(kind: MsgKind.OutputRemoved, removedOutputId: 2))
     daemon.enqueue(
       Msg(kind: MsgKind.CmdMoveToTag, targetTag: 3), QueuedMsgOrigin.JanetHook
     )
@@ -295,7 +295,7 @@ suite "Crash hardening":
 
   test "render start fast path bypasses general runtime update":
     let source = readFile("src/daemon/app.nim")
-    let renderStart = source.find("if msg.kind == MsgKind.WlRenderStart:")
+    let renderStart = source.find("if msg.kind == MsgKind.RenderStart:")
     let runtimeUpdate = source.find("let effects = syncRuntimeUpdate")
 
     check renderStart >= 0
@@ -307,7 +307,7 @@ suite "Crash hardening":
     let renderStart = source.find("proc onRenderStart")
     let cleanSkip = source.find("daemon[].canSkipRenderStart()")
     let renderFinish = source.find("mgr.renderFinish()")
-    let enqueue = source.find("daemon.enqueue(Msg(kind: MsgKind.WlRenderStart))")
+    let enqueue = source.find("daemon.enqueue(Msg(kind: MsgKind.RenderStart))")
 
     check renderStart >= 0
     check cleanSkip > renderStart
@@ -319,7 +319,7 @@ suite "Crash hardening":
     daemon.runtimeState = initRuntimeStateFromConfig(Config())
     discard daemon.runtimeState.applyRuntimeUpdate(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 42,
         appId: "app",
         title: "Pending",
@@ -1051,7 +1051,7 @@ workspaces {
     daemon.runtimeState =
       initRuntimeStateFromConfig(Config(workspaces: WorkspaceConfig(defaultCount: 3)))
     discard daemon.runtimeState.applyRuntimeUpdate(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     daemon.bindingsConfigured = true
     daemon.xkbBindings[99'u32] = Msg(kind: MsgKind.CmdCloseWindow)
@@ -1303,7 +1303,7 @@ config-notification {
     ).model
     for title in ["old", "new"]:
       let (next, _) = model.update(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "app", title: title)
+        Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "app", title: title)
       )
       model = next
 
@@ -1338,10 +1338,10 @@ config-notification {
       Config(workspaces: WorkspaceConfig(defaultCount: 3))
     ).model
     for msg in [
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 42, width: 1280, height: 720),
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 7, appId: "app", title: "title"),
+      Msg(kind: MsgKind.OutputDimensions, outputId: 42, width: 1280, height: 720),
+      Msg(kind: MsgKind.WindowCreated, windowId: 7, appId: "app", title: "title"),
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 7,
         fullscreenOutputId: 0,
       ),
@@ -1351,7 +1351,7 @@ config-notification {
 
     var effects: seq[Effect]
     (model, effects) =
-      model.update(Msg(kind: MsgKind.WlOutputRemoved, removedOutputId: 42))
+      model.update(Msg(kind: MsgKind.OutputRemoved, removedOutputId: 42))
     check model.validateInvariants().ok
     check effects.anyIt(
       it.kind == EffectKind.EffSetFullscreen and it.fsWinId == 7 and not it.isFullscreen
@@ -1360,12 +1360,12 @@ config-notification {
   test "dimension hints are normalized for daemon bounds":
     var model = initRuntimeStateFromConfig(Config()).model
     let (next, _) = model.update(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 7, appId: "app", title: "title")
+      Msg(kind: MsgKind.WindowCreated, windowId: 7, appId: "app", title: "title")
     )
     model = next
     let (hinted, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 7,
         minWidth: -10,
         minHeight: 200,
@@ -1417,7 +1417,7 @@ config-notification {
 
     let (next1, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 1,
         appId: "normal-default",
         title: "Normal",
@@ -1426,7 +1426,7 @@ config-notification {
     model = next1
     let (next2, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 2,
         appId: "float-default",
         title: "Float",
@@ -1435,7 +1435,7 @@ config-notification {
     model = next2
     let (next3, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 3,
         appId: "force-tiled",
         title: "Force Tiled",
@@ -1444,7 +1444,7 @@ config-notification {
     model = next3
     let (next4, _) = model.update(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 4,
         appId: "force-untiled",
         title: "Force Untiled",
@@ -1679,10 +1679,10 @@ VmSwap:        0 kB
       daemon.runtimeState =
         initRuntimeStateFromConfig(Config(workspaces: WorkspaceConfig(defaultCount: 2)))
       discard daemon.runtimeState.applyRuntimeUpdate(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 10, appId: "app", title: "One")
+        Msg(kind: MsgKind.WindowCreated, windowId: 10, appId: "app", title: "One")
       )
       discard daemon.runtimeState.applyRuntimeUpdate(
-        Msg(kind: MsgKind.WlWindowCreated, windowId: 20, appId: "app", title: "Two")
+        Msg(kind: MsgKind.WindowCreated, windowId: 20, appId: "app", title: "Two")
       )
 
       let result = daemon.writeCurrentLiveRestoreState()

@@ -418,12 +418,12 @@ proc startInteractivePointerBinding(
     case binding.op
     of PointerOpKind.OpMove:
       context.runXlibreCommandStep(
-        Msg(kind: MsgKind.WlPointerMoveRequested, moveWinId: targetWindowId)
+        Msg(kind: MsgKind.PointerMoveRequested, moveWinId: targetWindowId)
       )
     of PointerOpKind.OpResize:
       context.runXlibreCommandStep(
         Msg(
-          kind: MsgKind.WlPointerResizeRequested,
+          kind: MsgKind.PointerResizeRequested,
           resizeWinId: targetWindowId,
           resizeEdges: context.model.resizeEdgesForPointer(targetWindowId, rootX, rootY),
         )
@@ -443,13 +443,13 @@ proc dispatchPointerMotion(
     return
   let dx = rootX - context.pointerGrabStartX
   let dy = rootY - context.pointerGrabStartY
-  context.runXlibreCommandStep(Msg(kind: MsgKind.WlPointerDelta, dx: dx, dy: dy))
+  context.runXlibreCommandStep(Msg(kind: MsgKind.PointerDelta, dx: dx, dy: dy))
 
 proc dispatchPointerRelease(context: ptr X11ProbeContext) {.gcsafe.} =
   if context == nil or not context.pointerGrabActive:
     return
   context.pointerGrabActive = false
-  context.runXlibreCommandStep(Msg(kind: MsgKind.WlPointerRelease))
+  context.runXlibreCommandStep(Msg(kind: MsgKind.PointerRelease))
 
 proc dispatchAxisBinding(context: ptr X11ProbeContext, binding: string) {.gcsafe.} =
   if context == nil or binding.len == 0:
@@ -574,35 +574,35 @@ proc startReadOnlyIpc(context: ptr X11ProbeContext, socketPath: string): bool =
 
 proc dryRunMessageLabel(msg: Msg): string =
   case msg.kind
-  of MsgKind.WlWindowCreated:
-    "WlWindowCreated id=" & $msg.windowId & " app_id=\"" & msg.appId & "\" title=\"" &
+  of MsgKind.WindowCreated:
+    "WindowCreated id=" & $msg.windowId & " app_id=\"" & msg.appId & "\" title=\"" &
       msg.title & "\""
-  of MsgKind.WlWindowDestroyed:
-    "WlWindowDestroyed id=" & $msg.destroyedId
-  of MsgKind.WlWindowDimensions:
-    "WlWindowDimensions id=" & $msg.dimensionsWindowId & " size=" & $msg.actualWidth &
+  of MsgKind.WindowDestroyed:
+    "WindowDestroyed id=" & $msg.destroyedId
+  of MsgKind.WindowDimensions:
+    "WindowDimensions id=" & $msg.dimensionsWindowId & " size=" & $msg.actualWidth &
       "x" & $msg.actualHeight
-  of MsgKind.WlWindowPid:
-    "WlWindowPid id=" & $msg.pidWindowId & " pid=" & $msg.windowPid
-  of MsgKind.WlWindowAppId:
-    "WlWindowAppId id=" & $msg.appIdWindowId & " app_id=\"" & msg.updatedAppId & "\""
-  of MsgKind.WlWindowTitle:
-    "WlWindowTitle id=" & $msg.titleWindowId & " title=\"" & msg.updatedTitle & "\""
-  of MsgKind.WlWindowStateChanged:
-    "WlWindowStateChanged id=" & $msg.stateWindowId & " fullscreen=" &
+  of MsgKind.WindowPid:
+    "WindowPid id=" & $msg.pidWindowId & " pid=" & $msg.windowPid
+  of MsgKind.WindowAppId:
+    "WindowAppId id=" & $msg.appIdWindowId & " app_id=\"" & msg.updatedAppId & "\""
+  of MsgKind.WindowTitle:
+    "WindowTitle id=" & $msg.titleWindowId & " title=\"" & msg.updatedTitle & "\""
+  of MsgKind.WindowStateChanged:
+    "WindowStateChanged id=" & $msg.stateWindowId & " fullscreen=" &
       $msg.stateFullscreen & " maximized=" & $msg.stateMaximized & " minimized=" &
       $msg.stateMinimized & " urgent=" & $msg.stateUrgent
-  of MsgKind.WlOutputDimensions:
-    "WlOutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" & $msg.height
-  of MsgKind.WlOutputName:
-    "WlOutputName id=" & $msg.nameOutputId & " name=\"" & msg.outputName & "\""
-  of MsgKind.WlOutputPosition:
-    "WlOutputPosition id=" & $msg.positionOutputId & " xy=" & $msg.outputX & "," &
+  of MsgKind.OutputDimensions:
+    "OutputDimensions id=" & $msg.outputId & " size=" & $msg.width & "x" & $msg.height
+  of MsgKind.OutputName:
+    "OutputName id=" & $msg.nameOutputId & " name=\"" & msg.outputName & "\""
+  of MsgKind.OutputPosition:
+    "OutputPosition id=" & $msg.positionOutputId & " xy=" & $msg.outputX & "," &
       $msg.outputY
-  of MsgKind.WlOutputRemoved:
-    "WlOutputRemoved id=" & $msg.removedOutputId
-  of MsgKind.WlFocusChanged:
-    "WlFocusChanged id=" & $msg.newFocusedId
+  of MsgKind.OutputRemoved:
+    "OutputRemoved id=" & $msg.removedOutputId
+  of MsgKind.FocusChanged:
+    "FocusChanged id=" & $msg.newFocusedId
   else:
     $msg.kind
 

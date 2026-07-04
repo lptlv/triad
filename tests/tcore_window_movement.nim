@@ -225,7 +225,7 @@ suite "Core Runtime Logic: window movement":
       Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("grid"))
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Window 3")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Window 3")
     )
 
     let projection = model.layoutProjection()
@@ -367,7 +367,7 @@ suite "Core Runtime Logic: window movement":
   test "New active-tag window focuses after live restore settles":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     var restore = PendingRestoreState(
       activeSlot: 1,
@@ -380,13 +380,13 @@ suite "Core Runtime Logic: window movement":
     restore.tagByWindow[ExternalWindowId(1)] = 1
     model.applyLiveRestore(restore)
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     check not model.restoreFocusedWindowPending()
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     discard model.layoutInstructions()
 
@@ -402,7 +402,7 @@ suite "Core Runtime Logic: window movement":
     model.setViewport(1, targetX = 0.0, currentX = 0.0)
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 4, appId: "app", title: "Window 4")
+      Msg(kind: MsgKind.WindowCreated, windowId: 4, appId: "app", title: "Window 4")
     )
     discard model.layoutInstructions()
 
@@ -468,13 +468,13 @@ suite "Core Runtime Logic: window movement":
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 10,
         appId: "generic-app",
         title: "Window",
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 10))
     model.applyMsg(Msg(kind: MsgKind.CmdMoveToWorkspaceIndex, workspaceIndex: 1))
 
     let win = model.restoreWindowJson(10)
@@ -486,7 +486,7 @@ suite "Core Runtime Logic: window movement":
   test "Moving focused window follows target and refocuses source":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.seedCameraWindows(3)
     let outputId = model.outputForExternal(ExternalOutputId(1))
@@ -517,7 +517,7 @@ suite "Core Runtime Logic: window movement":
   test "Focusing workspace updates primary output tag":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     let outputId = model.outputForExternal(ExternalOutputId(1))
 
@@ -581,12 +581,12 @@ suite "Core Runtime Logic: window movement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 6,
         appId: "sublime_text",
         title: "Sublime Text",
@@ -618,12 +618,12 @@ suite "Core Runtime Logic: window movement":
     ).model
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "files", title: "Files")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "files", title: "Files")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 6,
         appId: "sublime_text",
         title: "Sublime Text",
@@ -639,14 +639,14 @@ suite "Core Runtime Logic: window movement":
   test "Moving fullscreen window through dynamic workspace preserves state":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 1,
         fullscreenOutputId: 1,
       )
@@ -667,7 +667,7 @@ suite "Core Runtime Logic: window movement":
   test "Dynamic layout changes preserve maximized intent":
     var model = cameraModel()
     model.seedCameraWindows(1)
-    model.applyMsg(Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1))
+    model.applyMsg(Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1))
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToTagRight))
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToTagRight))
     discard model.updateModel(Msg(kind: MsgKind.CmdMoveToTagRight))
@@ -716,7 +716,7 @@ suite "Core Runtime Logic: window movement":
     let screen = model.primaryScreen()
 
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     check model.instructionGeom(1) == screen
 
@@ -750,7 +750,7 @@ suite "Core Runtime Logic: window movement":
     let screen = model.primaryScreen()
 
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     discard model.updateModel(Msg(kind: MsgKind.CmdMaximizeColumn))
     check model.columnData(columnId).get().isFullWidth
@@ -814,16 +814,16 @@ suite "Core Runtime Logic: window movement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "docs", title: "Manual")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "docs", title: "Manual")
     )
     let winId = model.windowForExternal(ExternalWindowId(1))
     let columnId = model.columnAt(model.activeTag, 0)
 
     let requestEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     check not model.snapshotWindow(1).isMaximized
     check not model.columnData(columnId).get().isFullWidth
@@ -859,16 +859,16 @@ suite "Core Runtime Logic: window movement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "docs", title: "Manual")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "docs", title: "Manual")
     )
     let columnId = model.columnAt(model.activeTag, 0)
     let beforeGeom = model.instructionGeom(1)
 
     let requestEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     let afterGeom = model.instructionGeom(1)
 
@@ -903,14 +903,14 @@ suite "Core Runtime Logic: window movement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "docs", title: "Manual")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "docs", title: "Manual")
     )
     let columnId = model.columnAt(model.activeTag, 0)
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 1)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 1)
     )
     check model.columnData(columnId).get().isFullWidth
     check not model.snapshotWindow(1).isMaximized
@@ -937,10 +937,10 @@ suite "Core Runtime Logic: window movement":
       )
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "docs", title: "Manual")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "docs", title: "Manual")
     )
     let columnId = model.columnAt(model.activeTag, 0)
 
@@ -1027,16 +1027,16 @@ suite "Core Runtime Logic: window movement":
   test "Moving editor from grid to scroller preserves runtime attributes":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "kitty", title: "Terminal")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "kitty", title: "Terminal")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 6,
         appId: "sublime_text",
         title: "Sublime Text",
@@ -1044,7 +1044,7 @@ suite "Core Runtime Logic: window movement":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 6,
         actualWidth: 900,
         actualHeight: 600,
@@ -1052,7 +1052,7 @@ suite "Core Runtime Logic: window movement":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 6,
         minWidth: 300,
         minHeight: 200,
@@ -1062,17 +1062,17 @@ suite "Core Runtime Logic: window movement":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDecorationHint, decorationWindowId: 6, decorationHint: 2
+        kind: MsgKind.WindowDecorationHint, decorationWindowId: 6, decorationHint: 2
       )
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowPresentationHint,
+        kind: MsgKind.WindowPresentationHint,
         presentationWindowId: 6,
         presentationHint: 3,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 6))
+    model.applyMsg(Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 6))
 
     let before = model.windowData(model.windowForExternal(ExternalWindowId(6))).get()
     let effects =
@@ -1103,21 +1103,21 @@ suite "Core Runtime Logic: window movement":
   test "Moving maximized window through grid preserves desired state":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 1, width: 1000, height: 700)
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
     model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid))
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 6,
         appId: "sublime_text",
         title: "Sublime Text",
       )
     )
     discard model.updateModel(
-      Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 6)
+      Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 6)
     )
 
     let toGridEffects =
@@ -1148,16 +1148,16 @@ suite "Core Runtime Logic: window movement":
   test "Duplicate window create preserves moved window attributes":
     var model = cameraModel()
     model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 0, width: 1000, height: 700)
+      Msg(kind: MsgKind.OutputDimensions, outputId: 0, width: 1000, height: 700)
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated, windowId: 10, appId: "kitty", title: "Terminal"
+        kind: MsgKind.WindowCreated, windowId: 10, appId: "kitty", title: "Terminal"
       )
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 10,
         actualWidth: 640,
         actualHeight: 480,
@@ -1165,7 +1165,7 @@ suite "Core Runtime Logic: window movement":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDimensionsHint,
+        kind: MsgKind.WindowDimensionsHint,
         hintWindowId: 10,
         minWidth: 200,
         minHeight: 100,
@@ -1175,20 +1175,20 @@ suite "Core Runtime Logic: window movement":
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowDecorationHint, decorationWindowId: 10, decorationHint: 2
+        kind: MsgKind.WindowDecorationHint, decorationWindowId: 10, decorationHint: 2
       )
     )
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowPresentationHint,
+        kind: MsgKind.WindowPresentationHint,
         presentationWindowId: 10,
         presentationHint: 3,
       )
     )
-    model.applyMsg(Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: 10))
+    model.applyMsg(Msg(kind: MsgKind.WindowMaximizeRequested, maximizeRequestId: 10))
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowFullscreenRequested,
+        kind: MsgKind.WindowFullscreenRequested,
         fullscreenRequestId: 10,
         fullscreenOutputId: 0,
       )
@@ -1197,7 +1197,7 @@ suite "Core Runtime Logic: window movement":
 
     model.applyMsg(
       Msg(
-        kind: MsgKind.WlWindowCreated,
+        kind: MsgKind.WindowCreated,
         windowId: 10,
         appId: "kitty",
         title: "Terminal renamed",

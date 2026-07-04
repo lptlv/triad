@@ -12,56 +12,56 @@ type
     PointerHide
 
   MsgKind* {.pure.} = enum
-    # Wayland Events
-    WlWindowCreated
-    WlWindowDestroyed
-    WlFocusChanged
-    WlWindowFullscreenRequested
-    WlWindowExitFullscreenRequested
-    WlWindowParent
-    WlWindowIdentifier
-    WlWindowPid
-    WlWindowAppId
-    WlWindowTitle
-    WlWindowDimensionsHint
-    WlWindowDimensions
-    WlWindowDecorationHint
-    WlWindowPresentationHint
-    WlWindowMenuRequested
-    WlWindowMaximizeRequested
-    WlWindowUnmaximizeRequested
-    WlWindowMinimizeRequested
-    WlWindowStateChanged
-    WlWindowAdmissionSettled
-    WlLayerFocusExclusive
-    WlLayerFocusNonExclusive
-    WlLayerFocusNone
-    WlSessionLocked
-    WlSessionUnlocked
-    WlOutputDimensions
-    WlOutputName
-    WlOutputIdentity
-    WlOutputDescription
-    WlOutputPosition
-    WlOutputRefreshRate
-    WlOutputPhysicalMetadata
-    WlOutputScale
-    WlOutputUsable
-    WlOutputRemoved
-    WlManageStart
-    WlRenderStart
-    WlPointerMoveRequested
-    WlPointerResizeRequested
-    WlOverviewPointerDragRequested
-    WlOverviewPointerScrollRequested
-    WlOverviewWheel
-    WlRecentWindowPointerMotion
-    WlPointerDelta
-    WlPointerRelease
-    WlShellSurfaceInteraction
-    WlFrameTabClicked
-    WlFrameEmptyFocused
-    WlModifiersChanged
+    # Backend Events
+    WindowCreated
+    WindowDestroyed
+    FocusChanged
+    WindowFullscreenRequested
+    WindowExitFullscreenRequested
+    WindowParent
+    WindowIdentifier
+    WindowPid
+    WindowAppId
+    WindowTitle
+    WindowDimensionsHint
+    WindowDimensions
+    WindowDecorationHint
+    WindowPresentationHint
+    WindowMenuRequested
+    WindowMaximizeRequested
+    WindowUnmaximizeRequested
+    WindowMinimizeRequested
+    WindowStateChanged
+    WindowAdmissionSettled
+    LayerFocusExclusive
+    LayerFocusNonExclusive
+    LayerFocusNone
+    SessionLocked
+    SessionUnlocked
+    OutputDimensions
+    OutputName
+    OutputIdentity
+    OutputDescription
+    OutputPosition
+    OutputRefreshRate
+    OutputPhysicalMetadata
+    OutputScale
+    OutputUsable
+    OutputRemoved
+    ManageStart
+    RenderStart
+    PointerMoveRequested
+    PointerResizeRequested
+    OverviewPointerDragRequested
+    OverviewPointerScrollRequested
+    OverviewWheel
+    RecentWindowPointerMotion
+    PointerDelta
+    PointerRelease
+    ShellSurfaceInteraction
+    FrameTabClicked
+    FrameEmptyFocused
+    ModifiersChanged
 
     # User Commands (IPC/Keybinds)
     CmdSetLayout
@@ -225,7 +225,7 @@ type
 
   Msg* = object
     case kind*: MsgKind
-    of MsgKind.WlWindowCreated:
+    of MsgKind.WindowCreated:
       windowId*: uint32
       createdParentWindowId*: uint32
       createdSwallowHostWindowId*: uint32
@@ -236,128 +236,128 @@ type
       deferAdmission*: bool
       spawnContextOutputId*: uint32
       spawnContextSlot*: uint32
-    of MsgKind.WlWindowDestroyed:
+    of MsgKind.WindowDestroyed:
       destroyedId*: uint32
-    of MsgKind.WlFocusChanged:
+    of MsgKind.FocusChanged:
       newFocusedId*: uint32
-    of MsgKind.WlWindowFullscreenRequested:
+    of MsgKind.WindowFullscreenRequested:
       fullscreenRequestId*: uint32
       fullscreenOutputId*: uint32
-    of MsgKind.WlWindowExitFullscreenRequested:
+    of MsgKind.WindowExitFullscreenRequested:
       exitFullscreenRequestId*: uint32
-    of MsgKind.WlWindowParent:
+    of MsgKind.WindowParent:
       childWindowId*: uint32
       parentWindowId*: uint32
-    of MsgKind.WlWindowIdentifier:
+    of MsgKind.WindowIdentifier:
       identifierWindowId*: uint32
       identifier*: string
-    of MsgKind.WlWindowPid:
+    of MsgKind.WindowPid:
       pidWindowId*: uint32
       windowPid*: int32
-    of MsgKind.WlWindowAppId:
+    of MsgKind.WindowAppId:
       appIdWindowId*: uint32
       updatedAppId*: string
-    of MsgKind.WlWindowTitle:
+    of MsgKind.WindowTitle:
       titleWindowId*: uint32
       updatedTitle*: string
-    of MsgKind.WlWindowDimensionsHint:
+    of MsgKind.WindowDimensionsHint:
       hintWindowId*: uint32
       minWidth*, minHeight*, maxWidth*, maxHeight*: int32
-    of MsgKind.WlWindowDimensions:
+    of MsgKind.WindowDimensions:
       dimensionsWindowId*: uint32
       actualWidth*, actualHeight*: int32
-    of MsgKind.WlWindowDecorationHint:
+    of MsgKind.WindowDecorationHint:
       decorationWindowId*: uint32
       decorationHint*: uint32
-    of MsgKind.WlWindowPresentationHint:
+    of MsgKind.WindowPresentationHint:
       presentationWindowId*: uint32
       presentationHint*: uint32
-    of MsgKind.WlWindowMenuRequested:
+    of MsgKind.WindowMenuRequested:
       menuWindowId*: uint32
       menuX*: int32
       menuY*: int32
-    of MsgKind.WlWindowMaximizeRequested:
+    of MsgKind.WindowMaximizeRequested:
       maximizeRequestId*: uint32
-    of MsgKind.WlWindowUnmaximizeRequested:
+    of MsgKind.WindowUnmaximizeRequested:
       unmaximizeRequestId*: uint32
-    of MsgKind.WlWindowMinimizeRequested:
+    of MsgKind.WindowMinimizeRequested:
       minimizeRequestId*: uint32
-    of MsgKind.WlWindowStateChanged:
+    of MsgKind.WindowStateChanged:
       stateWindowId*: uint32
       stateFullscreen*: bool
       stateMaximized*: bool
       stateMinimized*: bool
       stateUrgent*: bool
-    of MsgKind.WlWindowAdmissionSettled:
+    of MsgKind.WindowAdmissionSettled:
       admissionWindowId*: uint32
-    of MsgKind.WlOutputDimensions:
+    of MsgKind.OutputDimensions:
       outputId*: uint32
       width*: int32
       height*: int32
-    of MsgKind.WlOutputName:
+    of MsgKind.OutputName:
       nameOutputId*: uint32
       outputName*: string
-    of MsgKind.WlOutputIdentity:
+    of MsgKind.OutputIdentity:
       identityOutputId*: uint32
       outputMake*: string
       outputModel*: string
-    of MsgKind.WlOutputDescription:
+    of MsgKind.OutputDescription:
       descriptionOutputId*: uint32
       outputDescription*: string
-    of MsgKind.WlOutputPosition:
+    of MsgKind.OutputPosition:
       positionOutputId*: uint32
       outputX*: int32
       outputY*: int32
-    of MsgKind.WlOutputRefreshRate:
+    of MsgKind.OutputRefreshRate:
       refreshOutputId*: uint32
       outputRefreshRate*: int32
-    of MsgKind.WlOutputPhysicalMetadata:
+    of MsgKind.OutputPhysicalMetadata:
       metadataOutputId*: uint32
       outputPhysicalWidth*: int32
       outputPhysicalHeight*: int32
       outputTransform*: int32
-    of MsgKind.WlOutputScale:
+    of MsgKind.OutputScale:
       scaleOutputId*: uint32
       outputScale*: float32
-    of MsgKind.WlOutputUsable:
+    of MsgKind.OutputUsable:
       usableOutputId*: uint32
       usableX*: int32
       usableY*: int32
       usableW*: int32
       usableH*: int32
-    of MsgKind.WlOutputRemoved:
+    of MsgKind.OutputRemoved:
       removedOutputId*: uint32
-    of MsgKind.WlPointerMoveRequested:
+    of MsgKind.PointerMoveRequested:
       moveWinId*: uint32
       moveSeat*: pointer # ptr RiverSeatV1
-    of MsgKind.WlPointerResizeRequested:
+    of MsgKind.PointerResizeRequested:
       resizeWinId*: uint32
       resizeSeat*: pointer # ptr RiverSeatV1
       resizeEdges*: uint32
-    of MsgKind.WlOverviewPointerDragRequested:
+    of MsgKind.OverviewPointerDragRequested:
       overviewDragWinId*: uint32
       overviewDragSeat*: pointer # ptr RiverSeatV1
       overviewDragX*, overviewDragY*: int32
-    of MsgKind.WlOverviewPointerScrollRequested:
+    of MsgKind.OverviewPointerScrollRequested:
       overviewScrollSeat*: pointer # ptr RiverSeatV1
       overviewScrollX*, overviewScrollY*: int32
-    of MsgKind.WlOverviewWheel:
+    of MsgKind.OverviewWheel:
       overviewWheelX*, overviewWheelY*: int32
       overviewWheelHorizontal*, overviewWheelVertical*: int32
-    of MsgKind.WlRecentWindowPointerMotion:
+    of MsgKind.RecentWindowPointerMotion:
       recentPointerX*, recentPointerY*: int32
-    of MsgKind.WlPointerDelta:
+    of MsgKind.PointerDelta:
       dx*, dy*: int32
-    of MsgKind.WlShellSurfaceInteraction:
+    of MsgKind.ShellSurfaceInteraction:
       shellSurfaceId*: uint32
-    of MsgKind.WlFrameTabClicked:
+    of MsgKind.FrameTabClicked:
       frameClickContainerKind*: FrameTabContainerKind
       frameClickContainerId*: uint32
       frameClickWindowId*: uint32
       frameClickTabIndex*: int
-    of MsgKind.WlFrameEmptyFocused:
+    of MsgKind.FrameEmptyFocused:
       frameFocusFrameId*: uint32
-    of MsgKind.WlModifiersChanged:
+    of MsgKind.ModifiersChanged:
       oldModifiers*: uint32
       newModifiers*: uint32
     of MsgKind.CmdOverviewTab:

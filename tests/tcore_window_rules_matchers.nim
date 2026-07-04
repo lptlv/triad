@@ -69,14 +69,14 @@ suite "Core Runtime Logic: window rules matchers":
 
     check model.startupWindowRulesActive
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Early")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Early")
     )
     check model.snapshotWindow(1).workspaceIdx == 2
 
     model.applyMsg(Msg(kind: MsgKind.CmdExpireStartupWindowRules))
     check not model.startupWindowRulesActive
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Late")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Late")
     )
     check model.snapshotWindow(2).workspaceIdx == 3
 
@@ -100,7 +100,7 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Early")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Early")
     )
     check model.windowData(WindowId(1)).get().keyboardShortcutsInhibit
 
@@ -114,16 +114,16 @@ suite "Core Runtime Logic: window rules matchers":
       Config(workspaces: WorkspaceConfig(defaultCount: 1))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "Same")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "Same")
     )
 
     let titleEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 1, updatedTitle: "Same")
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: 1, updatedTitle: "Same")
     )
     check titleEffects.len == 0
 
     let appIdEffects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowAppId, appIdWindowId: 1, updatedAppId: "app")
+      Msg(kind: MsgKind.WindowAppId, appIdWindowId: 1, updatedAppId: "app")
     )
     check appIdEffects.len == 0
 
@@ -132,11 +132,11 @@ suite "Core Runtime Logic: window rules matchers":
       Config(workspaces: WorkspaceConfig(defaultCount: 1))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "A")
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 1, updatedTitle: "B")
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: 1, updatedTitle: "B")
     )
 
     check effects.anyIt(
@@ -155,11 +155,11 @@ suite "Core Runtime Logic: window rules matchers":
       )
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "A")
     )
 
     let effects = model.updateModel(
-      Msg(kind: MsgKind.WlWindowTitle, titleWindowId: 1, updatedTitle: "B")
+      Msg(kind: MsgKind.WindowTitle, titleWindowId: 1, updatedTitle: "B")
     )
 
     check effects.anyIt(
@@ -172,12 +172,12 @@ suite "Core Runtime Logic: window rules matchers":
       Config(workspaces: WorkspaceConfig(defaultCount: 1))
     ).model
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "A")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "A")
     )
 
     let effects = model.updateModel(
       Msg(
-        kind: MsgKind.WlWindowDimensions,
+        kind: MsgKind.WindowDimensions,
         dimensionsWindowId: 1,
         actualWidth: 800,
         actualHeight: 600,
@@ -218,10 +218,10 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "one", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "one", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "two", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "two", title: "Two")
     )
 
     let one = model.windowData(WindowId(1)).get()
@@ -261,10 +261,10 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     check not model.windowData(WindowId(1)).get().keyboardShortcutsInhibit
     check model.windowData(WindowId(2)).get().keyboardShortcutsInhibit
@@ -310,7 +310,7 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     let tiled = model.windowData(WindowId(1)).get()
     let tiledRule = model.windowRuleFor(tiled)
@@ -351,7 +351,7 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "floaty", title: "Floaty")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "floaty", title: "Floaty")
     )
 
     let win = model.windowData(WindowId(1)).get()
@@ -394,10 +394,10 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 1))
     model.applyMsg(Msg(kind: MsgKind.CmdConsumeWindow))
@@ -445,13 +445,13 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 3, appId: "app", title: "Three")
+      Msg(kind: MsgKind.WindowCreated, windowId: 3, appId: "app", title: "Three")
     )
     let tagId = model.activeTag
     let firstColumn = model.columnAt(tagId, 0)
@@ -506,10 +506,10 @@ suite "Core Runtime Logic: window rules matchers":
     ).model
 
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+      Msg(kind: MsgKind.WindowCreated, windowId: 1, appId: "app", title: "One")
     )
     model.applyMsg(
-      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+      Msg(kind: MsgKind.WindowCreated, windowId: 2, appId: "app", title: "Two")
     )
     let tagId = model.activeTag
     let firstColumn = model.columnAt(tagId, 0)
