@@ -127,6 +127,42 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "o",
+          modifiers: 64'u32,
+          command: "master-count 2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "d",
+          modifiers: 64'u32,
+          command: "adjust-master-count 1",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "i",
+          modifiers: 64'u32,
+          command: "master-ratio 0.6",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "a",
+          modifiers: 64'u32,
+          command: "adjust-master-ratio -0.05",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "g",
+          modifiers: 64'u32,
+          command: "toggle-gaps",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "g",
+          modifiers: 65'u32,
+          command: "adjust-gaps 2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -465,6 +501,89 @@ suite "X11 writable IPC":
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdSwitchProportionPreset
     check parsed.messages[0].proportionPresetDelta == -1
+
+  test "binding dispatch resolves master-count key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+o"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "master-count 2"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSetMasterCount
+    check parsed.messages[0].count == 2
+
+  test "binding dispatch resolves adjust-master-count key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+d"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "adjust-master-count 1"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdAdjustMasterCount
+    check parsed.messages[0].deltaMC == 1
+
+  test "binding dispatch resolves master-ratio key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+i"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "master-ratio 0.6"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSetMasterRatio
+    check parsed.messages[0].ratio == 0.6'f32
+
+  test "binding dispatch resolves adjust-master-ratio key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+a"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "adjust-master-ratio -0.05"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdAdjustMasterRatio
+    check parsed.messages[0].deltaMR == -0.05'f32
+
+  test "binding dispatch resolves toggle-gaps key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+g"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "toggle-gaps"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdToggleGaps
+
+  test "binding dispatch resolves adjust-gaps key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+g"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "adjust-gaps 2"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdAdjustGaps
+    check parsed.messages[0].deltaG == 2
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

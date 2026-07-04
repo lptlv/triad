@@ -209,8 +209,8 @@ only executes the current XLibre allowlist: focus, directional focus,
 column focus, close-window, focus-workspace, move-to-workspace,
 move-window-to-workspace, switch-layout, core scroller layout changes,
 maximize-column, window and column movement, window swaps, column sizing and
-proportion presets, fullscreen, maximize-to-edges, minimize, and argv-style
-`spawn` commands.
+proportion presets, master count/ratio controls, gap controls, fullscreen,
+maximize-to-edges, minimize, and argv-style `spawn` commands.
 Unsupported configured commands outside that allowlist are rejected rather than
 run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server

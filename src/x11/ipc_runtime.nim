@@ -220,7 +220,10 @@ proc xlibreCommandSupported(msg: Msg): bool =
       MsgKind.CmdMoveColumnToFirst, MsgKind.CmdMoveColumnToLast,
       MsgKind.CmdSwapWindowUp, MsgKind.CmdSwapWindowDown, MsgKind.CmdResizeWidth,
       MsgKind.CmdResizeHeight, MsgKind.CmdSetColumnWidth,
-      MsgKind.CmdSwitchProportionPreset, MsgKind.CmdSpawn, MsgKind.CmdSpawnTerminal:
+      MsgKind.CmdSwitchProportionPreset, MsgKind.CmdSetMasterCount,
+      MsgKind.CmdAdjustMasterCount, MsgKind.CmdSetMasterRatio,
+      MsgKind.CmdAdjustMasterRatio, MsgKind.CmdAdjustGaps, MsgKind.CmdToggleGaps,
+      MsgKind.CmdSpawn, MsgKind.CmdSpawnTerminal:
     true
   else:
     false

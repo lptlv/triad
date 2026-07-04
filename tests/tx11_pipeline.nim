@@ -437,6 +437,54 @@ suite "X11 admission pipeline":
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
 
+  test "master-ratio command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x6c'u32, 0x6d'u32])
+
+    let step = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdAdjustMasterRatio, deltaMR: 0.05'f32)
+    )
+
+    check step.message.kind == MsgKind.CmdAdjustMasterRatio
+    check step.message.deltaMR == 0.05'f32
+    check step.layoutRequests.len == 2
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6c
+    )
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6d
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6c
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6d
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "adjust-gaps command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x6e'u32, 0x6f'u32])
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdAdjustGaps, deltaG: 2))
+
+    check step.message.kind == MsgKind.CmdAdjustGaps
+    check step.message.deltaG == 2
+    check step.layoutRequests.len == 2
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6e
+    )
+    check step.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6f
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6e
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x6f
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
   test "set core scroller layout command pipeline reprojects managed windows":
     var model = x11Model()
     discard model.processEventDryRun(
