@@ -35,6 +35,25 @@ proc x11ModelWithMappedWindows(windowIds: openArray[uint32]): Model =
       )
     )
 
+proc x11ModelWithTwoOutputs(): Model =
+  result = x11Model()
+  discard result.processEventDryRun(
+    X11BackendEvent(
+      kind: X11BackendEventKind.OutputDiscovered,
+      output: X11OutputSnapshot(
+        id: 1, name: "DP-1", connected: true, x: 0, y: 0, w: 800, h: 600
+      ),
+    )
+  )
+  discard result.processEventDryRun(
+    X11BackendEvent(
+      kind: X11BackendEventKind.OutputDiscovered,
+      output: X11OutputSnapshot(
+        id: 2, name: "DP-2", connected: true, x: 800, y: 0, w: 800, h: 600
+      ),
+    )
+  )
+
 suite "X11 admission pipeline":
   test "dry-run pipeline routes supported admission effects to request records":
     var model = x11Model()
@@ -357,6 +376,64 @@ suite "X11 admission pipeline":
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
+
+  test "output command pipeline reprojects and reasserts focus":
+    var model = x11ModelWithTwoOutputs()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x88, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+    discard model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2)
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x89, wmClass: "app", title: "Two", w: 300, h: 200),
+      )
+    )
+
+    let focusedOutput = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdFocusOutput, outputTarget: "DP-1")
+    )
+
+    check focusedOutput.message.kind == MsgKind.CmdFocusOutput
+    check focusedOutput.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x88
+    )
+    check focusedOutput.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x88
+    )
+
+    let movedWorkspace = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2")
+    )
+
+    check movedWorkspace.message.kind == MsgKind.CmdMoveWorkspaceToOutput
+    check movedWorkspace.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x88
+    )
+    check movedWorkspace.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x88
+    )
+
+    let movedWindow = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdMoveToOutput, outputTarget: "DP-1")
+    )
+
+    check movedWindow.message.kind == MsgKind.CmdMoveToOutput
+    check movedWindow.layoutRequests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x88
+    )
+    check movedWindow.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x88
+    )
+    check movedWindow.xcbRun.code == 0
+    check movedWindow.xcbRun.dryRun
 
   test "move-to-tag command pipeline reprojects moved focused window":
     var model = x11ModelWithMappedWindows([0x74'u32])

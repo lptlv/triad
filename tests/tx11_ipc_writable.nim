@@ -268,6 +268,24 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "h",
+          modifiers: 65'u32,
+          command: "move-workspace-to-output left",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "o",
+          modifiers: 68'u32,
+          command: "focus-output DP-2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "o",
+          modifiers: 72'u32,
+          command: "move-to-output DP-2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -925,6 +943,42 @@ suite "X11 writable IPC":
     check move.messages.len == 1
     check move.messages[0].kind == MsgKind.CmdMoveToNamedScratchpad
     check move.messages[0].scratchpadName == "terminal"
+
+  test "binding dispatch resolves output key bindings":
+    let moveWorkspace = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+h"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let focusOutput = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+o"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let moveWindow = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Alt+o"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check moveWorkspace.handled
+    check moveWorkspace.bindingDispatch.ok
+    check moveWorkspace.bindingDispatch.command == "move-workspace-to-output left"
+    check moveWorkspace.messages.len == 1
+    check moveWorkspace.messages[0].kind == MsgKind.CmdMoveWorkspaceToOutput
+    check moveWorkspace.messages[0].outputTarget == "left"
+    check focusOutput.handled
+    check focusOutput.bindingDispatch.ok
+    check focusOutput.bindingDispatch.command == "focus-output DP-2"
+    check focusOutput.messages.len == 1
+    check focusOutput.messages[0].kind == MsgKind.CmdFocusOutput
+    check focusOutput.messages[0].outputTarget == "DP-2"
+    check moveWindow.handled
+    check moveWindow.bindingDispatch.ok
+    check moveWindow.bindingDispatch.command == "move-to-output DP-2"
+    check moveWindow.messages.len == 1
+    check moveWindow.messages[0].kind == MsgKind.CmdMoveToOutput
+    check moveWindow.messages[0].outputTarget == "DP-2"
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

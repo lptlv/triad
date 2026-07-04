@@ -145,7 +145,8 @@ proc hasFocusRequest(requests: openArray[X11Request], windowId: uint32): bool =
 proc addCommandFocusRequest(model: Model, message: Msg, requests: var seq[X11Request]) =
   if message.kind notin {
     MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdMoveToWorkspaceIndex,
-    MsgKind.CmdMoveWindowToWorkspaceIndex,
+    MsgKind.CmdMoveWindowToWorkspaceIndex, MsgKind.CmdFocusOutput,
+    MsgKind.CmdMoveWorkspaceToOutput, MsgKind.CmdMoveToOutput,
   }:
     return
   let focused = model.shellSnapshot().focusedWindowId()
