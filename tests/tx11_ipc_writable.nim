@@ -97,6 +97,9 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "b", modifiers: 65'u32, command: "minimize", mode: BindingMode.BindAlways
+        ),
+        KeyBindingConfig(
           key: "c", modifiers: 64'u32, command: "scroller", mode: BindingMode.BindAlways
         ),
         KeyBindingConfig(
@@ -351,6 +354,19 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "fullscreen-window"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdToggleFullscreen
+
+  test "binding dispatch resolves minimize key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+b"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "minimize"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMinimize
 
   test "binding dispatch resolves core scroller layout key binding":
     let parsed = xlibreWritableRequestFor(

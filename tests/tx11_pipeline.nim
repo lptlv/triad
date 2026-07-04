@@ -466,3 +466,77 @@ suite "X11 admission pipeline":
     )
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
+
+  test "minimize command pipeline hides and unmaps focused window":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x66, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdMinimize))
+
+    check step.message.kind == MsgKind.CmdMinimize
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetHiddenState and it.windowId == 0x66 and
+        it.values[0] == 1
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqUnmapWindow and it.windowId == 0x66
+    )
+    check not step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x66
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "focus command pipeline maps restored minimized window before focus":
+    var model = x11Model()
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.OutputDiscovered,
+        output: X11OutputSnapshot(
+          id: 1, name: "Xvfb-0", connected: true, x: 0, y: 0, w: 800, h: 600
+        ),
+      )
+    )
+    discard model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.MapRequested,
+        window:
+          X11WindowSnapshot(id: 0x67, wmClass: "app", title: "One", w: 300, h: 200),
+      )
+    )
+    discard model.processCommandDryRun(Msg(kind: MsgKind.CmdMinimize))
+
+    let step = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 0x67)
+    )
+    var mapIdx = -1
+    var focusIdx = -1
+    for idx, request in step.requests:
+      if request.kind == X11RequestKind.XrqMapWindow and request.windowId == 0x67:
+        mapIdx = idx
+      if request.kind == X11RequestKind.XrqSetInputFocus and request.windowId == 0x67:
+        focusIdx = idx
+
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetHiddenState and it.windowId == 0x67 and
+        it.values[0] == 0
+    )
+    check mapIdx >= 0
+    check focusIdx >= 0
+    check mapIdx < focusIdx
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun

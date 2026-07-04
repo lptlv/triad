@@ -59,6 +59,18 @@ suite "X11 request builder":
     check request.valueMask == 0
     check request.valueCount == 0
 
+  test "builds unmap and hidden state request records":
+    let unmap = x11UnmapWindowRequest(13)
+    let hidden = x11SetHiddenStateRequest(14, true)
+
+    check unmap.kind == X11RequestKind.XrqUnmapWindow
+    check unmap.windowId == 13
+    check unmap.valueCount == 0
+    check hidden.kind == X11RequestKind.XrqSetHiddenState
+    check hidden.windowId == 14
+    check hidden.valueCount == 1
+    check hidden.values[0] == 1
+
   test "builds fullscreen and maximized state request records":
     let requests = @[
         Effect(kind: EffectKind.EffSetFullscreen, fsWinId: 13, isFullscreen: true),
@@ -84,3 +96,5 @@ suite "X11 request builder":
     check ord(X11RequestKind.XrqMapWindow) == 3
     check ord(X11RequestKind.XrqSetFullscreenState) == 4
     check ord(X11RequestKind.XrqSetMaximizedState) == 5
+    check ord(X11RequestKind.XrqSetHiddenState) == 6
+    check ord(X11RequestKind.XrqUnmapWindow) == 7

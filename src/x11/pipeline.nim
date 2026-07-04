@@ -1,3 +1,5 @@
+import std/options
+
 import ../core/effects
 import ../core/msg
 import ../core/shell_focus
@@ -7,6 +9,7 @@ import ../systems/layout_projection
 import ../systems/update
 import ../types/model
 import ../types/projection_values
+import ../types/shell_snapshot
 import admission, effect_adapter, events, request_builder, request_executor
 
 type X11PipelineStep* = object
@@ -100,6 +103,23 @@ proc addCommandFocusRequest(model: Model, message: Msg, requests: var seq[X11Req
   if focused != 0'u32 and not requests.hasFocusRequest(focused):
     requests.add(X11Request(kind: X11RequestKind.XrqSetInputFocus, windowId: focused))
 
+proc snapshotWindow(snapshot: ShellSnapshot, windowId: uint32): Option[ShellWindow] =
+  for win in snapshot.windows:
+    if win.id == windowId:
+      return some(win)
+  none(ShellWindow)
+
+proc minimizedStateRequestsFor(before, after: ShellSnapshot): seq[X11Request] =
+  for win in after.windows:
+    let previous = before.snapshotWindow(win.id)
+    if previous.isNone or previous.get().isMinimized == win.isMinimized:
+      continue
+    result.add(x11SetHiddenStateRequest(win.id, win.isMinimized))
+    if win.isMinimized:
+      result.add(x11UnmapWindowRequest(win.id))
+    else:
+      result.add(x11MapWindowRequest(win.id))
+
 proc combineEventRequests*(
     event: X11BackendEvent, layoutRequests, effectRequests: openArray[X11Request]
 ): seq[X11Request] =
@@ -155,9 +175,12 @@ proc processEventWithActiveProbe*(
 
 proc processCommandWithActiveProbe*(model: var Model, message: Msg): X11CommandStep =
   result.message = message
+  let before = model.shellSnapshot()
   result.effects = model.updateInPlace(message)
+  let stateRequests = before.minimizedStateRequestsFor(model.shellSnapshot())
   result.layoutRequests = model.layoutRequestsForProjection()
   result.requests.add(result.layoutRequests)
+  result.requests.add(stateRequests)
   result.requests.add(result.effects.x11IntentsFor().x11RequestsFor())
   model.addCommandFocusRequest(message, result.requests)
   if result.requests.len == 0:
@@ -167,9 +190,12 @@ proc processCommandWithActiveProbe*(model: var Model, message: Msg): X11CommandS
 
 proc processCommandDryRun*(model: var Model, message: Msg): X11CommandStep =
   result.message = message
+  let before = model.shellSnapshot()
   result.effects = model.updateInPlace(message)
+  let stateRequests = before.minimizedStateRequestsFor(model.shellSnapshot())
   result.layoutRequests = model.layoutRequestsForProjection()
   result.requests.add(result.layoutRequests)
+  result.requests.add(stateRequests)
   result.requests.add(result.effects.x11IntentsFor().x11RequestsFor())
   model.addCommandFocusRequest(message, result.requests)
   result.xcbRun = X11RequestRunResult(code: 0, dryRun: true)
@@ -178,9 +204,12 @@ proc processCommandWithExecutor*(
     model: var Model, message: Msg, displayName = "", dryRun = true
 ): X11CommandStep =
   result.message = message
+  let before = model.shellSnapshot()
   result.effects = model.updateInPlace(message)
+  let stateRequests = before.minimizedStateRequestsFor(model.shellSnapshot())
   result.layoutRequests = model.layoutRequestsForProjection()
   result.requests.add(result.layoutRequests)
+  result.requests.add(stateRequests)
   result.requests.add(result.effects.x11IntentsFor().x11RequestsFor())
   model.addCommandFocusRequest(message, result.requests)
   if result.requests.len == 0:

@@ -36,12 +36,16 @@ suite "X11 request executor":
     check executions[1].description == "close window=0x0000000b"
 
   test "dry-run execution describes map requests":
-    let executions = @[x11MapWindowRequest(12)].executeDryRun()
+    let executions =
+      @[x11MapWindowRequest(12), x11UnmapWindowRequest(13)].executeDryRun()
 
-    check executions.len == 1
+    check executions.len == 2
     check not executions[0].applied
     check executions[0].request.kind == X11RequestKind.XrqMapWindow
     check executions[0].description == "map window=0x0000000c"
+    check not executions[1].applied
+    check executions[1].request.kind == X11RequestKind.XrqUnmapWindow
+    check executions[1].description == "unmap window=0x0000000d"
 
   test "dry-run execution describes state requests":
     let executions = @[
@@ -66,17 +70,21 @@ suite "X11 request executor":
       .x11IntentsFor()
       .x11RequestsFor()
     requests.add(x11MapWindowRequest(12))
+    requests.add(x11UnmapWindowRequest(15))
+    requests.add(x11SetHiddenStateRequest(16, true))
     let run = requests.executeWithXcb(dryRun = true)
 
     check run.code == 0
     check run.dryRun
-    check run.logs.len == 6
+    check run.logs.len == 8
     check run.logs[0] == "dry_run focus window=0x0000000a"
     check run.logs[1] == "dry_run close window=0x0000000b"
     check run.logs[2] == "dry_run fullscreen window=0x0000000d active=1"
     check run.logs[3] == "dry_run maximized window=0x0000000e active=0"
     check run.logs[4] == "dry_run map window=0x0000000c"
-    check run.logs[5] == "request execution complete dry_run=1 count=5"
+    check run.logs[5] == "dry_run unmap window=0x0000000f"
+    check run.logs[6] == "dry_run hidden window=0x00000010 active=1"
+    check run.logs[7] == "request execution complete dry_run=1 count=7"
 
   test "xcb dry-run boundary rejects malformed configure records":
     let run = @[

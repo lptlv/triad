@@ -23,6 +23,8 @@ typedef enum TriadX11RequestKind {
     TRIAD_X11_REQUEST_MAP_WINDOW = 3,
     TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE = 4,
     TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE = 5,
+    TRIAD_X11_REQUEST_SET_HIDDEN_STATE = 6,
+    TRIAD_X11_REQUEST_UNMAP_WINDOW = 7,
 } TriadX11RequestKind;
 
 typedef struct TriadX11Request {
@@ -1616,17 +1618,26 @@ static void log_event(TriadX11Probe *probe, xcb_generic_event_t *event)
     }
     case XCB_UNMAP_NOTIFY: {
         xcb_unmap_notify_event_t *ev = (xcb_unmap_notify_event_t *)event;
+        char *state = window_state_atoms(probe, ev->window);
         probe_log(
             probe,
-            "event %s event=0x%08x window=0x%08x from_configure=%u",
+            "event %s event=0x%08x window=0x%08x from_configure=%u state=\"%s\"",
             event_name(type),
             ev->event,
             ev->window,
-            ev->from_configure);
+            ev->from_configure,
+            state != NULL ? state : "");
         TriadX11Event event;
         memset(&event, 0, sizeof(event));
-        event.kind = TRIAD_X11_EVENT_WINDOW_UNMAPPED;
         event.id = ev->window;
+        if (state != NULL && strstr(state, "_NET_WM_STATE_HIDDEN") != NULL) {
+            event.kind = TRIAD_X11_EVENT_PROPERTY_CHANGED;
+            copy_text(event.name, sizeof(event.name), "_NET_WM_STATE");
+            copy_text(event.title, sizeof(event.title), state);
+        } else {
+            event.kind = TRIAD_X11_EVENT_WINDOW_UNMAPPED;
+        }
+        free(state);
         probe_event(probe, &event);
         break;
     }
@@ -2207,6 +2218,28 @@ static int execute_map_request(
     return 0;
 }
 
+static int execute_unmap_request(
+    xcb_connection_t *conn,
+    const TriadX11Request *request,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    xcb_void_cookie_t cookie = xcb_unmap_window_checked(conn, request->window_id);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error unmap window=0x%08x code=%u",
+            request->window_id,
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    request_log(log_fn, user_data, "applied unmap window=0x%08x", request->window_id);
+    return 0;
+}
+
 static int execute_close_request(
     xcb_connection_t *conn,
     const TriadX11Request *request,
@@ -2342,11 +2375,14 @@ static int execute_state_request(
         intern_atom_for_conn(conn, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
     xcb_atom_t maximized_vert =
         intern_atom_for_conn(conn, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
+    xcb_atom_t hidden = intern_atom_for_conn(conn, "_NET_WM_STATE_HIDDEN", 0);
     if (net_wm_state == XCB_ATOM_NONE ||
         (request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE &&
          fullscreen == XCB_ATOM_NONE) ||
         (request->kind == TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE &&
-         (maximized_horz == XCB_ATOM_NONE || maximized_vert == XCB_ATOM_NONE))) {
+         (maximized_horz == XCB_ATOM_NONE || maximized_vert == XCB_ATOM_NONE)) ||
+        (request->kind == TRIAD_X11_REQUEST_SET_HIDDEN_STATE &&
+         hidden == XCB_ATOM_NONE)) {
         request_log(log_fn, user_data, "error state atoms unavailable");
         return 1;
     }
@@ -2379,11 +2415,15 @@ static int execute_state_request(
     if (request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE) {
         update_error = upsert_state_atom(next, &next_count, capacity, fullscreen, active);
     } else {
+        if (request->kind == TRIAD_X11_REQUEST_SET_HIDDEN_STATE) {
+            update_error = upsert_state_atom(next, &next_count, capacity, hidden, active);
+        } else {
         update_error =
             upsert_state_atom(next, &next_count, capacity, maximized_horz, active);
         if (update_error == 0)
             update_error =
                 upsert_state_atom(next, &next_count, capacity, maximized_vert, active);
+        }
     }
     if (update_error != 0) {
         free(current);
@@ -2396,8 +2436,12 @@ static int execute_state_request(
     if (request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE) {
         changed = state_contains_atom(current, current_count, fullscreen) != active;
     } else {
+        if (request->kind == TRIAD_X11_REQUEST_SET_HIDDEN_STATE) {
+            changed = state_contains_atom(current, current_count, hidden) != active;
+        } else {
         changed = state_contains_atom(current, current_count, maximized_horz) != active ||
             state_contains_atom(current, current_count, maximized_vert) != active;
+        }
     }
 
     xcb_void_cookie_t cookie;
@@ -2429,7 +2473,8 @@ static int execute_state_request(
     }
 
     const char *name =
-        request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE ? "fullscreen" : "maximized";
+        request->kind == TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE ? "fullscreen" :
+        request->kind == TRIAD_X11_REQUEST_SET_HIDDEN_STATE ? "hidden" : "maximized";
     request_log(
         log_fn,
         user_data,
@@ -2467,8 +2512,12 @@ static int execute_requests_on_connection(
         case TRIAD_X11_REQUEST_MAP_WINDOW:
             request_status = execute_map_request(conn, request, log_fn, user_data);
             break;
+        case TRIAD_X11_REQUEST_UNMAP_WINDOW:
+            request_status = execute_unmap_request(conn, request, log_fn, user_data);
+            break;
         case TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE:
         case TRIAD_X11_REQUEST_SET_MAXIMIZED_STATE:
+        case TRIAD_X11_REQUEST_SET_HIDDEN_STATE:
             request_status = execute_state_request(conn, request, log_fn, user_data);
             break;
         default:
@@ -2550,6 +2599,9 @@ int triad_x11_execute_requests(
             case TRIAD_X11_REQUEST_MAP_WINDOW:
                 request_log(log_fn, user_data, "dry_run map window=0x%08x", request->window_id);
                 break;
+            case TRIAD_X11_REQUEST_UNMAP_WINDOW:
+                request_log(log_fn, user_data, "dry_run unmap window=0x%08x", request->window_id);
+                break;
             case TRIAD_X11_REQUEST_SET_FULLSCREEN_STATE:
                 if (request->value_count < 1) {
                     request_log(
@@ -2581,6 +2633,23 @@ int triad_x11_execute_requests(
                     log_fn,
                     user_data,
                     "dry_run maximized window=0x%08x active=%d",
+                    request->window_id,
+                    request->values[0] != 0);
+                break;
+            case TRIAD_X11_REQUEST_SET_HIDDEN_STATE:
+                if (request->value_count < 1) {
+                    request_log(
+                        log_fn,
+                        user_data,
+                        "error state window=0x%08x value_count=%u",
+                        request->window_id,
+                        request->value_count);
+                    return 1;
+                }
+                request_log(
+                    log_fn,
+                    user_data,
+                    "dry_run hidden window=0x%08x active=%d",
                     request->window_id,
                     request->values[0] != 0);
                 break;

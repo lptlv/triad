@@ -8,6 +8,8 @@ type
     XrqMapWindow = 3
     XrqSetFullscreenState = 4
     XrqSetMaximizedState = 5
+    XrqSetHiddenState = 6
+    XrqUnmapWindow = 7
 
   X11Request* {.bycopy.} = object
     kind*: X11RequestKind
@@ -50,6 +52,17 @@ proc x11RequestFor*(intent: X11EffectIntent): X11Request =
 
 proc x11MapWindowRequest*(windowId: uint32): X11Request =
   X11Request(kind: X11RequestKind.XrqMapWindow, windowId: windowId)
+
+proc x11UnmapWindowRequest*(windowId: uint32): X11Request =
+  X11Request(kind: X11RequestKind.XrqUnmapWindow, windowId: windowId)
+
+proc x11SetHiddenStateRequest*(windowId: uint32, active: bool): X11Request =
+  X11Request(
+    kind: X11RequestKind.XrqSetHiddenState,
+    windowId: windowId,
+    valueCount: 1,
+    values: [int32(active), 0'i32, 0'i32, 0'i32],
+  )
 
 proc x11RequestsFor*(intents: openArray[X11EffectIntent]): seq[X11Request] =
   for intent in intents:

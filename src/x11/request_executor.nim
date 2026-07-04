@@ -24,11 +24,16 @@ proc requestDescription(request: X11Request): string =
     "close window=0x" & request.windowId.toHex(8).toLowerAscii()
   of X11RequestKind.XrqMapWindow:
     "map window=0x" & request.windowId.toHex(8).toLowerAscii()
+  of X11RequestKind.XrqUnmapWindow:
+    "unmap window=0x" & request.windowId.toHex(8).toLowerAscii()
   of X11RequestKind.XrqSetFullscreenState:
     "set-fullscreen window=0x" & request.windowId.toHex(8).toLowerAscii() & " active=" &
       $(request.values[0] != 0)
   of X11RequestKind.XrqSetMaximizedState:
     "set-maximized window=0x" & request.windowId.toHex(8).toLowerAscii() & " active=" &
+      $(request.values[0] != 0)
+  of X11RequestKind.XrqSetHiddenState:
+    "set-hidden window=0x" & request.windowId.toHex(8).toLowerAscii() & " active=" &
       $(request.values[0] != 0)
 
 proc executeDryRun*(request: X11Request): X11RequestExecution =
