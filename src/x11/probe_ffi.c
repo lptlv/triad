@@ -20,6 +20,10 @@ enum {
     TRIAD_X11_PROBE_TRACE_XINPUT_MOTION = 1u << 0,
 };
 
+enum {
+    TRIAD_X11_MAX_SCROLL_AXES = 128,
+};
+
 typedef enum TriadX11RequestKind {
     TRIAD_X11_REQUEST_CONFIGURE_WINDOW = 0,
     TRIAD_X11_REQUEST_SET_INPUT_FOCUS = 1,
@@ -134,6 +138,16 @@ typedef struct TriadX11ResolvedAxisGrab {
 typedef void (*triad_x11_event_fn)(void *user_data, const TriadX11Event *event);
 typedef void (*triad_x11_tick_fn)(void *user_data);
 
+typedef struct TriadXInputScrollAxis {
+    uint16_t device_id;
+    uint16_t source_id;
+    uint16_t number;
+    uint16_t scroll_type;
+    uint32_t flags;
+    xcb_input_fp3232_t increment;
+    char device_name[128];
+} TriadXInputScrollAxis;
+
 typedef struct TriadX11Atoms {
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_window;
@@ -184,6 +198,8 @@ typedef struct TriadX11Probe {
     xcb_window_t *suppressed_unmaps;
     uint32_t suppressed_unmap_count;
     uint32_t suppressed_unmap_capacity;
+    TriadXInputScrollAxis scroll_axes[TRIAD_X11_MAX_SCROLL_AXES];
+    uint32_t scroll_axis_count;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -1259,6 +1275,42 @@ static const char *xinput_scroll_type_name(uint16_t scroll_type)
     }
 }
 
+static void store_xinput_scroll_axis(
+    TriadX11Probe *probe,
+    uint16_t device_id,
+    uint16_t source_id,
+    const char *device_name,
+    const xcb_input_scroll_class_t *scroll)
+{
+    if (probe->scroll_axis_count >= TRIAD_X11_MAX_SCROLL_AXES)
+        return;
+    TriadXInputScrollAxis *axis = &probe->scroll_axes[probe->scroll_axis_count++];
+    axis->device_id = device_id;
+    axis->source_id = source_id;
+    axis->number = scroll->number;
+    axis->scroll_type = scroll->scroll_type;
+    axis->flags = scroll->flags;
+    axis->increment = scroll->increment;
+    copy_text(axis->device_name, sizeof(axis->device_name), device_name);
+}
+
+static const TriadXInputScrollAxis *find_xinput_scroll_axis(
+    TriadX11Probe *probe,
+    uint16_t event_device_id,
+    uint16_t event_source_id,
+    int axis_number)
+{
+    for (uint32_t i = 0; i < probe->scroll_axis_count; i++) {
+        const TriadXInputScrollAxis *axis = &probe->scroll_axes[i];
+        if (axis->number != (uint16_t)axis_number)
+            continue;
+        if (axis->source_id == event_source_id || axis->device_id == event_source_id ||
+            axis->source_id == event_device_id || axis->device_id == event_device_id)
+            return axis;
+    }
+    return NULL;
+}
+
 static int xinput_motion_trace_enabled(TriadX11Probe *probe)
 {
     return (probe->options & TRIAD_X11_PROBE_TRACE_XINPUT_MOTION) != 0;
@@ -1270,6 +1322,9 @@ static int32_t xinput_fp1616_integral(xcb_input_fp1616_t value)
 }
 
 static void format_xinput_valuator_values(
+    TriadX11Probe *probe,
+    uint16_t event_device_id,
+    uint16_t event_source_id,
     const uint32_t *mask,
     int mask_len,
     const xcb_input_fp3232_t *values,
@@ -1292,14 +1347,29 @@ static void format_xinput_valuator_values(
             if (value_index >= values_len)
                 return;
             int axis = word * 32 + bit;
-            int written = snprintf(
-                buffer + offset,
-                buffer_size - offset,
-                "%s%d=%d.%08x",
-                offset == 0 ? "" : ",",
-                axis,
-                values[value_index].integral,
-                values[value_index].frac);
+            const TriadXInputScrollAxis *scroll_axis =
+                find_xinput_scroll_axis(probe, event_device_id, event_source_id, axis);
+            int written;
+            if (scroll_axis != NULL) {
+                written = snprintf(
+                    buffer + offset,
+                    buffer_size - offset,
+                    "%s%d:%s=%d.%08x",
+                    offset == 0 ? "" : ",",
+                    axis,
+                    xinput_scroll_type_name(scroll_axis->scroll_type),
+                    values[value_index].integral,
+                    values[value_index].frac);
+            } else {
+                written = snprintf(
+                    buffer + offset,
+                    buffer_size - offset,
+                    "%s%d=%d.%08x",
+                    offset == 0 ? "" : ",",
+                    axis,
+                    values[value_index].integral,
+                    values[value_index].frac);
+            }
             if (written < 0)
                 return;
             if ((size_t)written >= buffer_size - offset) {
@@ -1348,6 +1418,7 @@ static void select_xinput_motion_events(TriadX11Probe *probe)
 
 static void query_xinput_devices(TriadX11Probe *probe)
 {
+    probe->scroll_axis_count = 0;
     xcb_input_xi_query_device_cookie_t device_cookie =
         xcb_input_xi_query_device(probe->conn, XCB_INPUT_DEVICE_ALL);
     xcb_generic_error_t *device_error = NULL;
@@ -1447,6 +1518,12 @@ static void query_xinput_devices(TriadX11Probe *probe)
                     preferred_scroll_classes++;
                 if ((scroll->flags & XCB_INPUT_SCROLL_FLAGS_NO_EMULATION) != 0)
                     no_emulation_scroll_classes++;
+                store_xinput_scroll_axis(
+                    probe,
+                    device->deviceid,
+                    scroll->sourceid,
+                    device_name,
+                    scroll);
                 probe_log(
                     probe,
                     "xinput scroll device=%u source=%u name=\"%s\" number=%u type=%s flags=0x%08x increment=%d.%08x",
@@ -1474,7 +1551,7 @@ static void query_xinput_devices(TriadX11Probe *probe)
         "slave_keyboards=%d slave_pointers=%d key_class=%d button_class=%d "
         "valuator_class=%d scroll_class=%d touch_class=%d gesture_class=%d "
         "valuators=%d scroll_axes=%d vertical_scroll_axes=%d horizontal_scroll_axes=%d "
-        "preferred_scroll_axes=%d no_emulation_scroll_axes=%d",
+        "preferred_scroll_axes=%d no_emulation_scroll_axes=%d cached_scroll_axes=%u",
         devices->num_infos,
         master_keyboards,
         master_pointers,
@@ -1491,7 +1568,8 @@ static void query_xinput_devices(TriadX11Probe *probe)
         vertical_scroll_classes,
         horizontal_scroll_classes,
         preferred_scroll_classes,
-        no_emulation_scroll_classes);
+        no_emulation_scroll_classes,
+        probe->scroll_axis_count);
     free(devices);
 }
 
@@ -1829,6 +1907,9 @@ static int log_xinput_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         xcb_input_motion_event_t *ev = (xcb_input_motion_event_t *)event;
         char values[512];
         format_xinput_valuator_values(
+            probe,
+            ev->deviceid,
+            ev->sourceid,
             xcb_input_button_press_valuator_mask(ev),
             xcb_input_button_press_valuator_mask_length(ev),
             xcb_input_button_press_axisvalues(ev),
@@ -1859,6 +1940,9 @@ static int log_xinput_event(TriadX11Probe *probe, xcb_generic_event_t *event)
         xcb_input_raw_motion_event_t *ev = (xcb_input_raw_motion_event_t *)event;
         char values[512];
         format_xinput_valuator_values(
+            probe,
+            ev->deviceid,
+            ev->sourceid,
             xcb_input_raw_button_press_valuator_mask(ev),
             xcb_input_raw_button_press_valuator_mask_length(ev),
             xcb_input_raw_button_press_axisvalues(ev),

@@ -161,6 +161,7 @@ for pattern in \
   "xinput devices count=" \
   "xinput motion events selected" \
   "scroll_axes=" \
+  "cached_scroll_axes=" \
   "gesture_class=" \
   "windows count=" \
   "backend_event OutputDiscovered" \
