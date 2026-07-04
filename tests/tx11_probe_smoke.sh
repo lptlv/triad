@@ -349,18 +349,24 @@ if ! "$client" "$display" --send-xkb-state >"$xkb_state_log" 2>&1; then
   exit 1
 fi
 
-xkb_refresh_observed=0
+xkb_state_observed=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-  if grep -q 'backend_event XkbChanged' "$manager_log" &&
-      grep -q 'xlibre_input_grabs invalidated reason=xkb-changed' "$manager_log"; then
-    xkb_refresh_observed=1
+  if grep -q 'backend_event XkbChanged' "$manager_log"; then
+    xkb_state_observed=1
     break
   fi
   sleep 0.2
 done
 
-if [ "$xkb_refresh_observed" -ne 1 ]; then
-  printf '%s\n' "tx11_probe_smoke: XKB state change did not invalidate input grabs" >&2
+if [ "$xkb_state_observed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: XKB state change was not observed" >&2
+  cat "$manager_log" >&2
+  cat "$xkb_state_log" >&2
+  exit 1
+fi
+
+if grep -q 'xlibre_input_grabs invalidated reason=xkb-changed type=2' "$manager_log"; then
+  printf '%s\n' "tx11_probe_smoke: XKB state change invalidated input grabs" >&2
   cat "$manager_log" >&2
   cat "$xkb_state_log" >&2
   exit 1
@@ -961,6 +967,37 @@ for pattern in \
     exit 1
   fi
 done
+
+focus_workspace_payload='{"triad":{"version":1,"request":"xlibre-focus-workspace","workspace":1}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$focus_workspace_payload" >"$ipc_focus_workspace_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_focus_workspace_log" >&2
+  exit 1
+fi
+
+focus_workspace_payload='{"triad":{"version":1,"request":"xlibre-focus-workspace","workspace":2}}'
+if ! "$triad" msg --socket "$ipc_socket" request "$focus_workspace_payload" >"$ipc_focus_workspace_log" 2>&1; then
+  cat "$manager_log" >&2
+  cat "$ipc_focus_workspace_log" >&2
+  exit 1
+fi
+
+workspace_roundtrip_observed=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if grep -q "live_xcb applied unmap window=$managed_window_id" "$manager_log" &&
+      grep -q "event UnmapNotify ignored internal window=$managed_window_id" "$manager_log" &&
+      grep -q "live_xcb applied map window=$managed_window_id" "$manager_log"; then
+    workspace_roundtrip_observed=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [ "$workspace_roundtrip_observed" -ne 1 ]; then
+  printf '%s\n' "tx11_probe_smoke: workspace roundtrip did not hide and restore managed client" >&2
+  cat "$manager_log" >&2
+  exit 1
+fi
 
 close_payload='{"triad":{"version":1,"request":"xlibre-close-window","id":'"$managed_window_dec"'}}'
 if ! "$triad" msg --socket "$ipc_socket" request "$close_payload" >"$ipc_close_log" 2>&1; then

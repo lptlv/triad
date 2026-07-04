@@ -280,10 +280,6 @@ static int suppress_unmap_notify(TriadX11Probe *probe, xcb_window_t window)
 {
     if (probe == NULL || window == XCB_WINDOW_NONE)
         return 0;
-    for (uint32_t i = 0; i < probe->suppressed_unmap_count; i++) {
-        if (probe->suppressed_unmaps[i] == window)
-            return 1;
-    }
     if (probe->suppressed_unmap_count == probe->suppressed_unmap_capacity) {
         uint32_t next_capacity =
             probe->suppressed_unmap_capacity == 0 ? 8 : probe->suppressed_unmap_capacity * 2;
@@ -295,6 +291,16 @@ static int suppress_unmap_notify(TriadX11Probe *probe, xcb_window_t window)
         probe->suppressed_unmap_capacity = next_capacity;
     }
     probe->suppressed_unmaps[probe->suppressed_unmap_count++] = window;
+    return 1;
+}
+
+static int suppress_unmap_notify_count(
+    TriadX11Probe *probe, xcb_window_t window, uint32_t count)
+{
+    for (uint32_t i = 0; i < count; i++) {
+        if (!suppress_unmap_notify(probe, window))
+            return 0;
+    }
     return 1;
 }
 
@@ -310,6 +316,19 @@ static int take_suppressed_unmap_notify(TriadX11Probe *probe, xcb_window_t windo
         return 1;
     }
     return 0;
+}
+
+static void clear_suppressed_unmap_notify(TriadX11Probe *probe, xcb_window_t window)
+{
+    if (probe == NULL || window == XCB_WINDOW_NONE)
+        return;
+    uint32_t write_index = 0;
+    for (uint32_t read_index = 0; read_index < probe->suppressed_unmap_count; read_index++) {
+        if (probe->suppressed_unmaps[read_index] == window)
+            continue;
+        probe->suppressed_unmaps[write_index++] = probe->suppressed_unmaps[read_index];
+    }
+    probe->suppressed_unmap_count = write_index;
 }
 
 static void clear_suppressed_unmaps(TriadX11Probe *probe)
@@ -3556,6 +3575,8 @@ static int execute_map_request(
         free(error);
         return 1;
     }
+    if (active_probe != NULL && active_probe->conn == conn)
+        clear_suppressed_unmap_notify(active_probe, request->window_id);
     request_log(log_fn, user_data, "applied map window=0x%08x", request->window_id);
     return 0;
 }
@@ -3579,7 +3600,7 @@ static int execute_unmap_request(
         return 1;
     }
     if (active_probe != NULL && active_probe->conn == conn)
-        (void)suppress_unmap_notify(active_probe, request->window_id);
+        (void)suppress_unmap_notify_count(active_probe, request->window_id, 2);
     request_log(log_fn, user_data, "applied unmap window=0x%08x", request->window_id);
     return 0;
 }
