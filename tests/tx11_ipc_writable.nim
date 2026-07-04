@@ -205,6 +205,21 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "z", modifiers: 65'u32, command: "zoom", mode: BindingMode.BindAlways
+        ),
+        KeyBindingConfig(
+          key: "z",
+          modifiers: 72'u32,
+          command: "consume-window",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "z",
+          modifiers: 68'u32,
+          command: "expel-window",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -720,6 +735,45 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "toggle-floating"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdToggleFloating
+
+  test "binding dispatch resolves zoom key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+z"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "zoom"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdZoom
+
+  test "binding dispatch resolves consume-window key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Alt+z"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "consume-window"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdConsumeWindow
+
+  test "binding dispatch resolves expel-window key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+z"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "expel-window"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdExpelWindow
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

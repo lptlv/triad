@@ -641,6 +641,61 @@ suite "X11 admission pipeline":
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
 
+  test "zoom command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x76'u32, 0x77'u32])
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdZoom))
+
+    check step.message.kind == MsgKind.CmdZoom
+    check step.layoutRequests.len == 2
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x76
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x77
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x77
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "consume and expel command pipeline reprojects managed windows":
+    var model = x11ModelWithMappedWindows([0x78'u32, 0x79'u32])
+    discard model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 0x78)
+    )
+
+    let consume = model.processCommandDryRun(Msg(kind: MsgKind.CmdConsumeWindow))
+
+    check consume.message.kind == MsgKind.CmdConsumeWindow
+    check consume.layoutRequests.len == 2
+    check consume.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x78
+    )
+    check consume.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x79
+    )
+    check consume.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x78
+    )
+
+    let expel = model.processCommandDryRun(Msg(kind: MsgKind.CmdExpelWindow))
+
+    check expel.message.kind == MsgKind.CmdExpelWindow
+    check expel.layoutRequests.len == 2
+    check expel.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x78
+    )
+    check expel.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x79
+    )
+    check expel.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x78
+    )
+    check expel.xcbRun.code == 0
+    check expel.xcbRun.dryRun
+
   test "minimize command pipeline hides and unmaps focused window":
     var model = x11Model()
     discard model.processEventDryRun(

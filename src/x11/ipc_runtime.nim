@@ -227,6 +227,7 @@ proc xlibreCommandSupported(msg: Msg): bool =
       MsgKind.CmdSwitchProportionPreset, MsgKind.CmdSetMasterCount,
       MsgKind.CmdAdjustMasterCount, MsgKind.CmdSetMasterRatio,
       MsgKind.CmdAdjustMasterRatio, MsgKind.CmdAdjustGaps, MsgKind.CmdToggleGaps,
+      MsgKind.CmdZoom, MsgKind.CmdConsumeWindow, MsgKind.CmdExpelWindow,
       MsgKind.CmdSpawn, MsgKind.CmdSpawnTerminal:
     true
   else:
