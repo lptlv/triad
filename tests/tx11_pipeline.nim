@@ -331,6 +331,52 @@ suite "X11 admission pipeline":
     check step.xcbRun.code == 0
     check step.xcbRun.dryRun
 
+  test "focus-tag command pipeline reprojects and reasserts focus":
+    var model = x11ModelWithMappedWindows([0x72'u32, 0x73'u32])
+    discard model.processCommandDryRun(
+      Msg(
+        kind: MsgKind.CmdMoveWindowToWorkspaceIndex,
+        moveWorkspaceWindowId: 0x73,
+        moveWorkspaceIndex: 2,
+        moveWorkspaceFollowWindow: false,
+      )
+    )
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdFocusTag, focusTag: 2))
+
+    check step.message.kind == MsgKind.CmdFocusTag
+    check step.message.focusTag == 2
+    check step.layoutRequests.len == 1
+    check step.layoutRequests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.layoutRequests[0].windowId == 0x73
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x73
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x73
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
+  test "move-to-tag command pipeline reprojects moved focused window":
+    var model = x11ModelWithMappedWindows([0x74'u32])
+
+    let step = model.processCommandDryRun(Msg(kind: MsgKind.CmdMoveToTag, targetTag: 2))
+
+    check step.message.kind == MsgKind.CmdMoveToTag
+    check step.message.targetTag == 2
+    check step.layoutRequests.len == 1
+    check step.layoutRequests[0].kind == X11RequestKind.XrqConfigureWindow
+    check step.layoutRequests[0].windowId == 0x74
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x74
+    )
+    check step.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x74
+    )
+    check step.xcbRun.code == 0
+    check step.xcbRun.dryRun
+
   test "switch-layout command pipeline reprojects managed windows":
     var model = x11Model()
     discard model.processEventDryRun(

@@ -163,6 +163,42 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "w",
+          modifiers: 64'u32,
+          command: "focus-tag 2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "e",
+          modifiers: 64'u32,
+          command: "focus-tag-right",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "e",
+          modifiers: 65'u32,
+          command: "focus-occupied-tag-right",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "y",
+          modifiers: 68'u32,
+          command: "move-to-tag-left",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "y",
+          modifiers: 65'u32,
+          command: "move-to-tag 2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "y",
+          modifiers: 72'u32,
+          command: "swap-to-tag 2",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -584,6 +620,87 @@ suite "X11 writable IPC":
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdAdjustGaps
     check parsed.messages[0].deltaG == 2
+
+  test "binding dispatch resolves focus-tag key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+w"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "focus-tag 2"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusTag
+    check parsed.messages[0].focusTag == 2
+
+  test "binding dispatch resolves focus-tag-right key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+e"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "focus-tag-right"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusTagRight
+
+  test "binding dispatch resolves focus-occupied-tag key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+e"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "focus-occupied-tag-right"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdFocusOccupiedTagRight
+
+  test "binding dispatch resolves move-to-tag-left key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+y"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "move-to-tag-left"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMoveToTagLeft
+
+  test "binding dispatch resolves move-to-tag key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+y"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "move-to-tag 2"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdMoveToTag
+    check parsed.messages[0].targetTag == 2
+
+  test "binding dispatch resolves swap-to-tag key binding":
+    let parsed = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Alt+y"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check parsed.handled
+    check parsed.bindingDispatch.ok
+    check parsed.bindingDispatch.command == "swap-to-tag 2"
+    check parsed.messages.len == 1
+    check parsed.messages[0].kind == MsgKind.CmdSwapWindowToTag
+    check parsed.messages[0].targetTagSwap == 2
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

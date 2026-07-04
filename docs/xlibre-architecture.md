@@ -206,8 +206,9 @@ disabled on the XLibre socket. The socket also accepts the existing
 `dispatch-binding` request in XLibre manage mode. Binding dispatch resolves the
 configured key, pointer, axis, or gesture binding against the live model, but it
 only executes the current XLibre allowlist: focus, directional focus,
-column focus, close-window, focus-workspace, move-to-workspace,
-move-window-to-workspace, switch-layout, core scroller layout changes,
+tag and column focus, close-window, focus-workspace, move-to-workspace,
+move-window-to-workspace, move-to-tag and swap-to-tag aliases, switch-layout,
+core scroller layout changes,
 maximize-column, window and column movement, window swaps, column sizing and
 proportion presets, master count/ratio controls, gap controls, fullscreen,
 maximize-to-edges, minimize, and argv-style `spawn` commands.
