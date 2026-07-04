@@ -118,6 +118,22 @@ suite "X11 admission pipeline":
         "request execution complete dry_run=1 count=1",
       ]
 
+  test "observed focus events do not reissue XCB focus requests":
+    var model = x11ModelWithMappedWindows([0x2c'u32, 0x2d'u32])
+
+    let step = model.processEventDryRun(
+      X11BackendEvent(
+        kind: X11BackendEventKind.FocusChanged, focusWindowId: 0x2c, focused: true
+      )
+    )
+
+    check step.admission.messages.len == 1
+    check step.admission.messages[0].kind == MsgKind.FocusChanged
+    check step.admission.effects.anyIt(it.kind == EffectKind.EffFocusWindow)
+    check step.intents.len == 0
+    check step.requests.len == 0
+    check step.dryRunExecutions.len == 0
+
   test "map requests add map before focus execution":
     var model = x11Model()
     discard model.processEventDryRun(

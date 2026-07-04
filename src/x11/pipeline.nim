@@ -191,10 +191,19 @@ proc combineEventRequests*(
   for request in effectRequests:
     result.add(request)
 
+proc x11IntentsForEventEffects(
+    event: X11BackendEvent, effects: openArray[Effect]
+): seq[X11EffectIntent] =
+  for effect in effects:
+    if event.kind == X11BackendEventKind.FocusChanged and
+        effect.kind == EffectKind.EffFocusWindow:
+      continue
+    result.add(effect.x11IntentsFor())
+
 proc populateRequests(
     result: var X11PipelineStep, model: var Model, event: X11BackendEvent
 ) =
-  result.intents = result.admission.effects.x11IntentsFor()
+  result.intents = event.x11IntentsForEventEffects(result.admission.effects)
   let effectRequests = result.intents.x11RequestsFor()
   result.layoutRequests = model.layoutRequestsFor(event)
   result.requests = event.combineEventRequests(result.layoutRequests, effectRequests)
