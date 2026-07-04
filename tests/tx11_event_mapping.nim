@@ -217,6 +217,21 @@ suite "X11 event mapping":
     check event.axisBindingTicks == 3'i32
     check event.messagesFor().len == 0
 
+  test "raw gesture binding event preserves binding identity without model messages":
+    var raw = X11ProbeEvent(
+      kind: X11ProbeEventKind.XpeGestureBinding, id: 1, valueMask: 64'u32, ticks: 3'i32
+    )
+    for idx, ch in "Super+swipe-left":
+      raw.name[idx] = ch
+
+    let event = raw.backendEventFromProbe()
+    check event.kind == X11BackendEventKind.GestureBinding
+    check event.gestureBinding == "Super+swipe-left"
+    check event.gestureBindingDirection == 1'u32
+    check event.gestureBindingFingers == 3'u32
+    check event.gestureBindingModifiers == 64'u32
+    check event.messagesFor().len == 0
+
   test "raw pointer motion and release events preserve root coordinates":
     let motion = X11ProbeEvent(
       kind: X11ProbeEventKind.XpePointerMotion,

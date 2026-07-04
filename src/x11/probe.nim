@@ -34,6 +34,7 @@ type
     keyGrabSignature: string
     buttonGrabSignature: string
     axisGrabSignature: string
+    gestureGrabSignature: string
     pointerGrabStartX: int32
     pointerGrabStartY: int32
     pointerGrabActive: bool
@@ -155,6 +156,28 @@ proc bindingSpec(binding: AxisBindingConfig): string =
     return ""
   bindingSpec(binding.modifiers, name)
 
+proc gestureName(direction: GestureBindingDirection): string =
+  case direction
+  of GestureBindingDirection.GestureSwipeLeft: "swipe-left"
+  of GestureBindingDirection.GestureSwipeRight: "swipe-right"
+  of GestureBindingDirection.GestureSwipeUp: "swipe-up"
+  of GestureBindingDirection.GestureSwipeDown: "swipe-down"
+  of GestureBindingDirection.GestureNone: ""
+
+proc x11GestureDirection(direction: GestureBindingDirection): uint32 =
+  case direction
+  of GestureBindingDirection.GestureSwipeLeft: 1'u32
+  of GestureBindingDirection.GestureSwipeRight: 2'u32
+  of GestureBindingDirection.GestureSwipeUp: 3'u32
+  of GestureBindingDirection.GestureSwipeDown: 4'u32
+  of GestureBindingDirection.GestureNone: 0'u32
+
+proc bindingSpec(binding: GestureBindingConfig): string =
+  let name = binding.direction.gestureName()
+  if name.len == 0:
+    return ""
+  bindingSpec(binding.modifiers, name)
+
 proc bindingText(value: string): array[128, char] =
   let limit = min(value.len, result.len - 1)
   for i in 0 ..< limit:
@@ -173,6 +196,12 @@ proc grabBinding(value: X11ButtonGrab): string =
     result.add(ch)
 
 proc grabBinding(value: X11AxisGrab): string =
+  for ch in value.binding:
+    if ch == '\0':
+      break
+    result.add(ch)
+
+proc grabBinding(value: X11GestureGrab): string =
   for ch in value.binding:
     if ch == '\0':
       break
@@ -199,6 +228,17 @@ proc buttonGrabSignature(grabs: openArray[X11ButtonGrab]): string =
 proc axisGrabSignature(grabs: openArray[X11AxisGrab]): string =
   for grab in grabs:
     result.add($grab.button)
+    result.add(":")
+    result.add($grab.modifiers)
+    result.add(":")
+    result.add(grab.grabBinding())
+    result.add("\n")
+
+proc gestureGrabSignature(grabs: openArray[X11GestureGrab]): string =
+  for grab in grabs:
+    result.add($grab.direction)
+    result.add(":")
+    result.add($grab.fingers)
     result.add(":")
     result.add($grab.modifiers)
     result.add(":")
@@ -291,6 +331,33 @@ proc xlibreAxisGrabs(model: Model): seq[X11AxisGrab] =
         )
       )
 
+proc xlibreGestureGrabs(model: Model): seq[X11GestureGrab] =
+  let snapshot = model.shellSnapshot()
+  for binding in model.gestureBindings:
+    let direction = binding.direction.x11GestureDirection()
+    if direction == 0:
+      continue
+    let spec = binding.bindingSpec()
+    if spec.len == 0:
+      continue
+    let request = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindGesture,
+      binding: spec,
+      ticks: 1'i32,
+      fingers: binding.fingers,
+    )
+    let parsed =
+      xlibreWritableRequestFor(bindingDispatchPayload(request), model, snapshot)
+    if parsed.handled and parsed.bindingDispatch.ok:
+      result.add(
+        X11GestureGrab(
+          direction: direction,
+          fingers: binding.fingers,
+          modifiers: binding.modifiers,
+          binding: spec.bindingText(),
+        )
+      )
+
 proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
   if context == nil or context.mode != X11ProbeMode.Manage:
     return
@@ -338,6 +405,22 @@ proc configureInputGrabs(context: ptr X11ProbeContext) {.gcsafe.} =
       context.axisGrabSignature = axisSignature
       stdout.writeLine(
         "xlibre_axis_grabs requested=" & $axisGrabs.len & " status=" & $status
+      )
+      stdout.flushFile()
+
+    let gestureGrabs = context.model.xlibreGestureGrabs()
+    let gestureSignature = gestureGrabs.gestureGrabSignature()
+    if context.gestureGrabSignature != gestureSignature:
+      let status =
+        if gestureGrabs.len == 0:
+          triadX11ConfigureActiveGestureGrabs(cast[ptr X11GestureGrab](nil), 0)
+        else:
+          triadX11ConfigureActiveGestureGrabs(
+            unsafeAddr gestureGrabs[0], cuint(gestureGrabs.len)
+          )
+      context.gestureGrabSignature = gestureSignature
+      stdout.writeLine(
+        "xlibre_gesture_grabs requested=" & $gestureGrabs.len & " status=" & $status
       )
       stdout.flushFile()
 
@@ -487,6 +570,27 @@ proc dispatchAxisBinding(
     if request.handled:
       stdout.writeLine(
         "xlibre_axis_binding_reply " & context.executeXlibreWritableRequest(request)
+      )
+      stdout.flushFile()
+
+proc dispatchGestureBinding(
+    context: ptr X11ProbeContext, binding: string, fingers: uint32
+) {.gcsafe.} =
+  if context == nil or binding.len == 0 or fingers == 0:
+    return
+  {.cast(gcsafe).}:
+    let dispatch = BindingDispatchRequest(
+      kind: BindingDispatchKind.BindGesture,
+      binding: binding,
+      ticks: 1'i32,
+      fingers: fingers,
+    )
+    let request = xlibreWritableRequestFor(
+      bindingDispatchPayload(dispatch), context.model, context.model.shellSnapshot()
+    )
+    if request.handled:
+      stdout.writeLine(
+        "xlibre_gesture_binding_reply " & context.executeXlibreWritableRequest(request)
       )
       stdout.flushFile()
 
@@ -672,6 +776,10 @@ proc eventLabel(event: X11BackendEvent): string =
       $event.axisBindingButton & " modifiers=0x" &
       toHex(event.axisBindingModifiers, 4).toLowerAscii() & " ticks=" &
       $event.axisBindingTicks
+  of X11BackendEventKind.GestureBinding:
+    "GestureBinding binding=\"" & event.gestureBinding & "\" direction=" &
+      $event.gestureBindingDirection & " fingers=" & $event.gestureBindingFingers &
+      " modifiers=0x" & toHex(event.gestureBindingModifiers, 4).toLowerAscii()
   of X11BackendEventKind.PointerMotion:
     "PointerMotion target=" & $event.pointerMotionTargetWindowId & " root_xy=" &
       $event.pointerMotionRootX & "," & $event.pointerMotionRootY & " modifiers=0x" &
@@ -722,6 +830,7 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
       context.keyGrabSignature = ""
       context.buttonGrabSignature = ""
       context.axisGrabSignature = ""
+      context.gestureGrabSignature = ""
       let reason =
         if event.kind == X11BackendEventKind.MappingChanged:
           "mapping-changed"
@@ -758,6 +867,18 @@ proc probeEventCallback(userData: pointer, raw: ptr X11ProbeEvent) {.cdecl.} =
     else:
       cast[ptr X11ProbeContext](userData).dispatchAxisBinding(
         event.axisBinding, event.axisBindingTicks
+      )
+    stdout.flushFile()
+    return
+  if event.kind == X11BackendEventKind.GestureBinding:
+    if userData == nil:
+      stdout.writeLine(
+        "dry_run_msg X11GestureBinding binding=\"" & event.gestureBinding & "\" fingers=" &
+          $event.gestureBindingFingers
+      )
+    else:
+      cast[ptr X11ProbeContext](userData).dispatchGestureBinding(
+        event.gestureBinding, event.gestureBindingFingers
       )
     stdout.flushFile()
     return

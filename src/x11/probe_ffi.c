@@ -42,7 +42,19 @@ typedef struct TriadX11InputConfig {
 
 enum {
     TRIAD_X11_MAX_SCROLL_AXES = 128,
+    TRIAD_X11_SWIPE_THRESHOLD = 16,
+    TRIAD_X11_XI_MASK_GESTURE_SWIPE_BEGIN = 1u << 30,
+    TRIAD_X11_XI_MASK_GESTURE_SWIPE_UPDATE = 1u << 31,
+    TRIAD_X11_XI_MASK_GESTURE_SWIPE_END_WORD = 1u,
 };
+
+typedef enum TriadX11GestureDirection {
+    TRIAD_X11_GESTURE_NONE = 0,
+    TRIAD_X11_GESTURE_SWIPE_LEFT = 1,
+    TRIAD_X11_GESTURE_SWIPE_RIGHT = 2,
+    TRIAD_X11_GESTURE_SWIPE_UP = 3,
+    TRIAD_X11_GESTURE_SWIPE_DOWN = 4,
+} TriadX11GestureDirection;
 
 typedef enum TriadX11RequestKind {
     TRIAD_X11_REQUEST_CONFIGURE_WINDOW = 0,
@@ -82,6 +94,7 @@ typedef enum TriadX11EventKind {
     TRIAD_X11_EVENT_MAPPING_CHANGED = 15,
     TRIAD_X11_EVENT_XKB_CHANGED = 16,
     TRIAD_X11_EVENT_CLIENT_MESSAGE = 17,
+    TRIAD_X11_EVENT_GESTURE_BINDING = 18,
 } TriadX11EventKind;
 
 typedef struct TriadX11Event {
@@ -136,6 +149,13 @@ typedef struct TriadX11AxisGrab {
     char binding[128];
 } TriadX11AxisGrab;
 
+typedef struct TriadX11GestureGrab {
+    uint32_t direction;
+    uint32_t fingers;
+    uint32_t modifiers;
+    char binding[128];
+} TriadX11GestureGrab;
+
 typedef struct TriadX11ResolvedKeyGrab {
     uint32_t keysym;
     uint32_t modifiers;
@@ -155,6 +175,13 @@ typedef struct TriadX11ResolvedAxisGrab {
     char binding[128];
 } TriadX11ResolvedAxisGrab;
 
+typedef struct TriadX11ResolvedGestureGrab {
+    uint32_t direction;
+    uint32_t fingers;
+    uint32_t modifiers;
+    char binding[128];
+} TriadX11ResolvedGestureGrab;
+
 typedef void (*triad_x11_event_fn)(void *user_data, const TriadX11Event *event);
 typedef void (*triad_x11_tick_fn)(void *user_data);
 
@@ -171,6 +198,16 @@ typedef struct TriadXInputScrollAxis {
     int has_last_value;
     char device_name[128];
 } TriadXInputScrollAxis;
+
+typedef struct TriadXInputSwipeState {
+    int active;
+    uint16_t device_id;
+    uint16_t source_id;
+    uint32_t fingers;
+    uint32_t modifiers;
+    double dx;
+    double dy;
+} TriadXInputSwipeState;
 
 typedef struct TriadX11Atoms {
     xcb_atom_t wm_protocols;
@@ -214,6 +251,7 @@ typedef struct TriadX11Probe {
     TriadX11InputConfig input_config;
     uint32_t ignored_lock_modifiers;
     int xinput_motion_events_selected;
+    int xinput_gesture_events_selected;
     int stop_requested;
     TriadX11ResolvedKeyGrab *key_grabs;
     uint32_t key_grab_count;
@@ -221,11 +259,14 @@ typedef struct TriadX11Probe {
     uint32_t button_grab_count;
     TriadX11ResolvedAxisGrab *axis_grabs;
     uint32_t axis_grab_count;
+    TriadX11ResolvedGestureGrab *gesture_grabs;
+    uint32_t gesture_grab_count;
     xcb_window_t *suppressed_unmaps;
     uint32_t suppressed_unmap_count;
     uint32_t suppressed_unmap_capacity;
     TriadXInputScrollAxis scroll_axes[TRIAD_X11_MAX_SCROLL_AXES];
     uint32_t scroll_axis_count;
+    TriadXInputSwipeState swipe_state;
     TriadX11Atoms atoms;
     triad_x11_log_fn log;
     triad_x11_event_fn event;
@@ -1023,6 +1064,22 @@ static const TriadX11ResolvedAxisGrab *axis_grab_for_event(
     return NULL;
 }
 
+static const TriadX11ResolvedGestureGrab *gesture_grab_for_event(
+    TriadX11Probe *probe,
+    uint32_t direction,
+    uint32_t fingers,
+    uint32_t state)
+{
+    uint32_t modifiers = binding_modifier_mask(probe, state);
+    for (uint32_t i = 0; i < probe->gesture_grab_count; i++) {
+        TriadX11ResolvedGestureGrab *grab = &probe->gesture_grabs[i];
+        if (grab->direction == direction && grab->fingers == fingers &&
+            grab->modifiers == modifiers)
+            return grab;
+    }
+    return NULL;
+}
+
 static void clear_axis_grabs(TriadX11Probe *probe)
 {
     for (uint32_t i = 0; i < probe->axis_grab_count; i++) {
@@ -1032,6 +1089,14 @@ static void clear_axis_grabs(TriadX11Probe *probe)
     free(probe->axis_grabs);
     probe->axis_grabs = NULL;
     probe->axis_grab_count = 0;
+}
+
+static void clear_gesture_grabs(TriadX11Probe *probe)
+{
+    free(probe->gesture_grabs);
+    probe->gesture_grabs = NULL;
+    probe->gesture_grab_count = 0;
+    memset(&probe->swipe_state, 0, sizeof(probe->swipe_state));
 }
 
 static void log_window(
@@ -1574,6 +1639,46 @@ static int32_t xinput_fp1616_integral(xcb_input_fp1616_t value)
     return value / 65536;
 }
 
+static double xinput_fp1616_to_double(xcb_input_fp1616_t value)
+{
+    return (double)value / 65536.0;
+}
+
+static double abs_double(double value)
+{
+    return value < 0.0 ? -value : value;
+}
+
+static uint32_t xinput_swipe_direction(double dx, double dy, int cancelled)
+{
+    if (cancelled)
+        return TRIAD_X11_GESTURE_NONE;
+    if (dx * dx + dy * dy <
+        (double)(TRIAD_X11_SWIPE_THRESHOLD * TRIAD_X11_SWIPE_THRESHOLD))
+        return TRIAD_X11_GESTURE_NONE;
+    if (abs_double(dx) > abs_double(dy))
+        return dx < 0.0 ? TRIAD_X11_GESTURE_SWIPE_LEFT :
+                          TRIAD_X11_GESTURE_SWIPE_RIGHT;
+    return dy < 0.0 ? TRIAD_X11_GESTURE_SWIPE_UP :
+                      TRIAD_X11_GESTURE_SWIPE_DOWN;
+}
+
+static const char *xinput_swipe_direction_name(uint32_t direction)
+{
+    switch (direction) {
+    case TRIAD_X11_GESTURE_SWIPE_LEFT:
+        return "swipe-left";
+    case TRIAD_X11_GESTURE_SWIPE_RIGHT:
+        return "swipe-right";
+    case TRIAD_X11_GESTURE_SWIPE_UP:
+        return "swipe-up";
+    case TRIAD_X11_GESTURE_SWIPE_DOWN:
+        return "swipe-down";
+    default:
+        return "none";
+    }
+}
+
 static void format_xinput_valuator_values(
     TriadX11Probe *probe,
     uint16_t event_device_id,
@@ -1666,6 +1771,108 @@ static void process_xinput_scroll_values(
     }
 }
 
+static void emit_xinput_gesture_binding(
+    TriadX11Probe *probe,
+    uint32_t direction,
+    uint32_t fingers,
+    uint32_t effective_modifiers)
+{
+    if (direction == TRIAD_X11_GESTURE_NONE || fingers == 0)
+        return;
+    const TriadX11ResolvedGestureGrab *grab =
+        gesture_grab_for_event(probe, direction, fingers, effective_modifiers);
+    if (grab == NULL)
+        return;
+
+    TriadX11Event event;
+    memset(&event, 0, sizeof(event));
+    event.kind = TRIAD_X11_EVENT_GESTURE_BINDING;
+    event.id = direction;
+    event.value_mask = binding_modifier_mask(probe, effective_modifiers);
+    event.ticks = (int32_t)fingers;
+    copy_text(event.name, sizeof(event.name), grab->binding);
+    probe_log(
+        probe,
+        "xinput gesture binding direction=%s fingers=%u binding=\"%s\"",
+        xinput_swipe_direction_name(direction),
+        fingers,
+        grab->binding);
+    probe_event(probe, &event);
+}
+
+static int xinput_swipe_event_matches_state(
+    const TriadXInputSwipeState *state,
+    const xcb_input_gesture_swipe_begin_event_t *event)
+{
+    return state->active && state->device_id == event->deviceid &&
+           state->source_id == event->sourceid && state->fingers == event->detail;
+}
+
+static void process_xinput_swipe_event(
+    TriadX11Probe *probe,
+    uint16_t event_type,
+    const xcb_input_gesture_swipe_begin_event_t *event)
+{
+    switch (event_type) {
+    case XCB_INPUT_GESTURE_SWIPE_BEGIN:
+        memset(&probe->swipe_state, 0, sizeof(probe->swipe_state));
+        probe->swipe_state.active = 1;
+        probe->swipe_state.device_id = event->deviceid;
+        probe->swipe_state.source_id = event->sourceid;
+        probe->swipe_state.fingers = event->detail;
+        probe->swipe_state.modifiers = event->mods.effective;
+        probe_log(
+            probe,
+            "event XInputGestureSwipeBegin device=%u source=%u fingers=%u state=0x%04x",
+            event->deviceid,
+            event->sourceid,
+            event->detail,
+            event->mods.effective);
+        break;
+    case XCB_INPUT_GESTURE_SWIPE_UPDATE:
+        if (!xinput_swipe_event_matches_state(&probe->swipe_state, event))
+            return;
+        probe->swipe_state.dx += xinput_fp1616_to_double(event->delta_x);
+        probe->swipe_state.dy += xinput_fp1616_to_double(event->delta_y);
+        probe_log(
+            probe,
+            "event XInputGestureSwipeUpdate device=%u source=%u fingers=%u delta=%.3f,%.3f total=%.3f,%.3f",
+            event->deviceid,
+            event->sourceid,
+            event->detail,
+            xinput_fp1616_to_double(event->delta_x),
+            xinput_fp1616_to_double(event->delta_y),
+            probe->swipe_state.dx,
+            probe->swipe_state.dy);
+        break;
+    case XCB_INPUT_GESTURE_SWIPE_END: {
+        if (!xinput_swipe_event_matches_state(&probe->swipe_state, event))
+            return;
+        TriadXInputSwipeState state = probe->swipe_state;
+        memset(&probe->swipe_state, 0, sizeof(probe->swipe_state));
+        int cancelled =
+            (event->flags &
+             XCB_INPUT_GESTURE_SWIPE_EVENT_FLAGS_GESTURE_SWIPE_CANCELLED) != 0;
+        uint32_t direction = xinput_swipe_direction(state.dx, state.dy, cancelled);
+        probe_log(
+            probe,
+            "event XInputGestureSwipeEnd device=%u source=%u fingers=%u total=%.3f,%.3f cancelled=%d direction=%s",
+            event->deviceid,
+            event->sourceid,
+            event->detail,
+            state.dx,
+            state.dy,
+            cancelled,
+            xinput_swipe_direction_name(direction));
+        emit_xinput_gesture_binding(
+            probe, direction, state.fingers, state.modifiers);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 static void select_xinput_motion_events(TriadX11Probe *probe)
 {
     if (probe->xinput_ext == NULL || !probe->xinput_ext->present)
@@ -1705,6 +1912,49 @@ static void select_xinput_motion_events(TriadX11Probe *probe)
         selection.mask,
         xinput_motion_trace_enabled(probe),
         probe->axis_grab_count);
+}
+
+static void select_xinput_gesture_events(TriadX11Probe *probe)
+{
+    if (probe->xinput_ext == NULL || !probe->xinput_ext->present)
+        return;
+    if (probe->gesture_grab_count == 0)
+        return;
+    if (probe->xinput_gesture_events_selected)
+        return;
+
+    struct {
+        xcb_input_event_mask_t header;
+        uint32_t mask[2];
+    } selection;
+    memset(&selection, 0, sizeof(selection));
+    selection.header.deviceid = XCB_INPUT_DEVICE_ALL_MASTER;
+    selection.header.mask_len = 2;
+    selection.mask[0] = TRIAD_X11_XI_MASK_GESTURE_SWIPE_BEGIN |
+                        TRIAD_X11_XI_MASK_GESTURE_SWIPE_UPDATE;
+    selection.mask[1] = TRIAD_X11_XI_MASK_GESTURE_SWIPE_END_WORD;
+
+    xcb_void_cookie_t cookie = xcb_input_xi_select_events_checked(
+        probe->conn,
+        probe->screen->root,
+        1,
+        &selection.header);
+    xcb_generic_error_t *error = xcb_request_check(probe->conn, cookie);
+    if (error != NULL) {
+        probe_log(
+            probe,
+            "xinput gesture events selection failed error_code=%u",
+            error->error_code);
+        free(error);
+        return;
+    }
+    probe->xinput_gesture_events_selected = 1;
+    probe_log(
+        probe,
+        "xinput gesture events selected device=all-master mask0=0x%08x mask1=0x%08x gesture_grabs=%u",
+        selection.mask[0],
+        selection.mask[1],
+        probe->gesture_grab_count);
 }
 
 static void query_xinput_devices(TriadX11Probe *probe)
@@ -2281,6 +2531,14 @@ static int log_xinput_event(TriadX11Probe *probe, xcb_generic_event_t *event)
             ev->flags);
         return 1;
     }
+    case XCB_INPUT_GESTURE_SWIPE_BEGIN:
+    case XCB_INPUT_GESTURE_SWIPE_UPDATE:
+    case XCB_INPUT_GESTURE_SWIPE_END:
+        process_xinput_swipe_event(
+            probe,
+            generic->event_type,
+            (const xcb_input_gesture_swipe_begin_event_t *)event);
+        return 1;
     default:
         probe_log(
             probe,
@@ -2822,6 +3080,7 @@ int triad_x11_probe_run(
     clear_key_grabs(&probe);
     clear_button_grabs(&probe);
     clear_axis_grabs(&probe);
+    clear_gesture_grabs(&probe);
     clear_suppressed_unmaps(&probe);
     if (active_probe == &probe)
         active_probe = NULL;
@@ -3031,6 +3290,73 @@ int triad_x11_configure_active_axis_grabs(
     select_xinput_motion_events(probe);
     xcb_flush(probe->conn);
     probe_log(probe, "axis grabs configured count=%u requested=%u", resolved_count, count);
+    return 0;
+}
+
+int triad_x11_configure_active_gesture_grabs(
+    const TriadX11GestureGrab *grabs,
+    uint32_t count)
+{
+    if (active_probe == NULL)
+        return 1;
+
+    TriadX11Probe *probe = active_probe;
+    clear_gesture_grabs(probe);
+
+    if (count == 0 || grabs == NULL) {
+        xcb_flush(probe->conn);
+        probe_log(probe, "gesture grabs configured count=0");
+        return 0;
+    }
+
+    TriadX11ResolvedGestureGrab *resolved =
+        calloc((size_t)count, sizeof(TriadX11ResolvedGestureGrab));
+    if (resolved == NULL) {
+        probe_log(probe, "gesture grabs unavailable allocation_failed=1 count=%u", count);
+        return 1;
+    }
+
+    uint32_t resolved_count = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        if (grabs[i].direction == TRIAD_X11_GESTURE_NONE || grabs[i].fingers == 0) {
+            probe_log(
+                probe,
+                "gesture grab unavailable binding=\"%s\" direction=%u fingers=%u",
+                grabs[i].binding,
+                grabs[i].direction,
+                grabs[i].fingers);
+            continue;
+        }
+        resolved[resolved_count].direction = grabs[i].direction;
+        resolved[resolved_count].fingers = grabs[i].fingers;
+        resolved[resolved_count].modifiers = grabs[i].modifiers;
+        copy_text(
+            resolved[resolved_count].binding,
+            sizeof(resolved[resolved_count].binding),
+            grabs[i].binding);
+        probe_log(
+            probe,
+            "gesture grab configured binding=\"%s\" direction=%s fingers=%u modifiers=0x%04x",
+            resolved[resolved_count].binding,
+            xinput_swipe_direction_name(resolved[resolved_count].direction),
+            resolved[resolved_count].fingers,
+            resolved[resolved_count].modifiers);
+        resolved_count++;
+    }
+
+    if (resolved_count == 0) {
+        free(resolved);
+        resolved = NULL;
+    }
+    probe->gesture_grabs = resolved;
+    probe->gesture_grab_count = resolved_count;
+    select_xinput_gesture_events(probe);
+    xcb_flush(probe->conn);
+    probe_log(
+        probe,
+        "gesture grabs configured count=%u requested=%u",
+        resolved_count,
+        count);
     return 0;
 }
 

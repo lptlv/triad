@@ -278,6 +278,7 @@ bindings {
   pointer-bind "Super+btn_back" "focus-workspace 2"
   pointer-bind "Super+button10" "focus-workspace 2"
   axis-bind "Super+wheel-up" "focus-workspace 3"
+  gesture-bind "Super+swipe-left" "focus-workspace 4" fingers=3
 }
 EOF
 
@@ -376,6 +377,8 @@ for pattern in \
   "xlibre_button_grabs requested=" \
   "axis grabs configured count=" \
   "xlibre_axis_grabs requested=" \
+  "gesture grabs configured count=" \
+  "xlibre_gesture_grabs requested=" \
   "xinput motion events selected" \
   "backend_event MapRequested" \
   "model_msg WindowCreated" \

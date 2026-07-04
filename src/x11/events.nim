@@ -43,6 +43,7 @@ type
     XpeMappingChanged = 15
     XpeXkbChanged = 16
     XpeClientMessage = 17
+    XpeGestureBinding = 18
 
   X11ProbeEvent* {.bycopy.} = object
     kind*: X11ProbeEventKind
@@ -85,6 +86,7 @@ type
     MappingChanged
     XkbChanged
     ClientMessage
+    GestureBinding
 
   X11WindowSnapshot* = object
     id*: uint32
@@ -153,6 +155,11 @@ type
       axisBindingButton*: uint32
       axisBindingModifiers*: uint32
       axisBindingTicks*: int32
+    of X11BackendEventKind.GestureBinding:
+      gestureBinding*: string
+      gestureBindingDirection*: uint32
+      gestureBindingFingers*: uint32
+      gestureBindingModifiers*: uint32
     of X11BackendEventKind.PointerMotion:
       pointerMotionTargetWindowId*: uint32
       pointerMotionRootX*, pointerMotionRootY*: int32
@@ -350,6 +357,14 @@ proc backendEventFromProbe*(event: X11ProbeEvent): X11BackendEvent =
       axisBindingModifiers: event.valueMask,
       axisBindingTicks: max(1'i32, min(event.ticks, 100'i32)),
     )
+  of X11ProbeEventKind.XpeGestureBinding:
+    X11BackendEvent(
+      kind: X11BackendEventKind.GestureBinding,
+      gestureBinding: event.name.cArrayString(),
+      gestureBindingDirection: event.id,
+      gestureBindingFingers: uint32(max(0'i32, event.ticks)),
+      gestureBindingModifiers: event.valueMask,
+    )
   of X11ProbeEventKind.XpePointerMotion:
     X11BackendEvent(
       kind: X11BackendEventKind.PointerMotion,
@@ -497,6 +512,8 @@ proc messagesFor*(event: X11BackendEvent): seq[Msg] =
       )
   of X11BackendEventKind.WindowDestroyed, X11BackendEventKind.WindowUnmapped:
     result.add(Msg(kind: MsgKind.WindowDestroyed, destroyedId: event.windowId))
+  of X11BackendEventKind.GestureBinding:
+    discard
   of X11BackendEventKind.OutputDiscovered:
     if not event.output.connected:
       result.add(Msg(kind: MsgKind.OutputRemoved, removedOutputId: event.output.id))

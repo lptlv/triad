@@ -30,6 +30,12 @@ type
     modifiers*: uint32
     binding*: array[128, char]
 
+  X11GestureGrab* {.bycopy.} = object
+    direction*: uint32
+    fingers*: uint32
+    modifiers*: uint32
+    binding*: array[128, char]
+
   X11InputClassConfig* {.bycopy.} = object
     naturalScrollSet*: uint32
     naturalScroll*: uint32
@@ -80,3 +86,7 @@ proc triadX11ConfigureActiveButtonGrabs*(
 proc triadX11ConfigureActiveAxisGrabs*(
   grabs: ptr X11AxisGrab, count: cuint
 ): cint {.importc: "triad_x11_configure_active_axis_grabs".}
+
+proc triadX11ConfigureActiveGestureGrabs*(
+  grabs: ptr X11GestureGrab, count: cuint
+): cint {.importc: "triad_x11_configure_active_gesture_grabs".}
