@@ -1,8 +1,10 @@
 # Binaries
 /triad
+/triad_xlibre
 /triad_niri
 /src/config/parser
 /src/triad
+/src/triad_xlibre
 /src/triad_niri
 /tests/t*
 !/tests/*.nim
