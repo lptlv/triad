@@ -356,6 +356,7 @@ for pattern in \
   "xlibre_axis_grabs requested=" \
   "backend_event MapRequested" \
   "model_msg WindowCreated" \
+  "model_msg WindowParentedRoleHint" \
   "layout_x11_request configure window=" \
   "live_xcb applied configure window=" \
   "x11_request map window=" \

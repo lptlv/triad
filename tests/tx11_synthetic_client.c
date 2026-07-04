@@ -78,6 +78,30 @@ static int set_text_property(
     return 0;
 }
 
+static int set_atom_property(
+    xcb_connection_t *conn,
+    xcb_window_t win,
+    xcb_atom_t property,
+    xcb_atom_t value)
+{
+    xcb_void_cookie_t cookie = xcb_change_property_checked(
+        conn,
+        XCB_PROP_MODE_REPLACE,
+        win,
+        property,
+        XCB_ATOM_ATOM,
+        32,
+        1,
+        &value);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        fprintf(stderr, "tx11_synthetic_client: atom property error=%u\n", error->error_code);
+        free(error);
+        return 1;
+    }
+    return 0;
+}
+
 static xcb_screen_t *screen_for_connection(xcb_connection_t *conn, int screen_number)
 {
     const xcb_setup_t *setup = xcb_get_setup(conn);
@@ -533,6 +557,9 @@ int main(int argc, char **argv)
         intern_atom(conn, "_NET_WM_STATE_MAXIMIZED_HORZ");
     xcb_atom_t net_wm_state_demands_attention =
         intern_atom(conn, "_NET_WM_STATE_DEMANDS_ATTENTION");
+    xcb_atom_t net_wm_window_type = intern_atom(conn, "_NET_WM_WINDOW_TYPE");
+    xcb_atom_t net_wm_window_type_dialog =
+        intern_atom(conn, "_NET_WM_WINDOW_TYPE_DIALOG");
     xcb_atom_t utf8_string = intern_atom(conn, "UTF8_STRING");
     xcb_atom_t cardinal = intern_atom(conn, "CARDINAL");
     if (
@@ -543,6 +570,8 @@ int main(int argc, char **argv)
         net_wm_state_fullscreen == XCB_ATOM_NONE ||
         net_wm_state_maximized_horz == XCB_ATOM_NONE ||
         net_wm_state_demands_attention == XCB_ATOM_NONE ||
+        net_wm_window_type == XCB_ATOM_NONE ||
+        net_wm_window_type_dialog == XCB_ATOM_NONE ||
         utf8_string == XCB_ATOM_NONE || cardinal == XCB_ATOM_NONE) {
         fprintf(stderr, "tx11_synthetic_client: failed to intern atoms\n");
         xcb_disconnect(conn);
@@ -624,6 +653,14 @@ int main(int argc, char **argv)
     }
 
     xcb_map_window(conn, win);
+    xcb_flush(conn);
+    usleep(200000);
+
+    if (set_atom_property(conn, win, net_wm_window_type, net_wm_window_type_dialog)) {
+        xcb_destroy_window(conn, win);
+        xcb_disconnect(conn);
+        return 1;
+    }
     xcb_flush(conn);
     usleep(200000);
 
