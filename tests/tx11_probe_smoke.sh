@@ -387,7 +387,8 @@ for pattern in \
   "live_xcb applied configure window=" \
   "x11_request map window=" \
   "live_xcb applied map window=" \
-  "live_xcb applied focus window="; do
+  "live_xcb applied focus window=" \
+  "live_xcb applied take-focus window="; do
   if ! grep -q "$pattern" "$manager_log"; then
     printf '%s\n' "tx11_probe_smoke: missing manager log pattern: $pattern" >&2
     cat "$manager_log" >&2

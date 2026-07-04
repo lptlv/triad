@@ -312,7 +312,8 @@ static int wait_for_close(
     xcb_connection_t *conn,
     xcb_window_t win,
     xcb_atom_t wm_protocols,
-    xcb_atom_t wm_delete_window)
+    xcb_atom_t wm_delete_window,
+    xcb_atom_t wm_take_focus)
 {
     while (1) {
         xcb_generic_event_t *event = xcb_wait_for_event(conn);
@@ -326,6 +327,12 @@ static int wait_for_close(
                 client->data.data32[0] == wm_delete_window) {
                 free(event);
                 return 0;
+            }
+            if (
+                client->window == win && client->type == wm_protocols &&
+                client->data.data32[0] == wm_take_focus) {
+                printf("take-focus\n");
+                fflush(stdout);
             }
         } else if (type == XCB_CONFIGURE_NOTIFY) {
             xcb_configure_notify_event_t *configure =
@@ -549,6 +556,7 @@ int main(int argc, char **argv)
     xcb_atom_t wm_name = intern_atom(conn, "WM_NAME");
     xcb_atom_t wm_protocols = intern_atom(conn, "WM_PROTOCOLS");
     xcb_atom_t wm_delete_window = intern_atom(conn, "WM_DELETE_WINDOW");
+    xcb_atom_t wm_take_focus = intern_atom(conn, "WM_TAKE_FOCUS");
     xcb_atom_t net_wm_name = intern_atom(conn, "_NET_WM_NAME");
     xcb_atom_t net_wm_pid = intern_atom(conn, "_NET_WM_PID");
     xcb_atom_t net_wm_state = intern_atom(conn, "_NET_WM_STATE");
@@ -565,6 +573,7 @@ int main(int argc, char **argv)
     if (
         wm_class == XCB_ATOM_NONE || wm_name == XCB_ATOM_NONE ||
         wm_protocols == XCB_ATOM_NONE || wm_delete_window == XCB_ATOM_NONE ||
+        wm_take_focus == XCB_ATOM_NONE ||
         net_wm_name == XCB_ATOM_NONE || net_wm_pid == XCB_ATOM_NONE ||
         net_wm_state == XCB_ATOM_NONE ||
         net_wm_state_fullscreen == XCB_ATOM_NONE ||
@@ -634,6 +643,7 @@ int main(int argc, char **argv)
         32,
         1,
         &pid);
+    xcb_atom_t protocols[] = {wm_delete_window, wm_take_focus};
     xcb_change_property(
         conn,
         XCB_PROP_MODE_REPLACE,
@@ -641,8 +651,8 @@ int main(int argc, char **argv)
         wm_protocols,
         XCB_ATOM_ATOM,
         32,
-        1,
-        &wm_delete_window);
+        2,
+        protocols);
 
     if (
         set_text_property(conn, win, wm_name, XCB_ATOM_STRING, "triad smoke") ||
@@ -667,7 +677,8 @@ int main(int argc, char **argv)
     if (hold) {
         printf("window=0x%08x\n", win);
         fflush(stdout);
-        int status = wait_for_close(conn, win, wm_protocols, wm_delete_window);
+        int status =
+            wait_for_close(conn, win, wm_protocols, wm_delete_window, wm_take_focus);
         xcb_destroy_window(conn, win);
         xcb_flush(conn);
         xcb_disconnect(conn);

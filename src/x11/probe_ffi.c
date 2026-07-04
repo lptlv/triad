@@ -212,6 +212,7 @@ typedef struct TriadXInputSwipeState {
 typedef struct TriadX11Atoms {
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_window;
+    xcb_atom_t wm_take_focus;
     xcb_atom_t wm_transient_for;
     xcb_atom_t wm_normal_hints;
     xcb_atom_t wm_hints;
@@ -1210,6 +1211,7 @@ static void init_atoms(TriadX11Probe *probe)
 
     probe->atoms.wm_protocols = intern_atom(probe, "WM_PROTOCOLS", 0);
     probe->atoms.wm_delete_window = intern_atom(probe, "WM_DELETE_WINDOW", 0);
+    probe->atoms.wm_take_focus = intern_atom(probe, "WM_TAKE_FOCUS", 0);
     probe->atoms.wm_transient_for = intern_atom(probe, "WM_TRANSIENT_FOR", 0);
     probe->atoms.wm_normal_hints = intern_atom(probe, "WM_NORMAL_HINTS", 0);
     probe->atoms.wm_hints = intern_atom(probe, "WM_HINTS", 0);
@@ -3412,6 +3414,106 @@ static int execute_configure_request(
     return 0;
 }
 
+static int read_atom_property_for_conn(
+    xcb_connection_t *conn,
+    xcb_window_t window,
+    xcb_atom_t property,
+    xcb_atom_t **atoms,
+    uint32_t *count)
+{
+    *atoms = NULL;
+    *count = 0;
+
+    xcb_get_property_cookie_t cookie =
+        xcb_get_property(conn, 0, window, property, XCB_ATOM_ATOM, 0, 64);
+    xcb_generic_error_t *error = NULL;
+    xcb_get_property_reply_t *reply = xcb_get_property_reply(conn, cookie, &error);
+    if (error != NULL) {
+        free(error);
+        return 1;
+    }
+    if (reply == NULL)
+        return 1;
+
+    int length = xcb_get_property_value_length(reply) / (int)sizeof(xcb_atom_t);
+    if (length > 0) {
+        *atoms = calloc((size_t)length, sizeof(xcb_atom_t));
+        if (*atoms == NULL) {
+            free(reply);
+            return 1;
+        }
+        memcpy(*atoms, xcb_get_property_value(reply), (size_t)length * sizeof(xcb_atom_t));
+        *count = (uint32_t)length;
+    }
+    free(reply);
+    return 0;
+}
+
+static int atom_list_contains(
+    const xcb_atom_t *atoms,
+    uint32_t count,
+    xcb_atom_t atom)
+{
+    for (uint32_t i = 0; i < count; i++) {
+        if (atoms[i] == atom)
+            return 1;
+    }
+    return 0;
+}
+
+static int send_take_focus_if_supported(
+    xcb_connection_t *conn,
+    xcb_window_t window,
+    triad_x11_log_fn log_fn,
+    void *user_data)
+{
+    xcb_atom_t wm_protocols = intern_atom_for_conn(conn, "WM_PROTOCOLS", 0);
+    xcb_atom_t wm_take_focus = intern_atom_for_conn(conn, "WM_TAKE_FOCUS", 0);
+    if (wm_protocols == XCB_ATOM_NONE || wm_take_focus == XCB_ATOM_NONE)
+        return 0;
+
+    xcb_atom_t *protocols = NULL;
+    uint32_t protocol_count = 0;
+    if (read_atom_property_for_conn(
+            conn, window, wm_protocols, &protocols, &protocol_count) != 0) {
+        request_log(
+            log_fn,
+            user_data,
+            "take-focus protocols unavailable window=0x%08x",
+            window);
+        return 0;
+    }
+    int supported = atom_list_contains(protocols, protocol_count, wm_take_focus);
+    free(protocols);
+    if (!supported)
+        return 0;
+
+    xcb_client_message_event_t event;
+    memset(&event, 0, sizeof(event));
+    event.response_type = XCB_CLIENT_MESSAGE;
+    event.format = 32;
+    event.window = window;
+    event.type = wm_protocols;
+    event.data.data32[0] = wm_take_focus;
+    event.data.data32[1] = XCB_CURRENT_TIME;
+
+    xcb_void_cookie_t cookie = xcb_send_event_checked(
+        conn, 0, window, XCB_EVENT_MASK_NO_EVENT, (const char *)&event);
+    xcb_generic_error_t *error = xcb_request_check(conn, cookie);
+    if (error != NULL) {
+        request_log(
+            log_fn,
+            user_data,
+            "error take-focus window=0x%08x code=%u",
+            window,
+            error->error_code);
+        free(error);
+        return 1;
+    }
+    request_log(log_fn, user_data, "applied take-focus window=0x%08x", window);
+    return 0;
+}
+
 static int execute_focus_request(
     xcb_connection_t *conn,
     const TriadX11Request *request,
@@ -3431,6 +3533,7 @@ static int execute_focus_request(
         free(error);
         return 1;
     }
+    (void)send_take_focus_if_supported(conn, request->window_id, log_fn, user_data);
     request_log(log_fn, user_data, "applied focus window=0x%08x", request->window_id);
     return 0;
 }
