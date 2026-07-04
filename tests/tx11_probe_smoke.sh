@@ -358,6 +358,7 @@ for pattern in \
   "xlibre_button_grabs requested=" \
   "axis grabs configured count=" \
   "xlibre_axis_grabs requested=" \
+  "xinput motion events selected" \
   "backend_event MapRequested" \
   "model_msg WindowCreated" \
   "model_msg WindowParentedRoleHint" \

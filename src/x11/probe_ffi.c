@@ -145,6 +145,9 @@ typedef struct TriadXInputScrollAxis {
     uint16_t scroll_type;
     uint32_t flags;
     xcb_input_fp3232_t increment;
+    double last_value;
+    double accumulator;
+    int has_last_value;
     char device_name[128];
 } TriadXInputScrollAxis;
 
@@ -188,6 +191,7 @@ typedef struct TriadX11Probe {
     const xcb_query_extension_reply_t *xkb_ext;
     uint32_t options;
     uint32_t ignored_lock_modifiers;
+    int xinput_motion_events_selected;
     int stop_requested;
     TriadX11ResolvedKeyGrab *key_grabs;
     uint32_t key_grab_count;
@@ -1291,17 +1295,20 @@ static void store_xinput_scroll_axis(
     axis->scroll_type = scroll->scroll_type;
     axis->flags = scroll->flags;
     axis->increment = scroll->increment;
+    axis->last_value = 0.0;
+    axis->accumulator = 0.0;
+    axis->has_last_value = 0;
     copy_text(axis->device_name, sizeof(axis->device_name), device_name);
 }
 
-static const TriadXInputScrollAxis *find_xinput_scroll_axis(
+static TriadXInputScrollAxis *find_xinput_scroll_axis(
     TriadX11Probe *probe,
     uint16_t event_device_id,
     uint16_t event_source_id,
     int axis_number)
 {
     for (uint32_t i = 0; i < probe->scroll_axis_count; i++) {
-        const TriadXInputScrollAxis *axis = &probe->scroll_axes[i];
+        TriadXInputScrollAxis *axis = &probe->scroll_axes[i];
         if (axis->number != (uint16_t)axis_number)
             continue;
         if (axis->source_id == event_source_id || axis->device_id == event_source_id ||
@@ -1309,6 +1316,98 @@ static const TriadXInputScrollAxis *find_xinput_scroll_axis(
             return axis;
     }
     return NULL;
+}
+
+static double xinput_fp3232_to_double(xcb_input_fp3232_t value)
+{
+    return (double)value.integral + (double)value.frac / 4294967296.0;
+}
+
+static uint32_t xinput_scroll_button_for_axis(
+    const TriadXInputScrollAxis *axis,
+    int ticks)
+{
+    if (axis == NULL || ticks == 0)
+        return 0;
+    switch (axis->scroll_type) {
+    case XCB_INPUT_SCROLL_TYPE_VERTICAL:
+        return ticks < 0 ? 4u : 5u;
+    case XCB_INPUT_SCROLL_TYPE_HORIZONTAL:
+        return ticks < 0 ? 6u : 7u;
+    default:
+        return 0;
+    }
+}
+
+static void emit_xinput_axis_binding(
+    TriadX11Probe *probe,
+    const TriadXInputScrollAxis *axis,
+    uint32_t effective_modifiers,
+    int ticks)
+{
+    uint32_t button = xinput_scroll_button_for_axis(axis, ticks);
+    if (button == 0)
+        return;
+    const TriadX11ResolvedAxisGrab *grab =
+        axis_grab_for_event(probe, button, effective_modifiers);
+    if (grab == NULL)
+        return;
+
+    TriadX11Event event;
+    memset(&event, 0, sizeof(event));
+    event.kind = TRIAD_X11_EVENT_AXIS_BINDING;
+    event.id = button;
+    event.value_mask = binding_modifier_mask(probe, effective_modifiers);
+    event.ticks = ticks < 0 ? -ticks : ticks;
+    copy_text(event.name, sizeof(event.name), grab->binding);
+    probe_log(
+        probe,
+        "xinput axis binding device=%u source=%u axis=%u type=%s ticks=%d binding=\"%s\"",
+        axis->device_id,
+        axis->source_id,
+        axis->number,
+        xinput_scroll_type_name(axis->scroll_type),
+        ticks,
+        grab->binding);
+    probe_event(probe, &event);
+}
+
+static void process_xinput_scroll_value(
+    TriadX11Probe *probe,
+    TriadXInputScrollAxis *axis,
+    uint32_t effective_modifiers,
+    xcb_input_fp3232_t raw_value)
+{
+    if (axis == NULL)
+        return;
+    double value = xinput_fp3232_to_double(raw_value);
+    if (!axis->has_last_value) {
+        axis->last_value = value;
+        axis->has_last_value = 1;
+        return;
+    }
+
+    double increment = xinput_fp3232_to_double(axis->increment);
+    if (increment <= 0.0) {
+        axis->last_value = value;
+        axis->accumulator = 0.0;
+        return;
+    }
+
+    axis->accumulator += value - axis->last_value;
+    axis->last_value = value;
+
+    int ticks = 0;
+    while (axis->accumulator >= increment && ticks < 100) {
+        axis->accumulator -= increment;
+        ticks++;
+    }
+    while (axis->accumulator <= -increment && ticks > -100) {
+        axis->accumulator += increment;
+        ticks--;
+    }
+    if (ticks != 0)
+        emit_xinput_axis_binding(probe, axis, effective_modifiers, ticks);
 }
 
 static int xinput_motion_trace_enabled(TriadX11Probe *probe)
@@ -1382,9 +1481,44 @@ static void format_xinput_valuator_values(
     }
 }
 
+static void process_xinput_scroll_values(
+    TriadX11Probe *probe,
+    uint16_t event_device_id,
+    uint16_t event_source_id,
+    uint32_t effective_modifiers,
+    const uint32_t *mask,
+    int mask_len,
+    const xcb_input_fp3232_t *values,
+    int values_len)
+{
+    int value_index = 0;
+    if (mask == NULL || values == NULL || mask_len <= 0 || values_len <= 0)
+        return;
+
+    for (int word = 0; word < mask_len; word++) {
+        for (int bit = 0; bit < 32; bit++) {
+            if ((mask[word] & (1u << bit)) == 0)
+                continue;
+            if (value_index >= values_len)
+                return;
+            int axis_number = word * 32 + bit;
+            TriadXInputScrollAxis *axis =
+                find_xinput_scroll_axis(probe, event_device_id, event_source_id, axis_number);
+            if (axis != NULL)
+                process_xinput_scroll_value(
+                    probe, axis, effective_modifiers, values[value_index]);
+            value_index++;
+        }
+    }
+}
+
 static void select_xinput_motion_events(TriadX11Probe *probe)
 {
-    if (!xinput_motion_trace_enabled(probe))
+    if (probe->xinput_ext == NULL || !probe->xinput_ext->present)
+        return;
+    if (!xinput_motion_trace_enabled(probe) && probe->axis_grab_count == 0)
+        return;
+    if (probe->xinput_motion_events_selected)
         return;
 
     struct {
@@ -1410,10 +1544,13 @@ static void select_xinput_motion_events(TriadX11Probe *probe)
         free(error);
         return;
     }
+    probe->xinput_motion_events_selected = 1;
     probe_log(
         probe,
-        "xinput motion events selected device=all-master mask=0x%08x",
-        selection.mask);
+        "xinput motion events selected device=all-master mask=0x%08x trace=%d axis_grabs=%u",
+        selection.mask,
+        xinput_motion_trace_enabled(probe),
+        probe->axis_grab_count);
 }
 
 static void query_xinput_devices(TriadX11Probe *probe)
@@ -1902,18 +2039,31 @@ static int log_xinput_event(TriadX11Probe *probe, xcb_generic_event_t *event)
 
     switch (generic->event_type) {
     case XCB_INPUT_MOTION: {
+        xcb_input_motion_event_t *ev = (xcb_input_motion_event_t *)event;
+        uint32_t *valuator_mask = xcb_input_button_press_valuator_mask(ev);
+        int valuator_mask_len = xcb_input_button_press_valuator_mask_length(ev);
+        xcb_input_fp3232_t *axis_values = xcb_input_button_press_axisvalues(ev);
+        int axis_values_len = xcb_input_button_press_axisvalues_length(ev);
+        process_xinput_scroll_values(
+            probe,
+            ev->deviceid,
+            ev->sourceid,
+            ev->mods.effective,
+            valuator_mask,
+            valuator_mask_len,
+            axis_values,
+            axis_values_len);
         if (!xinput_motion_trace_enabled(probe))
             return 1;
-        xcb_input_motion_event_t *ev = (xcb_input_motion_event_t *)event;
         char values[512];
         format_xinput_valuator_values(
             probe,
             ev->deviceid,
             ev->sourceid,
-            xcb_input_button_press_valuator_mask(ev),
-            xcb_input_button_press_valuator_mask_length(ev),
-            xcb_input_button_press_axisvalues(ev),
-            xcb_input_button_press_axisvalues_length(ev),
+            valuator_mask,
+            valuator_mask_len,
+            axis_values,
+            axis_values_len,
             values,
             sizeof(values));
         probe_log(
@@ -2702,6 +2852,7 @@ int triad_x11_configure_active_axis_grabs(
     }
     probe->axis_grabs = resolved;
     probe->axis_grab_count = resolved_count;
+    select_xinput_motion_events(probe);
     xcb_flush(probe->conn);
     probe_log(probe, "axis grabs configured count=%u requested=%u", resolved_count, count);
     return 0;

@@ -220,11 +220,11 @@ Unsupported configured commands outside that allowlist are rejected rather than
 run through the XLibre socket.
 Startup now also probes XKB and XInput2 capabilities, logging the server
 extension versions plus aggregate input device counts. `triad_xlibre
---trace-xinput-motion` additionally selects XI2 motion events and logs valuator
-axis numbers and values for hardware diagnostics, labeling values that match
-discovered vertical or horizontal scroll axes; normal sessions leave that motion
-stream disabled until high-resolution scroll dispatch is wired through
-configuration. Manage mode installs X11
+--trace-xinput-motion` additionally logs XI2 motion valuator axis numbers and
+values for hardware diagnostics, labeling values that match discovered vertical
+or horizontal scroll axes. Manage mode selects XI2 motion when configured
+`axis-bind` entries are active so scroll valuator deltas can dispatch through
+the same binding path as core wheel buttons. Manage mode installs X11
 passive key grabs for configured key bindings whose commands pass the current
 XLibre allowlist. Modifier parsing, configurable modifier aliases including
 physical `Mod2`/`Mod3`/`Mod5`, and binding-string formatting are centralized in
@@ -240,9 +240,12 @@ left, middle, right, and common extra mouse buttons such as back/forward.
 Bindings can also use exact `buttonN`/`btnN` core button details for
 device-specific buttons that do not have a semantic name. Core X11 wheel buttons
 4, 5, 6, and 7 are also translated into axis dispatch for supported `axis-bind`
-commands. Current core button events report one tick; the backend event path
-already carries bounded tick counts so later XI2 high-resolution scroll dispatch
-can report multiple ticks without changing the binding IPC contract.
+commands. Core button events report one tick; XI2 scroll valuator deltas are
+accumulated against each axis increment and can dispatch bounded multi-tick
+events. Positive vertical ticks map to `wheel-down`, negative vertical ticks map
+to `wheel-up`, positive horizontal ticks map to `wheel-right`, and negative
+horizontal ticks map to `wheel-left`, matching Triad's existing Wayland axis
+binding convention.
 Matching `KeyPress` and `ButtonPress` events are converted back into the same
 `dispatch-binding` path used by IPC, so real input and synthetic dispatch share
 command validation and execution. Interactive pointer bindings can also start
@@ -262,8 +265,9 @@ initial position in the floating window. Core `MappingNotify` and XKB
 new-keyboard, keymap, and state notifications invalidate the configured key,
 button, and axis grab signatures so the next manage tick rebuilds grabs against
 the server's current keyboard, modifier, group, and button state. This first
-input path is intentionally narrow: gesture bindings, high-resolution wheel
-deltas, and full per-layout keysym resolution still need follow-up work.
+input path is intentionally narrow: gesture bindings, XLibre natural-scroll and
+scroll-factor application, and full per-layout keysym resolution still need
+follow-up work.
 
 The next step is to expand runtime usability cautiously:
 
