@@ -130,8 +130,12 @@ proc projectionVisibilityRequestsFor(
       result.add(x11UnmapWindowRequest(windowId))
 
 proc shouldSyncProjectionVisibility(kind: MsgKind): bool =
-  kind in
-    {MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup}
+  kind in {
+    MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup,
+    MsgKind.CmdMoveToScratchpad, MsgKind.CmdMoveToNamedScratchpad,
+    MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
+    MsgKind.CmdRestoreScratchpad,
+  }
 
 proc hasFocusRequest(requests: openArray[X11Request], windowId: uint32): bool =
   for request in requests:

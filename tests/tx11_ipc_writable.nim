@@ -238,6 +238,36 @@ proc bindingModel(): Model =
           mode: BindingMode.BindAlways,
         ),
         KeyBindingConfig(
+          key: "s",
+          modifiers: 64'u32,
+          command: "move-to-scratchpad",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "s",
+          modifiers: 72'u32,
+          command: "toggle-scratchpad",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "s",
+          modifiers: 65'u32,
+          command: "restore-scratchpad",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "e",
+          modifiers: 68'u32,
+          command: "toggle-named-scratchpad terminal",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
+          key: "e",
+          modifiers: 69'u32,
+          command: "move-to-named-scratchpad terminal",
+          mode: BindingMode.BindAlways,
+        ),
+        KeyBindingConfig(
           key: "f",
           modifiers: 64'u32,
           command: "maximize-window-to-edges",
@@ -837,6 +867,64 @@ suite "X11 writable IPC":
     check parsed.bindingDispatch.command == "focus-next-in-group"
     check parsed.messages.len == 1
     check parsed.messages[0].kind == MsgKind.CmdFocusNextInGroup
+
+  test "binding dispatch resolves standard scratchpad key bindings":
+    let move = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+s"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let toggle = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Alt+s"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let restore = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Shift+s"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check move.handled
+    check move.bindingDispatch.ok
+    check move.bindingDispatch.command == "move-to-scratchpad"
+    check move.messages.len == 1
+    check move.messages[0].kind == MsgKind.CmdMoveToScratchpad
+    check toggle.handled
+    check toggle.bindingDispatch.ok
+    check toggle.bindingDispatch.command == "toggle-scratchpad"
+    check toggle.messages.len == 1
+    check toggle.messages[0].kind == MsgKind.CmdToggleScratchpad
+    check restore.handled
+    check restore.bindingDispatch.ok
+    check restore.bindingDispatch.command == "restore-scratchpad"
+    check restore.messages.len == 1
+    check restore.messages[0].kind == MsgKind.CmdRestoreScratchpad
+
+  test "binding dispatch resolves named scratchpad key bindings":
+    let toggle = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+e"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+    let move = xlibreWritableRequestFor(
+      """{"triad":{"version":1,"request":"dispatch-binding","kind":"key","binding":"Super+Ctrl+Shift+e"}}""",
+      bindingModel(),
+      x11Snapshot(),
+    )
+
+    check toggle.handled
+    check toggle.bindingDispatch.ok
+    check toggle.bindingDispatch.command == "toggle-named-scratchpad terminal"
+    check toggle.messages.len == 1
+    check toggle.messages[0].kind == MsgKind.CmdToggleNamedScratchpad
+    check toggle.messages[0].scratchpadName == "terminal"
+    check move.handled
+    check move.bindingDispatch.ok
+    check move.bindingDispatch.command == "move-to-named-scratchpad terminal"
+    check move.messages.len == 1
+    check move.messages[0].kind == MsgKind.CmdMoveToNamedScratchpad
+    check move.messages[0].scratchpadName == "terminal"
 
   test "binding dispatch resolves maximize-to-edges key binding":
     let parsed = xlibreWritableRequestFor(

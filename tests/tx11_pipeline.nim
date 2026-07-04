@@ -763,6 +763,95 @@ suite "X11 admission pipeline":
     check ungrouped.xcbRun.code == 0
     check ungrouped.xcbRun.dryRun
 
+  test "scratchpad command pipeline maps and unmaps active scratchpad":
+    var model = x11ModelWithMappedWindows([0x82'u32, 0x83'u32])
+
+    let moved = model.processCommandDryRun(Msg(kind: MsgKind.CmdMoveToScratchpad))
+
+    check moved.message.kind == MsgKind.CmdMoveToScratchpad
+    check moved.requests.anyIt(
+      it.kind == X11RequestKind.XrqUnmapWindow and it.windowId == 0x83
+    )
+    check not moved.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x83
+    )
+    check moved.requests.anyIt(
+      it.kind == X11RequestKind.XrqSetInputFocus and it.windowId == 0x82
+    )
+
+    let shown = model.processCommandDryRun(Msg(kind: MsgKind.CmdToggleScratchpad))
+    var mapIdx = -1
+    var focusIdx = -1
+    for idx, request in shown.requests:
+      if request.kind == X11RequestKind.XrqMapWindow and request.windowId == 0x83:
+        mapIdx = idx
+      if request.kind == X11RequestKind.XrqSetInputFocus and request.windowId == 0x83:
+        focusIdx = idx
+
+    check shown.message.kind == MsgKind.CmdToggleScratchpad
+    check shown.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x83
+    )
+    check mapIdx >= 0
+    check focusIdx >= 0
+    check mapIdx < focusIdx
+
+    let hidden = model.processCommandDryRun(Msg(kind: MsgKind.CmdToggleScratchpad))
+
+    check hidden.message.kind == MsgKind.CmdToggleScratchpad
+    check hidden.requests.anyIt(
+      it.kind == X11RequestKind.XrqUnmapWindow and it.windowId == 0x83
+    )
+
+  test "restore-scratchpad command pipeline remaps restored window":
+    var model = x11ModelWithMappedWindows([0x84'u32, 0x85'u32])
+    discard model.processCommandDryRun(Msg(kind: MsgKind.CmdMoveToScratchpad))
+
+    let restored = model.processCommandDryRun(Msg(kind: MsgKind.CmdRestoreScratchpad))
+    var mapIdx = -1
+    var focusIdx = -1
+    for idx, request in restored.requests:
+      if request.kind == X11RequestKind.XrqMapWindow and request.windowId == 0x85:
+        mapIdx = idx
+      if request.kind == X11RequestKind.XrqSetInputFocus and request.windowId == 0x85:
+        focusIdx = idx
+
+    check restored.message.kind == MsgKind.CmdRestoreScratchpad
+    check restored.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x85
+    )
+    check mapIdx >= 0
+    check focusIdx >= 0
+    check mapIdx < focusIdx
+    check restored.xcbRun.code == 0
+    check restored.xcbRun.dryRun
+
+  test "named scratchpad command pipeline maps named scratchpad on toggle":
+    var model = x11ModelWithMappedWindows([0x86'u32, 0x87'u32])
+
+    let moved = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdMoveToNamedScratchpad, scratchpadName: "terminal")
+    )
+
+    check moved.message.kind == MsgKind.CmdMoveToNamedScratchpad
+    check moved.message.scratchpadName == "terminal"
+    check moved.requests.anyIt(
+      it.kind == X11RequestKind.XrqUnmapWindow and it.windowId == 0x87
+    )
+
+    let shown = model.processCommandDryRun(
+      Msg(kind: MsgKind.CmdToggleNamedScratchpad, scratchpadName: "terminal")
+    )
+
+    check shown.message.kind == MsgKind.CmdToggleNamedScratchpad
+    check shown.message.scratchpadName == "terminal"
+    check shown.requests.anyIt(
+      it.kind == X11RequestKind.XrqMapWindow and it.windowId == 0x87
+    )
+    check shown.requests.anyIt(
+      it.kind == X11RequestKind.XrqConfigureWindow and it.windowId == 0x87
+    )
+
   test "minimize command pipeline hides and unmaps focused window":
     var model = x11Model()
     discard model.processEventDryRun(

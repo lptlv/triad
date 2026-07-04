@@ -231,7 +231,9 @@ proc xlibreCommandSupported(msg: Msg): bool =
       MsgKind.CmdAdjustMasterRatio, MsgKind.CmdAdjustGaps, MsgKind.CmdToggleGaps,
       MsgKind.CmdZoom, MsgKind.CmdConsumeWindow, MsgKind.CmdExpelWindow,
       MsgKind.CmdGroupWindows, MsgKind.CmdUngroupWindow, MsgKind.CmdFocusNextInGroup,
-      MsgKind.CmdSpawn, MsgKind.CmdSpawnTerminal:
+      MsgKind.CmdMoveToScratchpad, MsgKind.CmdMoveToNamedScratchpad,
+      MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
+      MsgKind.CmdRestoreScratchpad, MsgKind.CmdSpawn, MsgKind.CmdSpawnTerminal:
     true
   else:
     false
