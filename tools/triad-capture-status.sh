@@ -2,9 +2,9 @@
 set -eu
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Usage:
-  sh tools/triad-capture-status.sh [--watch|--once|--stdin] [--waybar|--text]
+  $prog [--watch|--once|--stdin] [--waybar|--text]
 
 Formats Triad River v5 capture-session IPC for shell bars.
 
@@ -27,6 +27,7 @@ fail() {
   exit 1
 }
 
+prog="$(basename "$0")"
 mode="watch"
 format="waybar"
 triad_bin="${TRIAD_BIN:-triad}"

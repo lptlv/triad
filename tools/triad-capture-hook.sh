@@ -2,9 +2,9 @@
 set -eu
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Usage:
-  sh tools/triad-capture-hook.sh [--notify|--text]
+  $prog [--notify|--text]
 
 Formats the TRIAD_CAPTURE_* environment passed to capture-session hooks.
 
@@ -27,6 +27,7 @@ fail() {
   exit 1
 }
 
+prog="$(basename "$0")"
 mode="notify"
 
 while [ "$#" -gt 0 ]; do
