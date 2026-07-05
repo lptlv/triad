@@ -67,9 +67,19 @@ format_line() {
       jq -c '
         def capture_sessions:
           .triad.capture_sessions? // .triad.state.capture_sessions? // empty;
+        def window_label:
+          (.app_id // "window") as $app
+          | (.title // "") as $title
+          | if $title == "" then $app else ($app + ": " + $title) end;
 
         capture_sessions as $capture
         | (($capture.window_total // 0) + ($capture.output_total // 0)) as $total
+        | (($capture.windows // [])
+            | map(select(.known // false) | window_label)
+            | if length > 0 then ("\n\nwindows:\n" + join("\n")) else "" end) as $windows
+        | (($capture.outputs // [])
+            | map(select(.known // false) | (.name // ("output " + (.id | tostring))))
+            | if length > 0 then ("\n\noutputs:\n" + join("\n")) else "" end) as $outputs
         | if ($capture.active // false) then
             {
               text: ("CAP " + ($total | tostring)),
@@ -79,7 +89,9 @@ format_line() {
                 ("Capture sessions active\nwindows: " +
                   (($capture.window_total // 0) | tostring) +
                   "\noutputs: " +
-                  (($capture.output_total // 0) | tostring))
+                  (($capture.output_total // 0) | tostring) +
+                  $windows +
+                  $outputs)
             }
           else
             {

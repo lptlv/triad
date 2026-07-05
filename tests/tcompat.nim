@@ -1,4 +1,4 @@
-import std/[json, options, os, sequtils, strtabs, strutils, unittest]
+import std/[json, options, os, sequtils, strtabs, strutils, tables, unittest]
 import ../src/core/app_identity
 import ../src/core/[layout_selection_codec, native_layout_codec, triad_state]
 import ../src/core/msg
@@ -892,6 +892,25 @@ suite "Shell compatibility contracts":
     let captureEvent = parseJson(captureTriad.initialEvents[0])["triad"]
     check captureEvent["event"].getStr() == "capture-sessions-changed"
     check captureEvent["capture_sessions"]["active"].getBool()
+
+    var windowCaptureSessions: Table[uint32, uint32]
+    var outputCaptureSessions: Table[uint32, uint32]
+    var captureSnapshot = snapshotForShell()
+    captureSnapshot.outputs[0].id = 1
+    windowCaptureSessions[10'u32] = 2'u32
+    windowCaptureSessions[99'u32] = 1'u32
+    outputCaptureSessions[1'u32] = 1'u32
+    let enrichedCaptureSessions = triadCaptureSessionsJson(
+      windowCaptureSessions, outputCaptureSessions, captureSnapshot
+    )
+    check enrichedCaptureSessions["windows"][0]["known"].getBool()
+    check enrichedCaptureSessions["windows"][0]["app_id"].getStr() == "Alacritty"
+    check enrichedCaptureSessions["windows"][0]["title"].getStr() == "Terminal"
+    check enrichedCaptureSessions["windows"][0]["workspace_idx"].getInt() == 1
+    check enrichedCaptureSessions["windows"][1]["id"].getInt() == 99
+    check not enrichedCaptureSessions["windows"][1]["known"].getBool()
+    check enrichedCaptureSessions["outputs"][0]["known"].getBool()
+    check enrichedCaptureSessions["outputs"][0]["name"].getStr() == "triad-0"
 
     let stateEvent = parseJson(
       triadStatePayloadWithCaptureSessions(

@@ -84,6 +84,12 @@ For just River v5 screencopy activity counts, ask for `captures`:
 {"triad":{"version":1,"request":"captures"}}
 ```
 
+The `capture_sessions` object is stable and additive. It always includes
+`active`, `window_total`, `output_total`, `windows`, and `outputs`. Window and
+output entries always include `id`, `count`, and `known`; when `known` is true,
+window entries also include app/title/workspace/output metadata and output
+entries include name, geometry, scale, transform, and primary status.
+
 For a shell-bar friendly consumer, use:
 ```bash
 sh tools/triad-capture-status.sh --watch --waybar

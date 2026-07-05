@@ -125,6 +125,10 @@ Or use the bundled Waybar/custom-bar formatter:
 sh tools/triad-capture-status.sh --watch --waybar
 ```
 
+`capture_sessions.windows` always carries `id`, `count`, and `known`. When the
+window is still known to Triad, the entry also includes app id, title,
+workspace, tag, output name, and common window state flags.
+
 Waybar custom module:
 
 ```json

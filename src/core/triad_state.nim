@@ -430,21 +430,97 @@ proc captureCountArray(table: Table[uint32, uint32]): JsonNode =
   for id in table.sortedKeys():
     result.add(%*{"id": id, "count": table[id]})
 
+proc captureWindowJson(table: Table[uint32, uint32], id: uint32): JsonNode =
+  result = %*{"id": id, "count": table[id], "known": false}
+
+proc captureWindowJson(
+    table: Table[uint32, uint32], snapshot: ShellSnapshot, id: uint32
+): JsonNode =
+  result = captureWindowJson(table, id)
+  for win in snapshot.windows:
+    if win.id != id:
+      continue
+    result["known"] = %true
+    result["app_id"] = %win.appId
+    result["title"] = %win.title
+    result["identifier"] = %win.identifier
+    result["workspace_idx"] = %win.workspaceIdx
+    result["tag_id"] =
+      if win.tagId.isSome:
+        %win.tagId.get()
+      else:
+        newJNull()
+    result["output_name"] = %win.outputName
+    result["is_focused"] = %win.isFocused
+    result["is_floating"] = %win.isFloating
+    result["is_fullscreen"] = %win.isFullscreen
+    result["is_minimized"] = %win.isMinimized
+    return
+
+proc captureOutputJson(table: Table[uint32, uint32], id: uint32): JsonNode =
+  result = %*{"id": id, "count": table[id], "known": false}
+
+proc captureOutputJson(
+    table: Table[uint32, uint32], snapshot: ShellSnapshot, id: uint32
+): JsonNode =
+  result = captureOutputJson(table, id)
+  for output in snapshot.outputs:
+    if output.id != id:
+      continue
+    result["known"] = %true
+    result["name"] = %output.name
+    result["x"] = %output.x
+    result["y"] = %output.y
+    result["width"] = %output.w
+    result["height"] = %output.h
+    result["scale"] = %output.scale
+    result["transform"] = %output.transform
+    result["is_primary"] = %output.isPrimary
+    return
+
+proc captureWindowArray(
+    table: Table[uint32, uint32], snapshot: ShellSnapshot
+): JsonNode =
+  result = newJArray()
+  for id in table.sortedKeys():
+    result.add(captureWindowJson(table, snapshot, id))
+
+proc captureOutputArray(
+    table: Table[uint32, uint32], snapshot: ShellSnapshot
+): JsonNode =
+  result = newJArray()
+  for id in table.sortedKeys():
+    result.add(captureOutputJson(table, snapshot, id))
+
+proc captureTotal(table: Table[uint32, uint32]): uint32 =
+  for count in table.values:
+    result += count
+
 proc triadCaptureSessionsJson*(
     windowCaptureSessions, outputCaptureSessions: Table[uint32, uint32]
 ): JsonNode =
-  var windowTotal = 0'u32
-  var outputTotal = 0'u32
-  for count in windowCaptureSessions.values:
-    windowTotal += count
-  for count in outputCaptureSessions.values:
-    outputTotal += count
+  let windowTotal = windowCaptureSessions.captureTotal()
+  let outputTotal = outputCaptureSessions.captureTotal()
   %*{
     "active": windowTotal > 0 or outputTotal > 0,
     "window_total": windowTotal,
     "output_total": outputTotal,
     "windows": windowCaptureSessions.captureCountArray(),
     "outputs": outputCaptureSessions.captureCountArray(),
+  }
+
+proc triadCaptureSessionsJson*(
+    windowCaptureSessions, outputCaptureSessions: Table[uint32, uint32],
+    snapshot: ShellSnapshot,
+): JsonNode =
+  let windowTotal = windowCaptureSessions.captureTotal()
+  let outputTotal = outputCaptureSessions.captureTotal()
+  %*{
+    "active": windowTotal > 0 or outputTotal > 0,
+    "window_total": windowTotal,
+    "output_total": outputTotal,
+    "windows": windowCaptureSessions.captureWindowArray(snapshot),
+    "outputs": outputCaptureSessions.captureOutputArray(snapshot),
   }
 
 proc emptyTriadCaptureSessionsJson*(): JsonNode =
