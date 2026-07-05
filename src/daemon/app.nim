@@ -15,11 +15,11 @@ import ../janet/runtime as janet_runtime
 import ../types/janet_layouts
 import ../utils/[behavior_log, event_poll, runtime_log, session_env, wayland_runtime]
 import
-  bindings_runtime, child_process_runtime, effects_runtime, input_runtime,
-  ipc_broadcast_runtime, janet_script_runtime, live_restore_runtime, manage_requests,
-  message_queue, memory_status, output_management_runtime, process_runner,
-  protocol_diagnostics, shell_runner, registry_runtime, reload_runtime, render_runtime,
-  render_invalidation, spawn_context, state, switch_event_runtime
+  bindings_runtime, capture_sessions_runtime, child_process_runtime, effects_runtime,
+  input_runtime, ipc_broadcast_runtime, janet_script_runtime, live_restore_runtime,
+  manage_requests, message_queue, memory_status, output_management_runtime,
+  process_runner, protocol_diagnostics, shell_runner, registry_runtime, reload_runtime,
+  render_runtime, render_invalidation, spawn_context, state, switch_event_runtime
 from ../types/runtime_values import Direction, nil, PointerOpKind
 import
   std/[
@@ -558,6 +558,7 @@ proc perfStatusJson(daemon: TriadDaemon): string =
           "triad_state_only": triadScopes.stateOnly,
           "triad_layout_and_state": triadScopes.layoutAndState,
           "triad_window": triadScopes.window,
+          "triad_capture": triadScopes.capture,
           "total": subscribers.len + triadSubscribers.len,
         },
       }
@@ -601,6 +602,7 @@ proc perfStatusJson(daemon: TriadDaemon): string =
         "triad_state_only": triadScopes.stateOnly,
         "triad_layout_and_state": triadScopes.layoutAndState,
         "triad_window": triadScopes.window,
+        "triad_capture": triadScopes.capture,
         "total": subscribers.len + triadSubscribers.len,
       },
       "recent_delta": recentDelta,
@@ -944,10 +946,14 @@ proc main*() =
       var nativeEvents: seq[string]
       if args.len > 2:
         if args[2] != "--native":
-          failCli("usage: triad msg event-stream [--native [layout,state,window]]")
+          failCli(
+            "usage: triad msg event-stream [--native [layout,state,window,capture]]"
+          )
         native = true
         if args.len > 4:
-          failCli("usage: triad msg event-stream [--native [layout,state,window]]")
+          failCli(
+            "usage: triad msg event-stream [--native [layout,state,window,capture]]"
+          )
         if args.len == 4:
           nativeEvents = args[3].split(',')
       # Subscription client
@@ -1129,6 +1135,10 @@ proc main*() =
     {.cast(gcsafe).}:
       daemon.memoryStatusJson()
 
+  proc snapshotCaptureSessionsJson(): JsonNode {.gcsafe.} =
+    {.cast(gcsafe).}:
+      daemon.captureSessionsJson()
+
   proc dispatchBindingJson(request: BindingDispatchRequest): string {.gcsafe.} =
     {.cast(gcsafe).}:
       daemon.dispatchBindingRequest(request).bindingDispatchReply()
@@ -1176,6 +1186,7 @@ proc main*() =
       snapshotLiveRestoreJson,
       snapshotPerfStatusJson,
       snapshotMemStatusJson,
+      snapshotCaptureSessionsJson,
       dispatchBindingJson,
       listenReady = triadListenReady,
     )
@@ -1192,6 +1203,7 @@ proc main*() =
         snapshotLiveRestoreJson,
         snapshotPerfStatusJson,
         snapshotMemStatusJson,
+        snapshotCaptureSessionsJson,
         dispatchBindingJson,
         listenReady = niriListenReady,
         requestTimeoutMs = IpcNoRequestTimeoutMs,

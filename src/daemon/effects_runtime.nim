@@ -11,10 +11,10 @@ from ../types/core import OutputId
 import ../types/projection_values
 import ../utils/behavior_log
 import
-  child_process_runtime, idle_inhibit_runtime, ipc_broadcast_runtime,
-  live_restore_runtime, manage_requests, output_management_runtime, process_runner,
-  protocol_surface_runtime, shell_runner, render_runtime, screenshot_runner,
-  spawn_context, state, render_invalidation
+  capture_sessions_runtime, child_process_runtime, idle_inhibit_runtime,
+  ipc_broadcast_runtime, live_restore_runtime, manage_requests,
+  output_management_runtime, process_runner, protocol_surface_runtime, shell_runner,
+  render_runtime, screenshot_runner, spawn_context, state, render_invalidation
 
 proc executeWindowChangedBroadcast(daemon: var TriadDaemon, eff: Effect) =
   let winId = eff.broadcastWindowId
@@ -187,7 +187,14 @@ proc executeEffect*(daemon: var TriadDaemon, eff: Effect) =
   of EffectKind.EffBroadcastJson:
     daemon.enqueueNiriBroadcast(eff.jsonPayload)
   of EffectKind.EffBroadcastTriadJson:
-    daemon.enqueueTriadBroadcast(eff.jsonPayload, eff.triadEventName)
+    let payload =
+      if eff.triadEventName == "state":
+        triadStatePayloadWithCaptureSessions(
+          eff.jsonPayload, daemon.captureSessionsJson()
+        )
+      else:
+        eff.jsonPayload
+    daemon.enqueueTriadBroadcast(payload, eff.triadEventName)
   of EffectKind.EffBroadcastWindowChanged:
     daemon.executeWindowChangedBroadcast(eff)
   of EffectKind.EffSpawnScreenLock:

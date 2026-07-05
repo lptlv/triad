@@ -1,4 +1,4 @@
-import std/[json, options]
+import std/[algorithm, json, options, tables]
 import layout_descriptor_codec
 import layout_mode_codec
 import layout_selection_codec
@@ -420,6 +420,48 @@ proc triadOverviewJson*(snapshot: ShellSnapshot): JsonNode =
 proc triadKeyboardLayoutsJson*(snapshot: ShellSnapshot): JsonNode =
   %*{"names": snapshot.keyboardLayoutNames, "current_idx": snapshot.keyboardLayoutIndex}
 
+proc sortedKeys(table: Table[uint32, uint32]): seq[uint32] =
+  for key in table.keys:
+    result.add(key)
+  result.sort()
+
+proc captureCountArray(table: Table[uint32, uint32]): JsonNode =
+  result = newJArray()
+  for id in table.sortedKeys():
+    result.add(%*{"id": id, "count": table[id]})
+
+proc triadCaptureSessionsJson*(
+    windowCaptureSessions, outputCaptureSessions: Table[uint32, uint32]
+): JsonNode =
+  var windowTotal = 0'u32
+  var outputTotal = 0'u32
+  for count in windowCaptureSessions.values:
+    windowTotal += count
+  for count in outputCaptureSessions.values:
+    outputTotal += count
+  %*{
+    "active": windowTotal > 0 or outputTotal > 0,
+    "window_total": windowTotal,
+    "output_total": outputTotal,
+    "windows": windowCaptureSessions.captureCountArray(),
+    "outputs": outputCaptureSessions.captureCountArray(),
+  }
+
+proc emptyTriadCaptureSessionsJson*(): JsonNode =
+  %*{
+    "active": false,
+    "window_total": 0,
+    "output_total": 0,
+    "windows": newJArray(),
+    "outputs": newJArray(),
+  }
+
+proc captureSessionsOrEmpty*(captureSessions: JsonNode): JsonNode =
+  if captureSessions == nil:
+    emptyTriadCaptureSessionsJson()
+  else:
+    captureSessions
+
 proc triadCapabilitiesJson*(): JsonNode =
   %*{
     "event_stream": true,
@@ -435,10 +477,13 @@ proc triadCapabilitiesJson*(): JsonNode =
     "keyboard_layout": true,
     "output_metadata": true,
     "monitor_power": true,
+    "capture_sessions": true,
     "workspace_urgency": false,
   }
 
-proc triadStateJson*(snapshot: ShellSnapshot): JsonNode =
+proc triadStateJson*(
+    snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+): JsonNode =
   let keyboardLayouts = triadKeyboardLayoutsJson(snapshot)
 
   %*{
@@ -450,6 +495,7 @@ proc triadStateJson*(snapshot: ShellSnapshot): JsonNode =
     "current_keyboard_layout_idx": keyboardLayouts["current_idx"],
     "outputs": triadOutputsJson(snapshot),
     "windows": triadWindowsJson(snapshot),
+    "capture_sessions": captureSessions.captureSessionsOrEmpty(),
   }
 
 proc triadLayoutStateChangedEvent*(snapshot: ShellSnapshot): string =
@@ -463,13 +509,15 @@ proc triadLayoutStateChangedEvent*(snapshot: ShellSnapshot): string =
     }
   )
 
-proc triadStateChangedEvent*(snapshot: ShellSnapshot): string =
+proc triadStateChangedEvent*(
+    snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+): string =
   $(
     %*{
       "triad": {
         "version": TriadIpcVersion,
         "event": "state-changed",
-        "state": triadStateJson(snapshot),
+        "state": triadStateJson(snapshot, captureSessions),
       }
     }
   )
@@ -484,3 +532,32 @@ proc triadWindowChangedEvent*(win: ShellWindow): string =
       }
     }
   )
+
+proc triadCaptureSessionsChangedEvent*(captureSessions: JsonNode): string =
+  $(
+    %*{
+      "triad": {
+        "version": TriadIpcVersion,
+        "event": "capture-sessions-changed",
+        "capture_sessions": captureSessions.captureSessionsOrEmpty(),
+      }
+    }
+  )
+
+proc triadStatePayloadWithCaptureSessions*(
+    payload: string, captureSessions: JsonNode
+): string =
+  try:
+    let root = parseJson(payload)
+    if root.kind != JObject or not root.hasKey("triad"):
+      return payload
+    let triad = root["triad"]
+    if triad.kind != JObject or not triad.hasKey("state"):
+      return payload
+    let state = triad["state"]
+    if state.kind != JObject:
+      return payload
+    state["capture_sessions"] = captureSessions.captureSessionsOrEmpty()
+    $root
+  except CatchableError:
+    payload

@@ -5,7 +5,7 @@ import protocols/river/client as river
 import protocols/river_layer_shell/client as riverLayer
 import wayland/protocols/wayland/client as wlCore
 import ../core/msg
-import message_queue, state, wayland_helpers
+import capture_sessions_runtime, message_queue, state, wayland_helpers
 
 proc callbackDaemon(data: pointer, context: string): ptr TriadDaemon =
   result = daemonFromData(data)
@@ -35,7 +35,10 @@ proc onOutputRemoved(data: pointer, output: ptr RiverOutputV1) =
     return
   let id = output.id()
   info "Output removed", outputId = id
+  let hadCaptureSessions = daemon.outputCaptureSessions.hasKey(id)
   daemon[].clearOutputCaptureSessions(id)
+  if hadCaptureSessions:
+    daemon[].broadcastCaptureSessionsChanged()
   if daemon.layerOutputPointers.hasKey(id):
     let layerOutput = daemon.layerOutputPointers[id]
     daemon.layerOutputOwners.del(layerOutput.id())
@@ -271,6 +274,7 @@ proc onOutputCaptureSessions(data: pointer, output: ptr RiverOutputV1, count: ui
   let id = output.id()
   trace "Output capture sessions changed", outputId = id, count = count
   daemon[].setOutputCaptureSessions(id, count)
+  daemon[].broadcastCaptureSessionsChanged()
 
 var riverOutputListener* = RiverOutputV1Listener(
   removed: onOutputRemoved,

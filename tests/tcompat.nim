@@ -1,6 +1,6 @@
 import std/[json, options, os, sequtils, strtabs, strutils, unittest]
 import ../src/core/app_identity
-import ../src/core/[layout_selection_codec, native_layout_codec]
+import ../src/core/[layout_selection_codec, native_layout_codec, triad_state]
 import ../src/core/msg
 import ../src/daemon/shell_runner
 import
@@ -111,8 +111,10 @@ proc snapshotForShell(): ShellSnapshot =
 proc handleNiriRequest(line: string, snapshot: ShellSnapshot): NiriIpcResult =
   niri_compat.handleNiriRequest(line, snapshot)
 
-proc handleTriadRequest(line: string, snapshot: ShellSnapshot): TriadIpcResult =
-  triad_native.handleTriadRequest(line, snapshot)
+proc handleTriadRequest(
+    line: string, snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+): TriadIpcResult =
+  triad_native.handleTriadRequest(line, snapshot, captureSessions)
 
 proc handleTriadAction(action: string, payload: JsonNode): TriadIpcResult =
   var actionPayload =
@@ -558,14 +560,25 @@ suite "Shell compatibility contracts":
         ),
       ]
 
-    let stateReply =
-      handleTriadRequest("""{"triad":{"version":1,"request":"state"}}""", snapshot)
+    let captureSessions =
+      %*{
+        "active": true,
+        "window_total": 2,
+        "output_total": 1,
+        "windows": [{"id": 10, "count": 2}],
+        "outputs": [{"id": 1, "count": 1}],
+      }
+
+    let stateReply = handleTriadRequest(
+      """{"triad":{"version":1,"request":"state"}}""", snapshot, captureSessions
+    )
     check stateReply.handled
     let state = parseJson(stateReply.reply)["triad"]["state"]
     check state["capabilities"]["overview"].getBool()
     check state["capabilities"]["workspace_content_scroll"].getBool()
     check state["capabilities"]["keyboard_layout"].getBool()
     check state["capabilities"]["monitor_power"].getBool()
+    check state["capabilities"]["capture_sessions"].getBool()
     check state["overview"]["is_open"].getBool()
     check state["layout"]["active_tag"].getInt() == 1
     check state["outputs"][0]["name"].getStr() == "triad-0"
@@ -573,6 +586,17 @@ suite "Shell compatibility contracts":
     check state["outputs"][0]["transform"].getStr() == "90"
     check state["windows"][0]["workspace_idx"].getInt() == 1
     check state["windows"][0]["parent_id"].getInt() == 9
+    check state["capture_sessions"]["active"].getBool()
+    check state["capture_sessions"]["window_total"].getInt() == 2
+    check state["capture_sessions"]["windows"][0]["id"].getInt() == 10
+
+    let capturesReply = handleTriadRequest(
+      """{"triad":{"version":1,"request":"captures"}}""", snapshot, captureSessions
+    )
+    let captures = parseJson(capturesReply.reply)["triad"]
+    check captures["type"].getStr() == "captures"
+    check captures["capture_sessions"]["output_total"].getInt() == 1
+    check captures["capture_sessions"]["outputs"][0]["id"].getInt() == 1
 
     let workspacesReply =
       handleTriadRequest("""{"triad":{"version":1,"request":"workspaces"}}""", snapshot)
@@ -620,6 +644,7 @@ suite "Shell compatibility contracts":
     check capabilities["output_metadata"].getBool()
     check capabilities["keyboard_layout"].getBool()
     check capabilities["monitor_power"].getBool()
+    check capabilities["capture_sessions"].getBool()
 
     let setLayout = handleTriadRequest(
       """{"triad":{"version":1,"request":"set-layout","layout":"deck","target":{"workspace_idx":2}}}""",
@@ -665,6 +690,9 @@ suite "Shell compatibility contracts":
       it["name"].getStr() == "capabilities"
     )
     check catalog["special_requests"].getElems().anyIt(
+      it["name"].getStr() == "captures"
+    )
+    check catalog["special_requests"].getElems().anyIt(
       it["name"].getStr() == "workspaces"
     )
 
@@ -700,6 +728,7 @@ suite "Shell compatibility contracts":
     check help.contains("focus-next")
     check help.contains("triad msg state")
     check help.contains("triad msg capabilities")
+    check help.contains("triad msg captures")
     check help.contains("triad msg workspaces")
     check help.contains("triad msg dispatch-binding")
     check help.contains("triad msg mem-status")
@@ -741,6 +770,9 @@ suite "Shell compatibility contracts":
         it["usage"].getStr() == "triad msg capabilities"
     )
     check catalog["special_requests"].getElems().anyIt(
+      it["name"].getStr() == "captures" and it["usage"].getStr() == "triad msg captures"
+    )
+    check catalog["special_requests"].getElems().anyIt(
       it["name"].getStr() == "workspaces" and
         it["usage"].getStr() == "triad msg workspaces"
     )
@@ -751,6 +783,7 @@ suite "Shell compatibility contracts":
 
     check triadMsgRequestPayload("state").isSome
     check triadMsgRequestPayload("capabilities").isSome
+    check triadMsgRequestPayload("captures").isSome
     check triadMsgRequestPayload("workspaces").isSome
     check triadMsgRequestPayload("outputs").isSome
     check triadMsgRequestPayload("windows").isSome
@@ -769,6 +802,8 @@ suite "Shell compatibility contracts":
     check stream["triad"]["events"][0].getStr() == "layout"
     let windowStream = parseJson(nativeEventStreamPayload(@["window"]))
     check windowStream["triad"]["events"][0].getStr() == "window"
+    let captureStream = parseJson(nativeEventStreamPayload(@["capture"]))
+    check captureStream["triad"]["events"][0].getStr() == "capture"
 
     let docs =
       readFile("docs/ipc.md") & "\n" & readFile("docs/comp/config-command-matrix.md")
@@ -835,7 +870,42 @@ suite "Shell compatibility contracts":
     check windowTriad.subscribeWindow
     check not windowTriad.subscribeLayout
     check not windowTriad.subscribeState
+    check not windowTriad.subscribeCapture
     check windowTriad.initialEvents.len == 0
+
+    let captureTriad = handleTriadRequest(
+      """{"triad":{"version":1,"request":"event-stream","events":["capture"]}}""",
+      snapshotForShell(),
+      %*{
+        "active": true,
+        "window_total": 1,
+        "output_total": 0,
+        "windows": [{"id": 10, "count": 1}],
+        "outputs": [],
+      },
+    )
+    check captureTriad.subscribeCapture
+    check not captureTriad.subscribeLayout
+    check not captureTriad.subscribeState
+    check not captureTriad.subscribeWindow
+    check captureTriad.initialEvents.len == 1
+    let captureEvent = parseJson(captureTriad.initialEvents[0])["triad"]
+    check captureEvent["event"].getStr() == "capture-sessions-changed"
+    check captureEvent["capture_sessions"]["active"].getBool()
+
+    let stateEvent = parseJson(
+      triadStatePayloadWithCaptureSessions(
+        triadStateChangedEvent(snapshotForShell()),
+        %*{
+          "active": true,
+          "window_total": 1,
+          "output_total": 0,
+          "windows": [{"id": 10, "count": 1}],
+          "outputs": [],
+        },
+      )
+    )["triad"]
+    check stateEvent["state"]["capture_sessions"]["active"].getBool()
 
   test "native state exposes urgency capability and stable workspace urgency":
     let capabilitiesReply = handleTriadRequest(

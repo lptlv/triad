@@ -17,6 +17,7 @@ type
     layout*: bool
     state*: bool
     window*: bool
+    capture*: bool
 
   IpcPerfCounters* = object
     requests*: uint64
@@ -209,13 +210,15 @@ proc canSubscribeTriad(): bool =
   triadSubscribers.len < MaxIpcSubscribers
 
 proc triadSubscriberScopeCounts*(): tuple[
-  layoutOnly: int, stateOnly: int, layoutAndState: int, window: int
+  layoutOnly: int, stateOnly: int, layoutAndState: int, window: int, capture: int
 ] =
   for subscriber in triadSubscribers:
     if subscriber.client == nil or subscriber.client.isClosed:
       continue
     if subscriber.window:
       inc result.window
+    if subscriber.capture:
+      inc result.capture
     if subscriber.layout and subscriber.state:
       inc result.layoutAndState
     elif subscriber.layout:
@@ -232,6 +235,8 @@ proc triadSubscriberInterested*(eventName: string): bool =
     if eventName == "state" and subscriber.state:
       return true
     if eventName == "window" and subscriber.window:
+      return true
+    if eventName == "capture" and subscriber.capture:
       return true
   false
 
@@ -358,6 +363,7 @@ proc startIpcServer*(
     getLiveRestoreJson: proc(): string {.gcsafe.} = nil,
     getPerfStatusJson: proc(): string {.gcsafe.} = nil,
     getMemStatusJson: proc(): string {.gcsafe.} = nil,
+    getCaptureSessionsJson: proc(): JsonNode {.gcsafe.} = nil,
     dispatchBinding: proc(request: BindingDispatchRequest): string {.gcsafe.} = nil,
     listenReady: Future[bool] = nil,
     requestTimeoutMs = IpcRequestTimeoutMs,
@@ -452,12 +458,17 @@ proc startIpcServer*(
                   break
 
                 let snapshot = getSnapshot()
-                let triad = handleTriadRequest(line, snapshot)
+                let captureSessions =
+                  if getCaptureSessionsJson == nil:
+                    nil
+                  else:
+                    getCaptureSessionsJson()
+                let triad = handleTriadRequest(line, snapshot, captureSessions)
                 if triad.handled:
                   inc ipcPerfCounters.triadRequests
                   if (
                     triad.subscribeLayout or triad.subscribeState or
-                    triad.subscribeWindow
+                    triad.subscribeWindow or triad.subscribeCapture
                   ) and not canSubscribeTriad():
                     await client.send(
                       """{"ok":false,"error":"too many event-stream subscribers"}""" &
@@ -482,13 +493,14 @@ proc startIpcServer*(
                   for event in triad.initialEvents:
                     await client.send(event & "\L")
                   if triad.subscribeLayout or triad.subscribeState or
-                      triad.subscribeWindow:
+                      triad.subscribeWindow or triad.subscribeCapture:
                     triadSubscribers.add(
                       TriadSubscriber(
                         client: client,
                         layout: triad.subscribeLayout,
                         state: triad.subscribeState,
                         window: triad.subscribeWindow,
+                        capture: triad.subscribeCapture,
                       )
                     )
                     asyncCheck watchSubscriberDisconnect(client, triad = true)
@@ -809,7 +821,8 @@ proc broadcastTriadJson*(payload: string, eventName: string) {.async.} =
       removeTriadSubscriber(client)
     elif (eventName == "layout" and not subscriber.layout) or
         (eventName == "state" and not subscriber.state) or
-        (eventName == "window" and not subscriber.window):
+        (eventName == "window" and not subscriber.window) or
+        (eventName == "capture" and not subscriber.capture):
       discard
     else:
       try:

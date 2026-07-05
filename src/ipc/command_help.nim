@@ -44,6 +44,11 @@ const SpecialMsgCommands* = [
     description: "Print native Triad IPC feature capabilities JSON.",
   ),
   SpecialMsgCommand(
+    name: "captures",
+    usage: "triad msg captures",
+    description: "Print native Triad capture-session state JSON.",
+  ),
+  SpecialMsgCommand(
     name: "workspaces",
     usage: "triad msg workspaces",
     description: "Print native Triad workspace state JSON.",
@@ -86,7 +91,7 @@ const SpecialMsgCommands* = [
   ),
   SpecialMsgCommand(
     name: "event-stream",
-    usage: "triad msg event-stream [--native [layout,state,window]]",
+    usage: "triad msg event-stream [--native [layout,state,window,capture]]",
     description:
       "Subscribe to Niri-compatible events, or native Triad events with --native.",
   ),
@@ -215,11 +220,12 @@ proc specialCommand*(name: string): Option[SpecialMsgCommand] =
   none(SpecialMsgCommand)
 
 proc commandSpecJson*(spec: CommandSpec): JsonNode =
-  result = %*{
-    "name": spec.name,
-    "usage": spec.commandUsage(),
-    "arg_shape": spec.argShape.argShapeId(),
-  }
+  result =
+    %*{
+      "name": spec.name,
+      "usage": spec.commandUsage(),
+      "arg_shape": spec.argShape.argShapeId(),
+    }
   let aliases = newJArray()
   for alias in spec.aliasesSeq():
     aliases.add(%alias)
@@ -272,7 +278,8 @@ proc renderMsgHelp*(name = ""): string =
       return
     return "Unknown triad msg command: " & name & "\n"
 
-  result = """
+  result =
+    """
 Usage:
   triad msg <command> [arguments]
   triad msg help [command]
@@ -284,11 +291,12 @@ Usage:
 Useful request commands:
   triad msg state
   triad msg capabilities
+  triad msg captures
   triad msg layout-state
   triad msg perf-status
   triad msg mem-status
   triad msg dev-mode [on|off|toggle|status]
-  triad msg event-stream [--native [layout,state,window]]
+  triad msg event-stream [--native [layout,state,window,capture]]
 
 """
   result.add(renderCommandList())
@@ -333,6 +341,8 @@ proc triadMsgRequestPayload*(cmd: string): Option[string] =
     some(triadRequestPayload("state"))
   of "capabilities":
     some(triadRequestPayload("capabilities"))
+  of "captures":
+    some(triadRequestPayload("captures"))
   of "workspaces":
     some(triadRequestPayload("workspaces"))
   of "outputs":

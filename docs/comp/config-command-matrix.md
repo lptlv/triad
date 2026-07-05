@@ -45,7 +45,7 @@ protocol-dependent or tracked in the feature matrix below.
 | Config lifecycle | Default config file | `~/.config/mango/config.conf` | `$XDG_CONFIG_HOME/river/init` or `~/.config/river/init` | `$XDG_CONFIG_HOME/triad/config.kdl` | X | Triad creates a fallback config when missing. |
 | Config lifecycle | Custom config on launch | `mango -c` | `river -c` shell command | `TRIAD_CONFIG`, `triad --config`, `triad -c` | X | Triad can start from a non-default root config path. |
 | Config lifecycle | Config validation | `mango -c ... -p` | | `triad validate-config` | X | Validates KDL syntax, includes, unknown and malformed fields inside known blocks, strict output-rule shapes, unsupported output fields, strict window-rule regex checks, and configured Janet script/layout registration without starting the daemon. |
-| IPC | Native state queries | | Shell/WM IPC | `triad msg state`, `capabilities`, `workspaces`, `outputs`, `windows`, `focused-window`, `overview-state`, `keyboard-layouts` | X | Returns native Triad shell snapshot projections and feature capabilities, including workspace content-scroll, monitor-power, and workspace-urgency support flags, without going through the temporary Niri compatibility bridge. Native event streams support state, layout, and window change events. |
+| IPC | Native state queries | | Shell/WM IPC | `triad msg state`, `capabilities`, `captures`, `workspaces`, `outputs`, `windows`, `focused-window`, `overview-state`, `keyboard-layouts` | X | Returns native Triad shell snapshot projections and feature capabilities, including workspace content-scroll, monitor-power, capture-session, and workspace-urgency support flags, without going through the temporary Niri compatibility bridge. Native event streams support state, layout, window, and capture-session change events. |
 | Config lifecycle | Config includes | `source`, `source-optional` | Shell script can source files | `include`, `include optional=#true` | X | Includes expand in place, resolve relative to the parent file, reject recursion, and participate in hot reload after a successful load. |
 | Config lifecycle | Hot reload | `reload_config`, `exec` | WM process policy | `config-reload`, `triad-reload` | X | Triad reloads config in-process; full Triad reload snapshots state and restarts through the session manager path. |
 | Config lifecycle | Reload notifications | | Shell/WM policy | `config-notification` | X | Optional commands run on config reload success, failure, or rollback. |
@@ -483,6 +483,7 @@ Native JSON IPC requests:
 
 - `state`
 - `capabilities`
+- `captures`
 - `commands` (`triad msg commands --json` prints the same catalog locally)
 - `layout-state` (`triad msg layout-state` prints this reply)
 - `set-layout`
@@ -511,7 +512,7 @@ CLI and environment:
   active daemon was already in dev mode.
 - `triad msg dev-mode [on|off|toggle|status]` changes or reports the live
   daemon diagnostics mode without restarting the session.
-- `triad msg state`, `triad msg capabilities`, and `triad msg layout-state`
+- `triad msg state`, `triad msg capabilities`, `triad msg captures`, and `triad msg layout-state`
   print native Triad JSON snapshots for development and shell integrations.
 - `triad msg request <json>` sends one raw native or compatibility IPC request
   and prints the reply.

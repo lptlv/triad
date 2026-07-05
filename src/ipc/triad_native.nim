@@ -15,6 +15,7 @@ type TriadIpcResult* = object
   subscribeLayout*: bool
   subscribeState*: bool
   subscribeWindow*: bool
+  subscribeCapture*: bool
   reply*: string
   initialEvents*: seq[string]
   messages*: seq[Msg]
@@ -66,7 +67,7 @@ proc hasUnsupportedEvent(node: JsonNode): bool =
   for event in events:
     if event.kind != JString:
       return true
-    if event.getStr() notin ["layout", "state", "window"]:
+    if event.getStr() notin ["layout", "state", "window", "capture"]:
       return true
   false
 
@@ -414,7 +415,9 @@ proc targetTagFromPayload(
 
   (false, 0'u32, "target must contain tag or workspace_idx")
 
-proc handleTriadRequest*(line: string, snapshot: ShellSnapshot): TriadIpcResult =
+proc handleTriadRequest*(
+    line: string, snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+): TriadIpcResult =
   result.handled = false
   let stripped = line.strip()
   if stripped.len == 0 or stripped[0] != '{':
@@ -444,7 +447,19 @@ proc handleTriadRequest*(line: string, snapshot: ShellSnapshot): TriadIpcResult 
   case request
   of "state":
     result.reply = okReply(
-      %*{"version": TriadIpcVersion, "type": "state", "state": triadStateJson(snapshot)}
+      %*{
+        "version": TriadIpcVersion,
+        "type": "state",
+        "state": triadStateJson(snapshot, captureSessions),
+      }
+    )
+  of "captures":
+    result.reply = okReply(
+      %*{
+        "version": TriadIpcVersion,
+        "type": "captures",
+        "capture_sessions": captureSessions.captureSessionsOrEmpty(),
+      }
     )
   of "capabilities":
     result.reply = okReply(
@@ -557,18 +572,21 @@ proc handleTriadRequest*(line: string, snapshot: ShellSnapshot): TriadIpcResult 
   of "event-stream":
     if payload.hasUnsupportedEvent() or (
       not payload.hasEvent("layout") and not payload.hasEvent("state") and
-      not payload.hasEvent("window")
+      not payload.hasEvent("window") and not payload.hasEvent("capture")
     ):
       result.reply = errReply("unsupported event stream")
       return
     result.subscribeLayout = payload.hasEvent("layout")
     result.subscribeState = payload.hasEvent("state")
     result.subscribeWindow = payload.hasEvent("window")
+    result.subscribeCapture = payload.hasEvent("capture")
     result.reply = ackReply()
     if result.subscribeLayout:
       result.initialEvents.add(triadLayoutStateChangedEvent(snapshot))
     if result.subscribeState:
-      result.initialEvents.add(triadStateChangedEvent(snapshot))
+      result.initialEvents.add(triadStateChangedEvent(snapshot, captureSessions))
+    if result.subscribeCapture:
+      result.initialEvents.add(triadCaptureSessionsChangedEvent(captureSessions))
   of "dispatch-binding":
     let dispatch = bindingDispatchRequestFromPayload(payload)
     if dispatch.isNone:

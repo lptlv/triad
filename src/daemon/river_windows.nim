@@ -4,7 +4,9 @@ import protocols/river/client as river
 import ../core/msg
 import ../systems/daemon_view
 import ../types/projection_values as rv
-import message_queue, protocol_surface_runtime, state, wayland_helpers
+import
+  capture_sessions_runtime, message_queue, protocol_surface_runtime, state,
+  wayland_helpers
 
 template currentModel(daemon: TriadDaemon): untyped =
   daemon.runtimeState.model
@@ -20,7 +22,10 @@ proc forgetWindow*(daemon: var TriadDaemon, id: uint32) =
   daemon.desiredPlacements.del(id)
   daemon.pendingMaximizedAcks.del(id)
   daemon.pendingWindows.del(id)
+  let hadCaptureSessions = daemon.windowCaptureSessions.hasKey(id)
   daemon.clearWindowCaptureSessions(id)
+  if hadCaptureSessions:
+    daemon.broadcastCaptureSessionsChanged()
   daemon.windowUnreliablePids.del(id)
   if daemon.windowNodes.hasKey(id):
     let node = daemon.windowNodes[id]
@@ -332,6 +337,7 @@ proc onWindowCaptureSessions(data: pointer, win: ptr RiverWindowV1, count: uint3
   let id = win.id()
   trace "Window capture sessions changed", windowId = id, count = count
   daemon[].setWindowCaptureSessions(id, count)
+  daemon[].broadcastCaptureSessionsChanged()
 
 var riverWindowListener* = RiverWindowV1Listener(
   closed: onWindowClosed,

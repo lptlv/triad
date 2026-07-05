@@ -79,6 +79,11 @@ The native protocol is JSON over the Triad socket. It’s tag-first. It’s fast
 {"triad":{"version":1,"request":"state"}}
 ```
 
+For just River v5 screencopy activity counts, ask for `captures`:
+```json
+{"triad":{"version":1,"request":"captures"}}
+```
+
 ### The Reply
 ```json
 {
@@ -100,8 +105,8 @@ Bark orders in JSON:
 ### Stay Informed
 Subscribe to the pulse:
 ```json
-{"triad":{"version":1,"request":"event-stream","events":["state", "layout", "window"]}}
+{"triad":{"version":1,"request":"event-stream","events":["state", "layout", "window", "capture"]}}
 ```
-We send the initial state, then push updates. The `window` stream is lean. It only sends what changed. If a socket dies, we drop the subscriber. No stale ghosts.
+We send the initial state, then push updates. The `window` stream is lean. It only sends what changed. The `capture` stream reports River v5 window and output capture-session counts. If a socket dies, we drop the subscriber.
 
 A note on urgency: We have the field. We don't use it yet. Don't rely on it.
