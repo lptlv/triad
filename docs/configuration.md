@@ -71,13 +71,14 @@ capture-session {
 Triad passes `TRIAD_CAPTURE_EVENT`, `TRIAD_CAPTURE_ACTIVE`,
 `TRIAD_CAPTURE_WINDOW_TOTAL`, `TRIAD_CAPTURE_OUTPUT_TOTAL`,
 `TRIAD_CAPTURE_TOTAL`, and `TRIAD_CAPTURE_JSON` to these commands.
-`tools/triad-capture-hook.sh` is a ready-to-use hook helper that formats those
-variables without making another IPC request.
+`triad-capture-hook` is a ready-to-use hook helper installed by
+`tools/install_live_session.sh`; from a repo checkout, run
+`sh tools/triad-capture-hook.sh`.
 
 ```kdl
 capture-session {
-  started "sh" "/path/to/triad/tools/triad-capture-hook.sh"
-  stopped "sh" "/path/to/triad/tools/triad-capture-hook.sh"
+  started "triad-capture-hook"
+  stopped "triad-capture-hook"
 }
 ```
 

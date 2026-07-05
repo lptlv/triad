@@ -92,14 +92,16 @@ entries include name, geometry, scale, transform, and primary status.
 
 For a shell-bar friendly consumer, use:
 ```bash
-sh tools/triad-capture-status.sh --watch --waybar
+triad-capture-status --watch --waybar
 ```
+
+From a repo checkout, use `sh tools/triad-capture-status.sh --watch --waybar`.
 
 Waybar custom module shape:
 ```json
 {
   "custom/triad-capture": {
-    "exec": "sh /path/to/triad/tools/triad-capture-status.sh --watch --waybar",
+    "exec": "triad-capture-status --watch --waybar",
     "return-type": "json",
     "format": "{}"
   }

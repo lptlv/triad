@@ -97,6 +97,8 @@ atomic_install "$repo_dir/triad" "$bin_dir/triad" 755
 atomic_install "$repo_dir/triad_niri" "$bin_dir/triad_niri" 755
 atomic_install "$repo_dir/tools/triad-manager-loop.sh" "$bin_dir/triad-manager-loop" 755
 atomic_install "$repo_dir/tools/river-triad-session.sh" "$bin_dir/river-triad-session" 755
+atomic_install "$repo_dir/tools/triad-capture-hook.sh" "$bin_dir/triad-capture-hook" 755
+atomic_install "$repo_dir/tools/triad-capture-status.sh" "$bin_dir/triad-capture-status" 755
 
 if [ ! -e "$config_path" ] && [ ! -L "$config_path" ]; then
   install -Dm644 "$config_source" "$config_path"
