@@ -146,7 +146,8 @@ stderr so they do not corrupt stream output.
 The scripted smoke gate also checks `triad msg captures`, verifies the native
 `capture` event stream sends an initial `capture-sessions-changed` event, and
 uses `tools/triad-capture-status.sh` to format the capture payload when `jq` is
-available.
+available. It also runs `tools/triad-capture-hook.sh` against a static
+`TRIAD_CAPTURE_*` environment to keep hook formatting covered.
 
 ## Exercise Niri Shell Compatibility
 
