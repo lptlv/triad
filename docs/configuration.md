@@ -58,6 +58,16 @@ spawn-at-startup "waybar"
 spawn-at-startup "nm-applet" "--indicator"
 ```
 
+Run commands when River reports screencopy capture sessions starting or
+stopping:
+
+```kdl
+capture-session {
+  started "notify-send" "Triad" "Screen sharing started"
+  stopped "notify-send" "Triad" "Screen sharing stopped"
+}
+```
+
 ### Shell & Bar Profiles
 Manage shells and status bars in the `shells` block. Triad sets `$TRIAD_SOCKET` for every profile. Use `niri-compat #true` if a shell needs the Niri IPC facade and `$NIRI_SOCKET`.
 

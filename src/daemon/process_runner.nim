@@ -1,7 +1,7 @@
 import std/[os, osproc, strtabs, strutils, times]
 import chronicles
 import ../types/model
-from ../types/runtime_values import ConfigNotificationEvent
+from ../types/runtime_values import CaptureSessionEvent, ConfigNotificationEvent
 import ../utils/process_options
 import ../utils/terminal
 
@@ -116,6 +116,26 @@ proc spawnConfigNotification*(
     result = p
   except CatchableError as e:
     warn "Failed to spawn config notification",
+      event = $event, cmd = command[0], error = e.msg
+
+proc spawnCaptureSessionHook*(
+    model: Model, event: CaptureSessionEvent, command: seq[string]
+): Process =
+  if command.len == 0:
+    return
+
+  try:
+    let p = startProcess(
+      command[0],
+      args = command.commandArgs(),
+      env = model.configuredProcessEnv(),
+      options = InheritedProcessOptions,
+    )
+    info "Spawned capture-session hook",
+      event = $event, cmd = command[0], pid = p.processID
+    result = p
+  except CatchableError as e:
+    warn "Failed to spawn capture-session hook",
       event = $event, cmd = command[0], error = e.msg
 
 proc spawnTerminal*(model: Model): Process =

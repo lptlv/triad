@@ -7,10 +7,11 @@ import ../src/config/parser
 import ../src/core/[effects, msg, restore_state]
 import
   ../src/daemon/[
-    bindings_runtime, child_process_runtime, cursor_shake, effects_runtime,
-    input_device_classification, live_restore_runtime, memory_status, message_queue,
-    output_management_runtime, process_runner, protocol_diagnostics, reload_runtime,
-    render_invalidation, river_windows, spawn_context, switch_event_runtime,
+    bindings_runtime, capture_sessions_runtime, child_process_runtime, cursor_shake,
+    effects_runtime, input_device_classification, live_restore_runtime, memory_status,
+    message_queue, output_management_runtime, process_runner, protocol_diagnostics,
+    reload_runtime, render_invalidation, river_windows, spawn_context,
+    switch_event_runtime,
   ]
 from ../src/daemon/state import
   OutputManagementHeadRuntime, clearOutputCaptureSessions, consumeMaximizedAck,
@@ -27,6 +28,8 @@ import ../src/utils/[process_memory, session_env]
 
 var observedConfigNotificationEvent: ConfigNotificationEvent
 var observedConfigNotificationCommand: seq[string]
+var observedCaptureSessionEvent: CaptureSessionEvent
+var observedCaptureSessionCommand: seq[string]
 
 proc recordConfigNotification(
     daemon: pointer, event: ConfigNotificationEvent, command: seq[string]
@@ -34,6 +37,13 @@ proc recordConfigNotification(
   discard daemon
   observedConfigNotificationEvent = event
   observedConfigNotificationCommand = command
+
+proc recordCaptureSessionHook(
+    daemon: pointer, event: CaptureSessionEvent, command: seq[string]
+) {.nimcall.} =
+  discard daemon
+  observedCaptureSessionEvent = event
+  observedCaptureSessionCommand = command
 
 proc proposedOutput(
     name: string, width, height: int32, rule = OutputRuleData()
@@ -1055,6 +1065,45 @@ suite "Crash hardening":
 
     check not daemon.windowCaptureSessions.hasKey(11'u32)
     check not daemon.outputCaptureSessions.hasKey(21'u32)
+
+  test "River v5 capture session hooks follow active transitions":
+    var daemon = initTriadDaemon()
+    daemon.captureSessionHook = recordCaptureSessionHook
+    daemon.runtimeState = initRuntimeStateFromConfig(
+      Config(
+        captureSession: CaptureSessionConfig(
+          started: @["notify-send", "sharing started"],
+          stopped: @["notify-send", "sharing stopped"],
+        )
+      )
+    )
+
+    observedCaptureSessionEvent = CaptureSessionEvent.CaptureSessionNotifyNone
+    observedCaptureSessionCommand = @[]
+    var wasActive = daemon.captureSessionsActive()
+    daemon.setWindowCaptureSessions(11'u32, 2'u32)
+    daemon.handleCaptureSessionsChanged(wasActive)
+    check observedCaptureSessionEvent == CaptureSessionEvent.CaptureSessionStarted
+    check observedCaptureSessionCommand == @["notify-send", "sharing started"]
+
+    observedCaptureSessionEvent = CaptureSessionEvent.CaptureSessionNotifyNone
+    observedCaptureSessionCommand = @[]
+    wasActive = daemon.captureSessionsActive()
+    daemon.setOutputCaptureSessions(21'u32, 1'u32)
+    daemon.handleCaptureSessionsChanged(wasActive)
+    check observedCaptureSessionEvent == CaptureSessionEvent.CaptureSessionNotifyNone
+    check observedCaptureSessionCommand.len == 0
+
+    wasActive = daemon.captureSessionsActive()
+    daemon.setWindowCaptureSessions(11'u32, 0'u32)
+    daemon.handleCaptureSessionsChanged(wasActive)
+    check observedCaptureSessionEvent == CaptureSessionEvent.CaptureSessionNotifyNone
+
+    wasActive = daemon.captureSessionsActive()
+    daemon.setOutputCaptureSessions(21'u32, 0'u32)
+    daemon.handleCaptureSessionsChanged(wasActive)
+    check observedCaptureSessionEvent == CaptureSessionEvent.CaptureSessionStopped
+    check observedCaptureSessionCommand == @["notify-send", "sharing stopped"]
 
   test "Exit-session confirmation routes Enter to confirm":
     var daemon = initTriadDaemon()

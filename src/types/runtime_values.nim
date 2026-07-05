@@ -595,6 +595,15 @@ type
     ConfigReloadFailed
     ConfigReloadRolledBack
 
+  CaptureSessionEvent* {.pure.} = enum
+    CaptureSessionNotifyNone
+    CaptureSessionStarted
+    CaptureSessionStopped
+
+  CaptureSessionConfig* = object
+    started*: seq[string]
+    stopped*: seq[string]
+
   KeyBindingConfig* = object
     key*: string
     modifiers*: uint32

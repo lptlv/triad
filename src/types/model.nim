@@ -3,17 +3,17 @@ from core import
   BspNodeId, ColumnId, EmptyTagMask, EntityManager, ExternalOutputId, ExternalWindowId,
   FrameId, GroupId, IdCounters, OutputId, Rect, SplitNodeId, TagId, TagMask, WindowId
 from runtime_values import
-  AxisBindingConfig, ConfigNotificationConfig, CursorConfig, EnvironmentEntryConfig,
-  InputConfig, GestureBindingConfig, JanetConfig, JanetLayoutConfig, JanetLayoutId,
-  KeyBindingConfig, LayoutMode, LayoutSelection, HotkeyOverlayConfig, FrameTabsConfig,
-  LayoutSwitchToastConfig, OutputConfigTransform, OutputLayoutRow, OutputModeKind,
-  OutputPositionKind, ParentedRole, SpiralLayoutConfig, OverviewHotCornersConfig,
-  PointerBindingConfig, PointerOpKind, PresentationMode, ProtocolSurfacesConfig,
-  ShellsConfig, RecentWindowFilter, RecentWindowScope, RecentWindowsConfig,
-  ScreenshotConfig, SwitchEventConfig, TerminalConfig, WindowRuleBorderConfig,
-  WindowRuleFloatingConfig, WindowRuleFloatingPositionConfig, WindowRuleFocusRingConfig,
-  WindowRuleIdleInhibitMode, WindowRuleMaximizePolicy, SplitTreeNodeMode, Direction,
-  FrameNodeKind, FrameSplitOrientation, NativeLayoutId
+  AxisBindingConfig, CaptureSessionConfig, ConfigNotificationConfig, CursorConfig,
+  EnvironmentEntryConfig, InputConfig, GestureBindingConfig, JanetConfig,
+  JanetLayoutConfig, JanetLayoutId, KeyBindingConfig, LayoutMode, LayoutSelection,
+  HotkeyOverlayConfig, FrameTabsConfig, LayoutSwitchToastConfig, OutputConfigTransform,
+  OutputLayoutRow, OutputModeKind, OutputPositionKind, ParentedRole, SpiralLayoutConfig,
+  OverviewHotCornersConfig, PointerBindingConfig, PointerOpKind, PresentationMode,
+  ProtocolSurfacesConfig, ShellsConfig, RecentWindowFilter, RecentWindowScope,
+  RecentWindowsConfig, ScreenshotConfig, SwitchEventConfig, TerminalConfig,
+  WindowRuleBorderConfig, WindowRuleFloatingConfig, WindowRuleFloatingPositionConfig,
+  WindowRuleFocusRingConfig, WindowRuleIdleInhibitMode, WindowRuleMaximizePolicy,
+  SplitTreeNodeMode, Direction, FrameNodeKind, FrameSplitOrientation, NativeLayoutId
 
 type
   WindowAdmissionState* {.pure.} = enum
@@ -642,6 +642,7 @@ type
     cursor*: CursorConfig
     hotkeyOverlay*: HotkeyOverlayConfig
     configNotification*: ConfigNotificationConfig
+    captureSession*: CaptureSessionConfig
     recentWindows*: RecentWindowsConfig
     layoutSwitchToast*: LayoutSwitchToastConfig
     presentationMode*: PresentationMode

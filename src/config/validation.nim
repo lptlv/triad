@@ -685,6 +685,8 @@ proc validateConfigNode(node: KdlNode, index: int): string =
     result = node.validateNamedChildren(
       context, ["reload-succeeded", "reload-failed", "reload-rolled-back"]
     )
+  of "capture-session":
+    result = node.validateNamedChildren(context, ["started", "stopped"])
   of "presentation-mode":
     result = node.expectArgs(context, 1)
     if result.len == 0:

@@ -398,6 +398,7 @@ proc applyConfig*(model: var Model, config: Config) =
   model.cursor = config.cursor
   model.hotkeyOverlay = config.hotkeyOverlay
   model.configNotification = config.configNotification
+  model.captureSession = config.captureSession
   model.recentWindows = config.recentWindows
   model.recentWindows.debounceMs =
     configClamp32(model.recentWindows.debounceMs, 0, 60000)

@@ -36,9 +36,10 @@ proc onOutputRemoved(data: pointer, output: ptr RiverOutputV1) =
   let id = output.id()
   info "Output removed", outputId = id
   let hadCaptureSessions = daemon.outputCaptureSessions.hasKey(id)
+  let captureSessionsWereActive = daemon[].captureSessionsActive()
   daemon[].clearOutputCaptureSessions(id)
   if hadCaptureSessions:
-    daemon[].broadcastCaptureSessionsChanged()
+    daemon[].handleCaptureSessionsChanged(captureSessionsWereActive)
   if daemon.layerOutputPointers.hasKey(id):
     let layerOutput = daemon.layerOutputPointers[id]
     daemon.layerOutputOwners.del(layerOutput.id())
@@ -273,8 +274,9 @@ proc onOutputCaptureSessions(data: pointer, output: ptr RiverOutputV1, count: ui
     return
   let id = output.id()
   trace "Output capture sessions changed", outputId = id, count = count
+  let wasActive = daemon[].captureSessionsActive()
   daemon[].setOutputCaptureSessions(id, count)
-  daemon[].broadcastCaptureSessionsChanged()
+  daemon[].handleCaptureSessionsChanged(wasActive)
 
 var riverOutputListener* = RiverOutputV1Listener(
   removed: onOutputRemoved,

@@ -225,6 +225,8 @@ type
   ConfigNotificationHook* = proc(
     daemon: pointer, event: ConfigNotificationEvent, command: seq[string]
   ) {.nimcall.}
+  CaptureSessionHook* =
+    proc(daemon: pointer, event: CaptureSessionEvent, command: seq[string]) {.nimcall.}
 
   TriadDaemon* = object
     display*: ptr Display
@@ -401,6 +403,7 @@ type
     configReloadDebouncer*: ConfigReloadDebouncer
     inputConfigReloadHook*: RuntimeReasonHook
     configNotificationHook*: ConfigNotificationHook
+    captureSessionHook*: CaptureSessionHook
     shouldExit*: bool
     shellRunner*: ShellRunner
     startupCommandsPending*: bool

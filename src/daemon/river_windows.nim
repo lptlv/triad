@@ -23,9 +23,10 @@ proc forgetWindow*(daemon: var TriadDaemon, id: uint32) =
   daemon.pendingMaximizedAcks.del(id)
   daemon.pendingWindows.del(id)
   let hadCaptureSessions = daemon.windowCaptureSessions.hasKey(id)
+  let captureSessionsWereActive = daemon.captureSessionsActive()
   daemon.clearWindowCaptureSessions(id)
   if hadCaptureSessions:
-    daemon.broadcastCaptureSessionsChanged()
+    daemon.handleCaptureSessionsChanged(captureSessionsWereActive)
   daemon.windowUnreliablePids.del(id)
   if daemon.windowNodes.hasKey(id):
     let node = daemon.windowNodes[id]
@@ -336,8 +337,9 @@ proc onWindowCaptureSessions(data: pointer, win: ptr RiverWindowV1, count: uint3
     return
   let id = win.id()
   trace "Window capture sessions changed", windowId = id, count = count
+  let wasActive = daemon[].captureSessionsActive()
   daemon[].setWindowCaptureSessions(id, count)
-  daemon[].broadcastCaptureSessionsChanged()
+  daemon[].handleCaptureSessionsChanged(wasActive)
 
 var riverWindowListener* = RiverWindowV1Listener(
   closed: onWindowClosed,

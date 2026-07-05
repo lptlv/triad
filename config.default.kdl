@@ -223,6 +223,12 @@ recent-windows {
 // spawn-at-startup "sh" "-lc" "command -v xdg-desktop-portal-gtk >/dev/null 2>&1 && xdg-desktop-portal-gtk -r || true"
 // spawn-at-startup "sh" "-lc" "command -v sunsetr >/dev/null 2>&1 && sunsetr || true"  // night-light daemon
 
+// Optional commands when River reports screen/window capture sessions.
+// capture-session {
+//     started "notify-send" "Triad" "Screen sharing started"
+//     stopped "notify-send" "Triad" "Screen sharing stopped"
+// }
+
 bindings {
     mirror-hjkl-arrows #true
 

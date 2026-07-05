@@ -2553,6 +2553,22 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
           except CatchableError as e:
             warn "Ignoring invalid config-notification field",
               field = child.name, error = e.msg
+      elif node.name == "capture-session":
+        for child in node.children:
+          try:
+            let command = child.commandArgsFromNode()
+            if command.len == 0:
+              continue
+            case child.name
+            of "started":
+              result.captureSession.started = command
+            of "stopped":
+              result.captureSession.stopped = command
+            else:
+              warn "Ignoring invalid capture-session field", field = child.name
+          except CatchableError as e:
+            warn "Ignoring invalid capture-session field",
+              field = child.name, error = e.msg
       elif node.name == "presentation-mode" and node.args.len > 0:
         try:
           let parsed = parsePresentationMode(node.args[0].kString())

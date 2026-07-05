@@ -276,6 +276,10 @@ config-notification {
   reload-rolled-back "notify-send" "Triad" "Config rolled back"
   unknown-notification "notify-send" "ignored"
 }
+capture-session {
+  started "notify-send" "Triad" "Screen sharing started"
+  stopped "notify-send" "Triad" "Screen sharing stopped"
+}
 bindings {
   mirror-hjkl-arrows #true
   bind "Super+Return" "spawn-terminal"
@@ -600,6 +604,10 @@ switch-events {
     check config.configNotification.reloadFailed == @["notify-send", "Triad", "failed"]
     check config.configNotification.reloadRolledBack ==
       @["notify-send", "Triad", "Config rolled back"]
+    check config.captureSession.started ==
+      @["notify-send", "Triad", "Screen sharing started"]
+    check config.captureSession.stopped ==
+      @["notify-send", "Triad", "Screen sharing stopped"]
     check config.keyBindings.len > 0
     check config.commandForBinding("c", Super + Ctrl) == "center-tile"
     let uppercaseBindings =

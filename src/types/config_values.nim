@@ -27,6 +27,7 @@ type
     cursor*: CursorConfig
     hotkeyOverlay*: HotkeyOverlayConfig
     configNotification*: ConfigNotificationConfig
+    captureSession*: CaptureSessionConfig
     presentationMode*: PresentationMode
     allowExitSession*: bool
     protocolSurfaces*: ProtocolSurfacesConfig
