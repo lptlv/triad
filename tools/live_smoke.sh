@@ -24,6 +24,8 @@ triad_msg() {
 log="${TRIAD_LIVE_LOG:-triad-live-smoke.log}"
 out="${TRIAD_LIVE_OUT:-triad-live-smoke.out}"
 events="${TRIAD_LIVE_EVENTS:-triad-live-smoke.events}"
+capture_snapshot="${TRIAD_LIVE_CAPTURE_SNAPSHOT:-triad-live-smoke-captures.json}"
+capture_events="${TRIAD_LIVE_CAPTURE_EVENTS:-triad-live-smoke-capture.events}"
 startup_wait="${TRIAD_LIVE_STARTUP_WAIT:-2}"
 run_seconds="${TRIAD_LIVE_SECONDS:-8}"
 lockme_bin="${TRIAD_LOCKME_BIN:-}"
@@ -107,6 +109,32 @@ triad_msg restore-scratchpad
 triad_msg config-reload
 ./triad_niri msg -j workspaces >/dev/null
 ./triad_niri msg -j outputs >/dev/null
+
+./triad msg captures >"$capture_snapshot"
+if ! grep -q '"capture_sessions"' "$capture_snapshot"; then
+  fail "triad msg captures did not include capture_sessions"
+fi
+
+if command -v jq >/dev/null 2>&1; then
+  if ! sh tools/triad-capture-status.sh --stdin --waybar <"$capture_snapshot" |
+    grep -q '"class":'
+  then
+    fail "capture status formatter did not emit Waybar JSON"
+  fi
+fi
+
+: >"$capture_events"
+./triad msg event-stream --native capture >"$capture_events" &
+event_stream_pid="$!"
+sleep 1
+
+if ! grep -q "capture-sessions-changed" "$capture_events"; then
+  fail "native capture event stream did not emit initial state"
+fi
+
+kill "$event_stream_pid" 2>/dev/null || true
+wait "$event_stream_pid" 2>/dev/null || true
+event_stream_pid=""
 
 if [ -n "${NIRI_SOCKET:-}" ] && [ ! -e "$NIRI_SOCKET" ]; then
   niri_socket="$NIRI_SOCKET"

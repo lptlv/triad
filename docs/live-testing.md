@@ -143,6 +143,11 @@ From another terminal in the same session:
 `triad msg event-stream` writes event data to stdout. Runtime logs stay on
 stderr so they do not corrupt stream output.
 
+The scripted smoke gate also checks `triad msg captures`, verifies the native
+`capture` event stream sends an initial `capture-sessions-changed` event, and
+uses `tools/triad-capture-status.sh` to format the capture payload when `jq` is
+available.
+
 ## Exercise Niri Shell Compatibility
 
 When `shells { enabled #true }` is configured, Triad starts the active shell
