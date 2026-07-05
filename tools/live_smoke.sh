@@ -123,6 +123,28 @@ if command -v jq >/dev/null 2>&1; then
   fi
 fi
 
+capture_hook_json='{"active":true,"window_total":2,"output_total":1,"windows":[{"id":11,"count":2,"known":true,"app_id":"Firefox","title":"Meet"}],"outputs":[{"id":21,"count":1,"known":true,"name":"DP-1"}]}'
+capture_hook_output="$(
+  env \
+    TRIAD_CAPTURE_EVENT=started \
+    TRIAD_CAPTURE_ACTIVE=1 \
+    TRIAD_CAPTURE_WINDOW_TOTAL=2 \
+    TRIAD_CAPTURE_OUTPUT_TOTAL=1 \
+    TRIAD_CAPTURE_TOTAL=3 \
+    TRIAD_CAPTURE_JSON="$capture_hook_json" \
+    sh tools/triad-capture-hook.sh --text
+)"
+case "$capture_hook_output" in
+  *"Screen sharing started"*total=3*) ;;
+  *) fail "capture hook formatter did not emit started summary" ;;
+esac
+if command -v jq >/dev/null 2>&1; then
+  case "$capture_hook_output" in
+    *"Firefox: Meet"*DP-1*) ;;
+    *) fail "capture hook formatter did not emit capture labels" ;;
+  esac
+fi
+
 : >"$capture_events"
 ./triad msg event-stream --native capture >"$capture_events" &
 event_stream_pid="$!"
