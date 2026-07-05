@@ -220,6 +220,8 @@ proc memoryStatusPayload*(daemon: TriadDaemon): JsonNode =
       "window_pointers": daemon.windowPointers.len,
       "window_nodes": daemon.windowNodes.len,
       "output_pointers": daemon.outputPointers.len,
+      "window_capture_sessions": daemon.windowCaptureSessions.len,
+      "output_capture_sessions": daemon.outputCaptureSessions.len,
       "seat_pointers": daemon.seatPointers.len,
       "shell_surface_pointers": daemon.shellSurfacePointers.len,
       "pending_windows": daemon.pendingWindows.len,
@@ -298,6 +300,8 @@ proc compactDaemonMemory(daemon: var TriadDaemon) =
   daemon.windowPointers.compactTable()
   daemon.windowNodes.compactTable()
   daemon.outputPointers.compactTable()
+  daemon.windowCaptureSessions.compactTable()
+  daemon.outputCaptureSessions.compactTable()
   daemon.layerOutputPointers.compactTable()
   daemon.layerOutputOwners.compactTable()
   daemon.currentFrameTabBarsBySurface.compactTable()

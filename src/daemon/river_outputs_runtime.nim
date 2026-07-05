@@ -35,6 +35,7 @@ proc onOutputRemoved(data: pointer, output: ptr RiverOutputV1) =
     return
   let id = output.id()
   info "Output removed", outputId = id
+  daemon[].clearOutputCaptureSessions(id)
   if daemon.layerOutputPointers.hasKey(id):
     let layerOutput = daemon.layerOutputPointers[id]
     daemon.layerOutputOwners.del(layerOutput.id())
@@ -263,11 +264,20 @@ proc onOutputPosition(data: pointer, output: ptr RiverOutputV1, x: int32, y: int
     )
   )
 
+proc onOutputCaptureSessions(data: pointer, output: ptr RiverOutputV1, count: uint32) =
+  let daemon = callbackDaemon(data, "output capture sessions")
+  if daemon == nil:
+    return
+  let id = output.id()
+  trace "Output capture sessions changed", outputId = id, count = count
+  daemon[].setOutputCaptureSessions(id, count)
+
 var riverOutputListener* = RiverOutputV1Listener(
   removed: onOutputRemoved,
   output: onOutputWlOutput,
   position: onOutputPosition,
   dimensions: onOutputDimensions,
+  captureSessions: onOutputCaptureSessions,
 )
 
 var wlOutputListener* = wlCore.OutputListener(

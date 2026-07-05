@@ -88,15 +88,15 @@ proc getVersion*(riverWindowManagerV1: ptr RiverWindowManagerV1): uint32 {.inlin
 
 proc stop*(riverWindowManagerV1: ptr RiverWindowManagerV1) {.inline.} =
   ## stop sending events
-  ## 
+  ##
   ## This request indicates that the client no longer wishes to receive
   ## events on this object.
-  ## 
+  ##
   ## The Wayland protocol is asynchronous, which means the server may send
   ## further events until the stop request is processed. The client must wait
   ## for a river_window_manager_v1.finished event before destroying this
   ## object.
-  ## 
+  ##
   cast[ptr Proxy](riverWindowManagerV1).marshal_flags(
     RiverWindowManagerV1Request_stop.ord,
     nil,
@@ -106,7 +106,7 @@ proc stop*(riverWindowManagerV1: ptr RiverWindowManagerV1) {.inline.} =
 
 proc destroy*(riverWindowManagerV1: ptr RiverWindowManagerV1) {.inline.} =
   ## destroy the river_window_manager_v1 object
-  ## 
+  ##
   ## This request should be called after the finished event has been received
   ## to complete destruction of the object.
   ## 
@@ -275,6 +275,8 @@ type RiverWindowV1Listener* = object
   identifier*: proc(
     data: pointer, riverWindowV1: ptr RiverWindowV1, identifier: cstring
   ) {.nimcall.}
+  captureSessions*:
+    proc(data: pointer, riverWindowV1: ptr RiverWindowV1, count: uint32) {.nimcall.}
 
 proc addListener*(
     riverWindowV1: ptr RiverWindowV1, listener: ptr RiverWindowV1Listener, data: pointer
@@ -1099,6 +1101,14 @@ proc placeAbove*(riverNodeV1: ptr RiverNodeV1, other: ptr RiverNodeV1) {.inline.
   ## 
   ## Attempting to place a node above itself has no effect.
   ## 
+  ## Given nodes A, B, C currently rendered in that order with C on top
+  ## and A on the bottom, the following example demonstrates the behavior
+  ## of this request and the meaning of "directly above":
+  ##
+  ## 1. A.place_above(C) -> B, C, A
+  ## 2. A.place_above(B) -> B, A, C
+  ## 3. B.place_above(A) -> A, B, C
+  ##
   ## This request modifies rendering state and may only be made as part of a
   ## render sequence, see the river_window_manager_v1 description.
   ## 
@@ -1118,6 +1128,14 @@ proc placeBelow*(riverNodeV1: ptr RiverNodeV1, other: ptr RiverNodeV1) {.inline.
   ## 
   ## Attempting to place a node below itself has no effect.
   ## 
+  ## Given nodes A, B, C currently rendered in that order with C on top
+  ## and A on the bottom, the following example demonstrates the behavior
+  ## of this request and the meaning of "directly below":
+  ##
+  ## 1. C.place_below(A) -> C, A, B
+  ## 2. C.place_below(B) -> A, C, B
+  ## 3. B.place_below(C) -> A, B, C
+  ##
   ## This request modifies rendering state and may only be made as part of a
   ## render sequence, see the river_window_manager_v1 description.
   ## 
@@ -1139,6 +1157,8 @@ type RiverOutputV1Listener* = object
   dimensions*: proc(
     data: pointer, riverOutputV1: ptr RiverOutputV1, width: int32, height: int32
   ) {.nimcall.}
+  captureSessions*:
+    proc(data: pointer, riverOutputV1: ptr RiverOutputV1, count: uint32) {.nimcall.}
 
 proc addListener*(
     riverOutputV1: ptr RiverOutputV1, listener: ptr RiverOutputV1Listener, data: pointer

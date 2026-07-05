@@ -20,6 +20,7 @@ proc forgetWindow*(daemon: var TriadDaemon, id: uint32) =
   daemon.desiredPlacements.del(id)
   daemon.pendingMaximizedAcks.del(id)
   daemon.pendingWindows.del(id)
+  daemon.clearWindowCaptureSessions(id)
   daemon.windowUnreliablePids.del(id)
   if daemon.windowNodes.hasKey(id):
     let node = daemon.windowNodes[id]
@@ -324,6 +325,14 @@ proc onWindowIdentifier(data: pointer, win: ptr RiverWindowV1, identifier: cstri
       Msg(kind: MsgKind.WlWindowIdentifier, identifierWindowId: id, identifier: text)
     )
 
+proc onWindowCaptureSessions(data: pointer, win: ptr RiverWindowV1, count: uint32) =
+  let daemon = callbackDaemon(data)
+  if daemon == nil:
+    return
+  let id = win.id()
+  trace "Window capture sessions changed", windowId = id, count = count
+  daemon[].setWindowCaptureSessions(id, count)
+
 var riverWindowListener* = RiverWindowV1Listener(
   closed: onWindowClosed,
   dimensionsHint: onWindowDimensionsHint,
@@ -343,6 +352,7 @@ var riverWindowListener* = RiverWindowV1Listener(
   unreliablePid: onWindowUnreliablePid,
   presentationHint: onWindowPresentationHint,
   identifier: onWindowIdentifier,
+  captureSessions: onWindowCaptureSessions,
 )
 
 proc trackWindow*(daemon: var TriadDaemon, win: ptr RiverWindowV1) =

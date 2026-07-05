@@ -322,6 +322,8 @@ type
     windowPointers*: Table[uint32, ptr RiverWindowV1]
     windowNodes*: Table[uint32, ptr RiverNodeV1]
     outputPointers*: Table[uint32, ptr RiverOutputV1]
+    windowCaptureSessions*: Table[uint32, uint32]
+    outputCaptureSessions*: Table[uint32, uint32]
     layerOutputPointers*: Table[uint32, ptr riverLayer.RiverLayerShellOutputV1]
     layerOutputOwners*: Table[uint32, uint32]
     seatPointers*: seq[ptr RiverSeatV1]
@@ -455,3 +457,25 @@ proc consumeMaximizedAck*(daemon: var TriadDaemon, id: uint32, maximized: bool):
     return false
   daemon.pendingMaximizedAcks.del(id)
   true
+
+proc setWindowCaptureSessions*(daemon: var TriadDaemon, id, count: uint32) =
+  if id == 0:
+    return
+  if count == 0:
+    daemon.windowCaptureSessions.del(id)
+  else:
+    daemon.windowCaptureSessions[id] = count
+
+proc setOutputCaptureSessions*(daemon: var TriadDaemon, id, count: uint32) =
+  if id == 0:
+    return
+  if count == 0:
+    daemon.outputCaptureSessions.del(id)
+  else:
+    daemon.outputCaptureSessions[id] = count
+
+proc clearWindowCaptureSessions*(daemon: var TriadDaemon, id: uint32) =
+  daemon.windowCaptureSessions.del(id)
+
+proc clearOutputCaptureSessions*(daemon: var TriadDaemon, id: uint32) =
+  daemon.outputCaptureSessions.del(id)

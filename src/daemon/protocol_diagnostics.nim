@@ -38,7 +38,7 @@ const ProtocolSpecs* = [
   ProtocolSpec(
     interfaceName: "river_window_manager_v1",
     minVersion: 4'u32,
-    maxBindVersion: 4'u32,
+    maxBindVersion: 5'u32,
     feature: "window management",
     kind: ProtocolSpecKind.Required,
   ),

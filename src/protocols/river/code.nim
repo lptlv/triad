@@ -90,7 +90,7 @@ let
 
   river_window_manager_v1_interface* {.exportc.} = Interface(
     name: "river_window_manager_v1",
-    version: 4,
+    version: 5,
     method_count: 7,
     methods: addr river_window_manager_v1_requests[0],
     event_count: 9,
@@ -287,14 +287,19 @@ let
       signature: "4s",
       types: addr river_window_management_v1_types[0],
     ),
+    Message(
+      name: "capture_sessions",
+      signature: "5u",
+      types: addr river_window_management_v1_types[0],
+    ),
   ]
 
   river_window_v1_interface* {.exportc.} = Interface(
     name: "river_window_v1",
-    version: 4,
+    version: 5,
     method_count: 24,
     methods: addr river_window_v1_requests[0],
-    event_count: 18,
+    event_count: 19,
     events: addr river_window_v1_events[0],
   )
 
@@ -316,7 +321,7 @@ let
 
   river_decoration_v1_interface* {.exportc.} = Interface(
     name: "river_decoration_v1",
-    version: 4,
+    version: 5,
     method_count: 3,
     methods: addr river_decoration_v1_requests[0],
   )
@@ -337,7 +342,7 @@ let
 
   river_shell_surface_v1_interface* {.exportc.} = Interface(
     name: "river_shell_surface_v1",
-    version: 4,
+    version: 5,
     method_count: 3,
     methods: addr river_shell_surface_v1_requests[0],
   )
@@ -373,7 +378,7 @@ let
 
   river_node_v1_interface* {.exportc.} = Interface(
     name: "river_node_v1",
-    version: 4,
+    version: 5,
     method_count: 6,
     methods: addr river_node_v1_requests[0],
   )
@@ -404,14 +409,19 @@ let
       signature: "ii",
       types: addr river_window_management_v1_types[0],
     ),
+    Message(
+      name: "capture_sessions",
+      signature: "5u",
+      types: addr river_window_management_v1_types[0],
+    ),
   ]
 
   river_output_v1_interface* {.exportc.} = Interface(
     name: "river_output_v1",
-    version: 4,
+    version: 5,
     method_count: 2,
     methods: addr river_output_v1_requests[0],
-    event_count: 4,
+    event_count: 5,
     events: addr river_output_v1_events[0],
   )
 
@@ -501,7 +511,7 @@ let
 
   river_seat_v1_interface* {.exportc.} = Interface(
     name: "river_seat_v1",
-    version: 4,
+    version: 5,
     method_count: 9,
     methods: addr river_seat_v1_requests[0],
     event_count: 9,
@@ -531,7 +541,7 @@ let
 
   river_pointer_binding_v1_interface* {.exportc.} = Interface(
     name: "river_pointer_binding_v1",
-    version: 4,
+    version: 5,
     method_count: 3,
     methods: addr river_pointer_binding_v1_requests[0],
     event_count: 2,
@@ -735,6 +745,7 @@ type RiverWindowV1Event* {.size: sizeof(uint32).} = enum
   RiverWindowV1Event_unreliable_pid
   RiverWindowV1Event_presentation_hint
   RiverWindowV1Event_identifier
+  RiverWindowV1Event_capture_sessions
 
 proc since*(e: RiverWindowV1Event): int =
   case e
@@ -756,6 +767,7 @@ proc since*(e: RiverWindowV1Event): int =
   of RiverWindowV1Event_unreliable_pid: 2
   of RiverWindowV1Event_presentation_hint: 4
   of RiverWindowV1Event_identifier: 4
+  of RiverWindowV1Event_capture_sessions: 5
 
 type RiverWindowV1Request* {.size: sizeof(uint32).} = enum
   RiverWindowV1Request_destroy
@@ -854,6 +866,7 @@ type RiverOutputV1Event* {.size: sizeof(uint32).} = enum
   RiverOutputV1Event_wl_output
   RiverOutputV1Event_position
   RiverOutputV1Event_dimensions
+  RiverOutputV1Event_capture_sessions
 
 proc since*(e: RiverOutputV1Event): int =
   case e
@@ -861,6 +874,7 @@ proc since*(e: RiverOutputV1Event): int =
   of RiverOutputV1Event_wl_output: 1
   of RiverOutputV1Event_position: 1
   of RiverOutputV1Event_dimensions: 1
+  of RiverOutputV1Event_capture_sessions: 5
 
 type RiverOutputV1Request* {.size: sizeof(uint32).} = enum
   RiverOutputV1Request_destroy

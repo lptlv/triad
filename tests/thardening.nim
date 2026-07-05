@@ -10,10 +10,12 @@ import
     bindings_runtime, child_process_runtime, cursor_shake, effects_runtime,
     input_device_classification, live_restore_runtime, memory_status, message_queue,
     output_management_runtime, process_runner, protocol_diagnostics, reload_runtime,
-    render_invalidation, spawn_context, switch_event_runtime,
+    render_invalidation, river_windows, spawn_context, switch_event_runtime,
   ]
 from ../src/daemon/state import
-  OutputManagementHeadRuntime, consumeMaximizedAck, expectMaximizedAck, initTriadDaemon
+  OutputManagementHeadRuntime, clearOutputCaptureSessions, consumeMaximizedAck,
+  expectMaximizedAck, initTriadDaemon, setOutputCaptureSessions,
+  setWindowCaptureSessions
 from ../src/daemon/state import QueuedMsgOrigin
 import ../src/ipc/[binding_dispatch, commands, niri_compat, socket]
 import ../src/layouts/scroller
@@ -1018,10 +1020,41 @@ suite "Crash hardening":
     check protocolBindVersion("river_input_manager_v1", 2'u32) == 2'u32
 
   test "Protocol binding caps advertised versions":
-    check protocolBindVersion("river_window_manager_v1", 99'u32) == 4'u32
+    check protocolBindVersion("river_window_manager_v1", 99'u32) == 5'u32
     check protocolBindVersion("river_xkb_bindings_v1", 99'u32) == 3'u32
     check protocolBindVersion("wl_compositor", 99'u32) == 6'u32
     check protocolBindVersion("unknown_protocol_v1", 99'u32) == 0'u32
+
+  test "River v5 capture session counts are daemon-local":
+    var daemon = initTriadDaemon()
+
+    daemon.setWindowCaptureSessions(11'u32, 2'u32)
+    daemon.setOutputCaptureSessions(21'u32, 3'u32)
+    daemon.setWindowCaptureSessions(0'u32, 9'u32)
+    daemon.setOutputCaptureSessions(0'u32, 9'u32)
+
+    check daemon.windowCaptureSessions[11'u32] == 2'u32
+    check daemon.outputCaptureSessions[21'u32] == 3'u32
+    check not daemon.windowCaptureSessions.hasKey(0'u32)
+    check not daemon.outputCaptureSessions.hasKey(0'u32)
+
+    daemon.setWindowCaptureSessions(11'u32, 0'u32)
+    daemon.setOutputCaptureSessions(21'u32, 0'u32)
+
+    check not daemon.windowCaptureSessions.hasKey(11'u32)
+    check not daemon.outputCaptureSessions.hasKey(21'u32)
+
+  test "River v5 capture session cleanup follows proxy cleanup":
+    var daemon = initTriadDaemon()
+
+    daemon.setWindowCaptureSessions(11'u32, 2'u32)
+    daemon.setOutputCaptureSessions(21'u32, 3'u32)
+
+    daemon.forgetWindow(11'u32)
+    daemon.clearOutputCaptureSessions(21'u32)
+
+    check not daemon.windowCaptureSessions.hasKey(11'u32)
+    check not daemon.outputCaptureSessions.hasKey(21'u32)
 
   test "Exit-session confirmation routes Enter to confirm":
     var daemon = initTriadDaemon()

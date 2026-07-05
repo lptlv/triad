@@ -60,7 +60,7 @@ proc riverWindowManagerV1SendUnavailable*(
     resource: ptr Resource
 ) {.inline, exportc: "river_window_manager_v1_send_unavailable".} =
   ## Sends an unavailable event to the client owning the resource.
-  ## 
+  ##
   ## **params**:
   ## * *resource*: The client's resource
   resource.post_event(RiverWindowManagerV1Event_unavailable.ord)
@@ -69,7 +69,7 @@ proc riverWindowManagerV1SendFinished*(
     resource: ptr Resource
 ) {.inline, exportc: "river_window_manager_v1_send_finished".} =
   ## Sends an finished event to the client owning the resource.
-  ## 
+  ##
   ## **params**:
   ## * *resource*: The client's resource
   resource.post_event(RiverWindowManagerV1Event_finished.ord)
@@ -386,6 +386,16 @@ proc riverWindowV1SendIdentifier*(
   ## * *identifier*: unique identifier
   resource.post_event(RiverWindowV1Event_identifier.ord, identifier)
 
+proc riverWindowV1SendCaptureSessions*(
+    resource: ptr Resource, count: uint32
+) {.inline, exportc: "river_window_v1_send_capture_sessions".} =
+  ## Sends an capture_sessions event to the client owning the resource.
+  ##
+  ## **params**:
+  ## * *resource*: The client's resource
+  ## * *count*: count of screen capture sessions
+  resource.post_event(RiverWindowV1Event_capture_sessions.ord, count)
+
 type RiverDecorationV1Interface* = object
   destroy*: proc(client: ptr Client, resource: ptr Resource) {.nimcall.}
   setOffset*:
@@ -453,6 +463,16 @@ proc riverOutputV1SendDimensions*(
   ## * *width*: output width
   ## * *height*: output height
   resource.post_event(RiverOutputV1Event_dimensions.ord, width, height)
+
+proc riverOutputV1SendCaptureSessions*(
+    resource: ptr Resource, count: uint32
+) {.inline, exportc: "river_output_v1_send_capture_sessions".} =
+  ## Sends an capture_sessions event to the client owning the resource.
+  ##
+  ## **params**:
+  ## * *resource*: The client's resource
+  ## * *count*: count of screen capture sessions
+  resource.post_event(RiverOutputV1Event_capture_sessions.ord, count)
 
 type RiverSeatV1Interface* = object
   destroy*: proc(client: ptr Client, resource: ptr Resource) {.nimcall.}
