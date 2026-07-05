@@ -227,8 +227,8 @@ recent-windows {
 // Hooks receive TRIAD_CAPTURE_* environment variables with event and counts.
 // The live-session installer provides triad-capture-hook for richer notifications.
 // capture-session {
-//     started "notify-send" "Triad" "Screen sharing started"
-//     stopped "notify-send" "Triad" "Screen sharing stopped"
+//     started "triad-capture-hook"
+//     stopped "triad-capture-hook"
 // }
 
 bindings {
