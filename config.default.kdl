@@ -225,6 +225,7 @@ recent-windows {
 
 // Optional commands when River reports screen/window capture sessions.
 // Hooks receive TRIAD_CAPTURE_* environment variables with event and counts.
+// Use tools/triad-capture-hook.sh for richer notifications from that context.
 // capture-session {
 //     started "notify-send" "Triad" "Screen sharing started"
 //     stopped "notify-send" "Triad" "Screen sharing stopped"
