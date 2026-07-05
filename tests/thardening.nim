@@ -1105,6 +1105,42 @@ suite "Crash hardening":
     check observedCaptureSessionEvent == CaptureSessionEvent.CaptureSessionStopped
     check observedCaptureSessionCommand == @["notify-send", "sharing stopped"]
 
+  test "River v5 capture session hook env includes state":
+    let captureSessions =
+      %*{
+        "active": true,
+        "window_total": 2,
+        "output_total": 1,
+        "windows": [{"id": 11, "count": 2}],
+        "outputs": [{"id": 21, "count": 1}],
+      }
+    let env = captureSessionHookEnv(
+      Model(
+        environment:
+          @[
+            EnvironmentEntryConfig(name: "TRIAD_CAPTURE_ACTIVE", value: "stale"),
+            EnvironmentEntryConfig(name: "CUSTOM_CAPTURE_HOOK_ENV", value: "keep"),
+          ]
+      ),
+      CaptureSessionEvent.CaptureSessionStarted,
+      captureSessions,
+    )
+
+    check env["TRIAD_CAPTURE_EVENT"] == "started"
+    check env["TRIAD_CAPTURE_ACTIVE"] == "1"
+    check env["TRIAD_CAPTURE_WINDOW_TOTAL"] == "2"
+    check env["TRIAD_CAPTURE_OUTPUT_TOTAL"] == "1"
+    check env["TRIAD_CAPTURE_TOTAL"] == "3"
+    check env["CUSTOM_CAPTURE_HOOK_ENV"] == "keep"
+    check parseJson(env["TRIAD_CAPTURE_JSON"])["windows"][0]["id"].getInt() == 11
+
+    let emptyEnv =
+      captureSessionHookEnv(Model(), CaptureSessionEvent.CaptureSessionStopped, nil)
+    check emptyEnv["TRIAD_CAPTURE_EVENT"] == "stopped"
+    check emptyEnv["TRIAD_CAPTURE_ACTIVE"] == "0"
+    check emptyEnv["TRIAD_CAPTURE_TOTAL"] == "0"
+    check parseJson(emptyEnv["TRIAD_CAPTURE_JSON"]).len == 0
+
   test "Exit-session confirmation routes Enter to confirm":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(

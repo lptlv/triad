@@ -1,4 +1,4 @@
-import std/[os, osproc, strtabs, strutils, times]
+import std/[json, os, osproc, strtabs, strutils, times]
 import chronicles
 import ../types/model
 from ../types/runtime_values import CaptureSessionEvent, ConfigNotificationEvent
@@ -118,8 +118,49 @@ proc spawnConfigNotification*(
     warn "Failed to spawn config notification",
       event = $event, cmd = command[0], error = e.msg
 
+proc captureSessionEventName(event: CaptureSessionEvent): string =
+  case event
+  of CaptureSessionEvent.CaptureSessionStarted: "started"
+  of CaptureSessionEvent.CaptureSessionStopped: "stopped"
+  of CaptureSessionEvent.CaptureSessionNotifyNone: "none"
+
+proc jsonBoolField(node: JsonNode, key: string): bool =
+  node != nil and node.kind == JObject and node.hasKey(key) and node[key].kind == JBool and
+    node[key].getBool()
+
+proc jsonIntField(node: JsonNode, key: string): int =
+  if node != nil and node.kind == JObject and node.hasKey(key) and node[key].kind == JInt:
+    max(0, node[key].getInt())
+  else:
+    0
+
+proc envFlag(value: bool): string =
+  if value: "1" else: "0"
+
+proc captureSessionHookEnv*(
+    model: Model, event: CaptureSessionEvent, captureSessions: JsonNode
+): StringTableRef =
+  result = model.configuredProcessEnv()
+  let windowTotal = captureSessions.jsonIntField("window_total")
+  let outputTotal = captureSessions.jsonIntField("output_total")
+  let captureSessionsJson =
+    if captureSessions == nil:
+      %*{}
+    else:
+      captureSessions
+
+  result["TRIAD_CAPTURE_EVENT"] = event.captureSessionEventName()
+  result["TRIAD_CAPTURE_ACTIVE"] = captureSessions.jsonBoolField("active").envFlag()
+  result["TRIAD_CAPTURE_WINDOW_TOTAL"] = $windowTotal
+  result["TRIAD_CAPTURE_OUTPUT_TOTAL"] = $outputTotal
+  result["TRIAD_CAPTURE_TOTAL"] = $(windowTotal + outputTotal)
+  result["TRIAD_CAPTURE_JSON"] = $captureSessionsJson
+
 proc spawnCaptureSessionHook*(
-    model: Model, event: CaptureSessionEvent, command: seq[string]
+    model: Model,
+    event: CaptureSessionEvent,
+    command: seq[string],
+    captureSessions: JsonNode,
 ): Process =
   if command.len == 0:
     return
@@ -128,7 +169,7 @@ proc spawnCaptureSessionHook*(
     let p = startProcess(
       command[0],
       args = command.commandArgs(),
-      env = model.configuredProcessEnv(),
+      env = model.captureSessionHookEnv(event, captureSessions),
       options = InheritedProcessOptions,
     )
     info "Spawned capture-session hook",

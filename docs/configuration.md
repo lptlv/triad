@@ -68,6 +68,10 @@ capture-session {
 }
 ```
 
+Triad passes `TRIAD_CAPTURE_EVENT`, `TRIAD_CAPTURE_ACTIVE`,
+`TRIAD_CAPTURE_WINDOW_TOTAL`, `TRIAD_CAPTURE_OUTPUT_TOTAL`,
+`TRIAD_CAPTURE_TOTAL`, and `TRIAD_CAPTURE_JSON` to these commands.
+
 ### Shell & Bar Profiles
 Manage shells and status bars in the `shells` block. Triad sets `$TRIAD_SOCKET` for every profile. Use `niri-compat #true` if a shell needs the Niri IPC facade and `$NIRI_SOCKET`.
 

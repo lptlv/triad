@@ -33,14 +33,19 @@ proc dispatchCaptureSessionHook(daemon: var TriadDaemon, event: CaptureSessionEv
   let command = daemon.runtimeState.model.captureSessionCommand(event)
   if command.len == 0:
     return
+  let captureSessions = daemon.captureSessionsJson()
   writeBehaviorEvent(
-    "capture_session_hook_requested", %*{"event": $event, "command": command}
+    "capture_session_hook_requested",
+    %*{"event": $event, "command": command, "capture_sessions": captureSessions},
   )
   if daemon.captureSessionHook != nil:
     daemon.captureSessionHook(addr daemon, event, command)
   else:
     daemon.trackChildProcess(
-      spawnCaptureSessionHook(daemon.runtimeState.model, event, command), command[0]
+      spawnCaptureSessionHook(
+        daemon.runtimeState.model, event, command, captureSessions
+      ),
+      command[0],
     )
 
 proc broadcastCaptureSessionsChanged*(daemon: var TriadDaemon) =

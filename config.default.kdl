@@ -224,6 +224,7 @@ recent-windows {
 // spawn-at-startup "sh" "-lc" "command -v sunsetr >/dev/null 2>&1 && sunsetr || true"  // night-light daemon
 
 // Optional commands when River reports screen/window capture sessions.
+// Hooks receive TRIAD_CAPTURE_* environment variables with event and counts.
 // capture-session {
 //     started "notify-send" "Triad" "Screen sharing started"
 //     stopped "notify-send" "Triad" "Screen sharing stopped"
