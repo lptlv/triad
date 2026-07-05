@@ -23,6 +23,7 @@ Ask Triad about its health and world.
 |---|---|
 | `commands` | Lists what you can do. |
 | `state` | Dumps everything Triad knows. |
+| `captures` | Shows River v5 screencopy capture-session counts. |
 | `workspaces`, `outputs`, `windows` | Snippets of the state. |
 | `perf-status`, `mem-status` | Shows the daemon's guts. |
 | `config-reload` | Refreshes your settings. |
@@ -111,3 +112,27 @@ Talk to Triad directly. Use the versioned JSON protocol over the socket.
 {"triad":{"version":1,"request":"event-stream","events":["state","layout"]}}
 ```
 We send a snapshot first, then push updates.
+
+For capture indicators, subscribe to the native capture stream:
+
+```bash
+triad msg event-stream --native capture
+```
+
+Or use the bundled Waybar/custom-bar formatter:
+
+```bash
+sh tools/triad-capture-status.sh --watch --waybar
+```
+
+Waybar custom module:
+
+```json
+{
+  "custom/triad-capture": {
+    "exec": "sh /path/to/triad/tools/triad-capture-status.sh --watch --waybar",
+    "return-type": "json",
+    "format": "{}"
+  }
+}
+```

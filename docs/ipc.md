@@ -84,6 +84,22 @@ For just River v5 screencopy activity counts, ask for `captures`:
 {"triad":{"version":1,"request":"captures"}}
 ```
 
+For a shell-bar friendly consumer, use:
+```bash
+sh tools/triad-capture-status.sh --watch --waybar
+```
+
+Waybar custom module shape:
+```json
+{
+  "custom/triad-capture": {
+    "exec": "sh /path/to/triad/tools/triad-capture-status.sh --watch --waybar",
+    "return-type": "json",
+    "format": "{}"
+  }
+}
+```
+
 ### The Reply
 ```json
 {
