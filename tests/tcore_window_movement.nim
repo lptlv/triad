@@ -40,6 +40,19 @@ proc projectedInstruction(model: Model, externalId: uint32): RenderInstruction =
       return instr
   RenderInstruction()
 
+proc setupSideBySideOutputs(model: var Model) =
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+  )
+  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+  )
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0)
+  )
+  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -952,19 +965,7 @@ suite "Core Runtime Logic: window movement":
 
   test "Tiled pointer move can drop into another output scroller workspace":
     var model = configuredModel()
-    model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
-    )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
-    model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
-    )
-    model.applyMsg(
-      Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
-      )
-    )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.setupSideBySideOutputs()
     model.applyMsg(
       Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
     )
@@ -995,19 +996,7 @@ suite "Core Runtime Logic: window movement":
 
   test "Tiled pointer drag remains render-visible across outputs before drop":
     var model = configuredModel()
-    model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
-    )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
-    model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
-    )
-    model.applyMsg(
-      Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
-      )
-    )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.setupSideBySideOutputs()
     model.applyMsg(
       Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
     )
@@ -1049,21 +1038,90 @@ suite "Core Runtime Logic: window movement":
     check visibilityBounds == allOutputBounds
     check state.visible
 
+  test "Tiled pointer drag at source output seam autoscrolls source scroller":
+    var model = configuredModel()
+    model.setupSideBySideOutputs()
+    let leftOutput = model.outputForExternal(ExternalOutputId(1))
+    let rightOutput = model.outputForExternal(ExternalOutputId(2))
+    let rightTag = model.tagForSlot(3)
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    for id in 1'u32 .. 3'u32:
+      model.applyMsg(
+        Msg(
+          kind: MsgKind.WlWindowCreated,
+          windowId: id,
+          appId: "app",
+          title: "Window " & $id,
+        )
+      )
+    model.setViewport(3, targetX = 300.0, currentX = 300.0)
+
+    let rightScreen = model.outputScreen(rightOutput)
+    let start = model.instructionGeom(3).rectCenter()
+    let dropX = rightScreen.x - 10
+    let dropY = start.y
+    let before = model.viewport(3)
+
+    check model.workspaceOutput(rightTag) == rightOutput
+    check model.outputActiveTag(leftOutput) == model.tagForSlot(1)
+    check start.x >= rightScreen.x
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    check model.pointerOp.dropTag == rightTag
+    check model.pointerOp.dropOutput == rightOutput
+    check model.activeScrollerPointerDrag()
+    check model.tickPointerDragAutoScroll(16)
+    check model.pointerOp.dragAutoScrollElapsedMs == 16
+    check model.tickPointerDragAutoScroll(84)
+    check model.viewport(3).currentViewportXOffset < before.currentViewportXOffset
+
+    discard model.finishPointerOp()
+
+    check model.placementForExternalOnSlot(3, 3).found
+    check not model.placementForExternalOnSlot(1, 3).found
+    check model.activeWorkspaceSlot() == 3
+    check model.activeOutput == rightOutput
+    check model.outputActiveTag(leftOutput) == model.tagForSlot(1)
+
+  test "Tiled pointer drag beyond source seam can drop on adjacent output":
+    var model = configuredModel()
+    model.setupSideBySideOutputs()
+    let leftOutput = model.outputForExternal(ExternalOutputId(1))
+    let rightOutput = model.outputForExternal(ExternalOutputId(2))
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    for id in 1'u32 .. 3'u32:
+      model.applyMsg(
+        Msg(
+          kind: MsgKind.WlWindowCreated,
+          windowId: id,
+          appId: "app",
+          title: "Window " & $id,
+        )
+      )
+
+    let start = model.instructionGeom(3).rectCenter()
+    let dropX =
+      model.outputScreen(leftOutput).x + model.outputScreen(leftOutput).w div 2
+    let dropY = start.y
+
+    check model.workspaceOutput(model.tagForSlot(3)) == rightOutput
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    check model.pointerOp.dropTag == model.tagForSlot(1)
+    check model.pointerOp.dropOutput == leftOutput
+    discard model.finishPointerOp()
+
+    let moved = model.placementForExternalOnSlot(1, 3)
+    check moved.found
+    check not model.placementForExternalOnSlot(3, 3).found
+    check model.activeWorkspaceSlot() == 1
+    check model.activeOutput == leftOutput
+
   test "Tiled pointer move can drop into empty scroller workspace on another output":
     var model = configuredModel()
-    model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
-    )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
-    model.applyMsg(
-      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
-    )
-    model.applyMsg(
-      Msg(
-        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
-      )
-    )
-    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.setupSideBySideOutputs()
     model.applyMsg(
       Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
     )

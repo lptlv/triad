@@ -376,6 +376,37 @@ proc outputUnderPointer(model: Model, x, y: int32): Option[OutputId] =
     return some(NullOutputId)
   none(OutputId)
 
+proc sourceScrollerEdgeOutput(model: Model, op: PointerOpData): Option[OutputId] =
+  if op.sourceTag == NullTagId or not model.tagUsesCoreScroller(op.sourceTag):
+    return none(OutputId)
+  let outputId = model.workspaceOutput(op.sourceTag)
+  if outputId == NullOutputId:
+    return none(OutputId)
+  let tagOpt = model.tagData(op.sourceTag)
+  if tagOpt.isNone:
+    return none(OutputId)
+  let screen = model.outputScreen(outputId)
+  if screen.w <= 0 or screen.h <= 0:
+    return none(OutputId)
+
+  let vertical = tagOpt.get().layoutMode == LayoutMode.VerticalScroller
+  let primary = if vertical: op.currentY else: op.currentX
+  let secondary = if vertical: op.currentX else: op.currentY
+  let primaryStart = if vertical: screen.y else: screen.x
+  let primaryEnd = primaryStart + (if vertical: screen.h else: screen.w)
+  let secondaryStart = if vertical: screen.x else: screen.y
+  let secondaryEnd = secondaryStart + (if vertical: screen.w else: screen.h)
+
+  if secondary < secondaryStart or secondary >= secondaryEnd:
+    return none(OutputId)
+  if primary >= primaryStart - PointerDragAutoScrollEdge and
+      primary < primaryStart + PointerDragAutoScrollEdge:
+    return some(outputId)
+  if primary >= primaryEnd - PointerDragAutoScrollEdge and
+      primary < primaryEnd + PointerDragAutoScrollEdge:
+    return some(outputId)
+  none(OutputId)
+
 proc pointerTargetTag(model: Model, outputId: OutputId): TagId =
   if outputId == NullOutputId:
     return model.activeTag
@@ -505,7 +536,12 @@ proc closestStackInsertion(
       result = (windowIdx, dist)
 
 proc scrollerDropTarget(model: Model, op: PointerOpData): ScrollerDropTarget =
-  let outputOpt = model.outputUnderPointer(op.currentX, op.currentY)
+  let edgeOutput = model.sourceScrollerEdgeOutput(op)
+  let outputOpt =
+    if edgeOutput.isSome:
+      edgeOutput
+    else:
+      model.outputUnderPointer(op.currentX, op.currentY)
   if outputOpt.isNone:
     return
   let outputId = outputOpt.get()
