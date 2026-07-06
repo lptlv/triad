@@ -305,7 +305,7 @@ suite "Core Runtime Logic: window movement":
     check cornerModel.modelWindow(1).floatingGeom.w == cornerGeom.w + 40
     check cornerModel.modelWindow(1).floatingGeom.h == cornerGeom.h + 40
 
-  test "Floating pointer resize locks dominant axis for accidental corner drift":
+  test "Floating pointer corner resize tracks both axes immediately":
     var model = cameraModel()
     model.seedCameraWindows(2)
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -320,8 +320,8 @@ suite "Core Runtime Logic: window movement":
 
     let win = model.modelWindow(1)
     check win.floatingGeom.w == geom.w + 40
-    check win.floatingGeom.y == geom.y
-    check win.floatingGeom.h == geom.h
+    check win.floatingGeom.y == geom.y + 4
+    check win.floatingGeom.h == geom.h - 4
 
   test "Floating pointer resize can become diagonal after dominant-axis start":
     var model = cameraModel()
@@ -969,7 +969,7 @@ suite "Core Runtime Logic: window movement":
     check model.modelWindow(1).heightProportion > beforeHeight
     check model.instructionGeom(1).h > beforeGeom.h
 
-  test "Tiled pointer resize width drag does not clamp height from corner drift":
+  test "Tiled pointer corner resize tracks secondary height immediately":
     var model = cameraModel()
     model.seedCameraWindows(2)
     let geom = model.instructionGeom(1)
@@ -985,10 +985,10 @@ suite "Core Runtime Logic: window movement":
     discard model.finishPointerOp()
 
     check model.column(placement.columnId).get().widthProportion > beforeWidth
-    check model.modelWindow(1).heightProportion == beforeHeight
-    check model.instructionGeom(1).h == beforeGeom.h
+    check model.modelWindow(1).heightProportion < beforeHeight
+    check model.instructionGeom(1).h < beforeGeom.h
 
-  test "Tiled pointer resize height drag does not resize width from corner drift":
+  test "Tiled pointer corner resize tracks secondary width immediately":
     var model = cameraModel()
     model.seedCameraWindows(2)
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -1005,9 +1005,9 @@ suite "Core Runtime Logic: window movement":
     check model.applyPointerDelta(20, 100)
     discard model.finishPointerOp()
 
-    check model.column(placement.columnId).get().widthProportion == beforeWidth
+    check model.column(placement.columnId).get().widthProportion > beforeWidth
     check model.modelWindow(1).heightProportion > beforeHeight
-    check model.instructionGeom(1).w == beforeGeom.w
+    check model.instructionGeom(1).w > beforeGeom.w
 
   test "Tiled pointer resize can add height after width-dominant start":
     var model = cameraModel()

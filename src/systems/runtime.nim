@@ -140,42 +140,6 @@ proc resolveResizeEdges(geom: Rect, x, y: int32, requestedEdges: uint32): uint32
     return hitEdges
   requestedEdges and (EdgeHorizontal or EdgeVertical)
 
-proc updateResizeIntent(op: var PointerOpData, dx, dy: int32) =
-  let baseHorizontal = (op.edges and EdgeHorizontal) != 0'u32
-  let baseVertical = (op.edges and EdgeVertical) != 0'u32
-  if not (baseHorizontal and baseVertical):
-    op.resizeIntentLocked = true
-    op.resizeIntentHorizontal = baseHorizontal
-    op.resizeIntentVertical = baseVertical
-    return
-  let distanceSquared = int64(dx) * int64(dx) + int64(dy) * int64(dy)
-  if distanceSquared < int64(PointerDragThresholdSquared):
-    return
-  op.resizeIntentLocked = true
-  let absDx = abs(int64(dx))
-  let absDy = abs(int64(dy))
-  if absDx >= absDy * 2:
-    op.resizeIntentHorizontal = true
-    op.resizeIntentVertical = false
-  elif absDy >= absDx * 2:
-    op.resizeIntentHorizontal = false
-    op.resizeIntentVertical = true
-  else:
-    op.resizeIntentHorizontal = true
-    op.resizeIntentVertical = true
-
-proc effectiveResizeHorizontal(op: PointerOpData): bool =
-  if op.resizeIntentLocked:
-    op.resizeIntentHorizontal
-  else:
-    (op.edges and EdgeHorizontal) != 0'u32
-
-proc effectiveResizeVertical(op: PointerOpData): bool =
-  if op.resizeIntentLocked:
-    op.resizeIntentVertical
-  else:
-    (op.edges and EdgeVertical) != 0'u32
-
 proc tiledResizeContext(
     model: Model,
     externalId: ExternalWindowId,
@@ -745,8 +709,6 @@ proc beginPointerResize*(
         sourceColumn: context.columnId,
         sourceWindowIdx: context.winIdx,
         resizeColumn: context.columnId,
-        resizeHorizontal: (context.edges and EdgeHorizontal) != 0,
-        resizeVertical: (context.edges and EdgeVertical) != 0,
         initialColumnWidth:
           if columnOpt.isSome:
             columnOpt.get().widthProportion
@@ -1099,7 +1061,6 @@ proc applyPointerDelta*(
           model.updateNativeDropTarget(next)
       return model.setPointerOpState(next)
     of PointerOpKind.OpResize:
-      next.updateResizeIntent(dx, dy)
       discard model.setPointerOpState(next)
       let screen = model.activeWorkspaceScreen()
       let tagOpt = model.tagData(op.sourceTag)
@@ -1108,7 +1069,7 @@ proc applyPointerDelta*(
       let tag = tagOpt.get()
       var dirty = false
       if model.activeTagUsesCoreScroller():
-        if next.effectiveResizeHorizontal():
+        if (next.edges and EdgeHorizontal) != 0'u32:
           let signedDx =
             if (next.edges and 4'u32) != 0:
               -dx
@@ -1128,7 +1089,7 @@ proc applyPointerDelta*(
               model.setWindowWidthProportion(
                 next.windowId, next.initialWindowWidth + delta
               ) or dirty
-        if next.effectiveResizeVertical():
+        if (next.edges and EdgeVertical) != 0'u32:
           let signedDy =
             if (next.edges and 1'u32) != 0:
               -dy
@@ -1152,7 +1113,7 @@ proc applyPointerDelta*(
         let incDx = dx - op.totalDX
         let incDy = dy - op.totalDY
         let nativeId = tag.nativeLayoutId.nativeLayoutIdString()
-        if next.effectiveResizeHorizontal() and screen.w > 0:
+        if (next.edges and EdgeHorizontal) != 0'u32 and screen.w > 0:
           let signedDx =
             if (next.edges and 4'u32) != 0:
               -incDx
@@ -1167,7 +1128,7 @@ proc applyPointerDelta*(
               ) or dirty
           else:
             dirty = model.resizeWidth(float32(signedDx) / float32(screen.w)) or dirty
-        if next.effectiveResizeVertical() and screen.h > 0:
+        if (next.edges and EdgeVertical) != 0'u32 and screen.h > 0:
           let signedDy =
             if (next.edges and 1'u32) != 0:
               -incDy
@@ -1204,14 +1165,13 @@ proc applyPointerDelta*(
     next.totalDY = dy
     next.currentX = currentX
     next.currentY = currentY
-    next.updateResizeIntent(dx, dy)
-    if next.effectiveResizeVertical():
+    if (next.edges and EdgeVertical) != 0'u32:
       if (op.edges and 1) != 0:
         geom.y = op.initialGeom.y + dy
         geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h - dy)
       elif (op.edges and 2) != 0:
         geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h + dy)
-    if next.effectiveResizeHorizontal():
+    if (next.edges and EdgeHorizontal) != 0'u32:
       if (op.edges and 4) != 0:
         geom.x = op.initialGeom.x + dx
         geom.w = max(model.effectiveFloatingMinWidth(), op.initialGeom.w - dx)
