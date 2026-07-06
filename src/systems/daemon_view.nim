@@ -57,7 +57,7 @@ proc highlightRiverId*(model: Model): uint32 =
 
 proc draggedPointerRiverId*(model: Model): uint32 =
   let op = model.pointerOp
-  if op.kind == PointerOpKind.OpMove and op.tiled and op.dragActive:
+  if op.kind == PointerOpKind.OpMove and (not op.tiled or op.dragActive):
     return model.riverIdForWindow(op.windowId)
   0'u32
 

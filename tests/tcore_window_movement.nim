@@ -209,6 +209,151 @@ suite "Core Runtime Logic: window movement":
     check placement.columnId == original.columnId
     check placement.windowIdx == original.windowIdx
 
+  test "Floating pointer move previews before committing manual geometry":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let geom = model.instructionGeom(1)
+    check model.setWindowFloating(winId, true, geom)
+
+    check model.beginPointerMove(ExternalWindowId(1), geom.x + 10, geom.y + 10)
+    let effects = model.updateModel(
+      Msg(
+        kind: MsgKind.WlPointerDelta,
+        dx: 25,
+        dy: 30,
+        pointerX: geom.x + 35,
+        pointerY: geom.y + 40,
+      )
+    )
+
+    let preview = model.instructionGeom(1)
+    let held = model.modelWindow(1)
+    check held.floatingGeom == geom
+    check preview.x == geom.x + 25
+    check preview.y == geom.y + 30
+    check effects.anyIt(it.kind == EffectKind.EffManageDirty)
+
+    discard model.updateModel(Msg(kind: MsgKind.WlPointerRelease))
+    let committed = model.modelWindow(1)
+    check committed.manualFloatingPosition
+    check committed.floatingGeom.x == geom.x + 25
+    check committed.floatingGeom.y == geom.y + 30
+
+  test "Floating pointer move release without delta preserves auto geometry":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let geom = model.instructionGeom(1)
+    check model.setWindowFloating(winId, true, geom)
+
+    check model.beginPointerMove(ExternalWindowId(1), geom.x + 10, geom.y + 10)
+    discard model.finishPointerOp()
+
+    let win = model.modelWindow(1)
+    check not win.manualFloatingPosition
+    check win.floatingGeom == geom
+
+  test "Floating pointer resize uses hit-tested edge axes":
+    var rightModel = cameraModel()
+    rightModel.seedCameraWindows(2)
+    let rightWin = rightModel.windowForExternal(ExternalWindowId(1))
+    let rightGeom = rightModel.instructionGeom(1)
+    check rightModel.setWindowFloating(rightWin, true, rightGeom)
+    check rightModel.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      rightGeom.x + rightGeom.w - 1,
+      rightGeom.y + rightGeom.h div 2,
+    )
+    check rightModel.applyPointerDelta(40, 40)
+    discard rightModel.finishPointerOp()
+    check rightModel.modelWindow(1).floatingGeom.w == rightGeom.w + 40
+    check rightModel.modelWindow(1).floatingGeom.h == rightGeom.h
+
+    var bottomModel = cameraModel()
+    bottomModel.seedCameraWindows(2)
+    let bottomWin = bottomModel.windowForExternal(ExternalWindowId(1))
+    let bottomGeom = bottomModel.instructionGeom(1)
+    check bottomModel.setWindowFloating(bottomWin, true, bottomGeom)
+    check bottomModel.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      bottomGeom.x + bottomGeom.w div 2,
+      bottomGeom.y + bottomGeom.h - 1,
+    )
+    check bottomModel.applyPointerDelta(40, 40)
+    discard bottomModel.finishPointerOp()
+    check bottomModel.modelWindow(1).floatingGeom.w == bottomGeom.w
+    check bottomModel.modelWindow(1).floatingGeom.h == bottomGeom.h + 40
+
+    var cornerModel = cameraModel()
+    cornerModel.seedCameraWindows(2)
+    let cornerWin = cornerModel.windowForExternal(ExternalWindowId(1))
+    let cornerGeom = cornerModel.instructionGeom(1)
+    check cornerModel.setWindowFloating(cornerWin, true, cornerGeom)
+    check cornerModel.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      cornerGeom.x + cornerGeom.w - 1,
+      cornerGeom.y + cornerGeom.h - 1,
+    )
+    check cornerModel.applyPointerDelta(40, 40)
+    discard cornerModel.finishPointerOp()
+    check cornerModel.modelWindow(1).floatingGeom.w == cornerGeom.w + 40
+    check cornerModel.modelWindow(1).floatingGeom.h == cornerGeom.h + 40
+
+  test "Floating pointer resize fills missing axis from binding edges":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let geom = model.instructionGeom(1)
+    check model.setWindowFloating(winId, true, geom)
+
+    check model.beginPointerResize(
+      ExternalWindowId(1), 10'u32, geom.x + geom.w - 1, geom.y + geom.h div 2
+    )
+    check model.applyPointerDelta(40, 40)
+    discard model.finishPointerOp()
+
+    let win = model.modelWindow(1)
+    check win.floatingGeom.w == geom.w + 40
+    check win.floatingGeom.h == geom.h + 40
+
+  test "Floating pointer resize preserves hit-tested top-left direction":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let geom = model.instructionGeom(1)
+    check model.setWindowFloating(winId, true, geom)
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, geom.x + 1, geom.y + 1)
+    check model.applyPointerDelta(40, 40)
+    discard model.finishPointerOp()
+
+    let win = model.modelWindow(1)
+    check win.floatingGeom.x == geom.x + 40
+    check win.floatingGeom.y == geom.y + 40
+    check win.floatingGeom.w == geom.w - 40
+    check win.floatingGeom.h == geom.h - 40
+
+  test "Floating pointer resize falls back to binding edges from center third":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let geom = model.instructionGeom(1)
+    let center = geom.rectCenter()
+    check model.setWindowFloating(winId, true, geom)
+
+    check not model.beginPointerResize(ExternalWindowId(1), 0'u32, center.x, center.y)
+    check model.pointerOp.kind == PointerOpKind.OpNone
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, center.x, center.y)
+    check model.applyPointerDelta(40, 40)
+    discard model.finishPointerOp()
+    check model.modelWindow(1).floatingGeom.w == geom.w + 40
+    check model.modelWindow(1).floatingGeom.h == geom.h + 40
+
   test "Scroller resize edge double-click toggles full-width column":
     var model = cameraModel()
     model.seedCameraWindows(2)
@@ -779,6 +924,37 @@ suite "Core Runtime Logic: window movement":
 
     check model.column(placement.columnId).get().widthProportion > before
 
+  test "Tiled pointer resize fills missing vertical axis from binding edges":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h div 2
+    let placement = model.placementForExternal(1)
+    let beforeWidth = model.column(placement.columnId).get().widthProportion
+    let beforeHeight = model.modelWindow(1).heightProportion
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
+    check model.applyPointerDelta(100, 100)
+    discard model.finishPointerOp()
+
+    check model.column(placement.columnId).get().widthProportion > beforeWidth
+    check model.modelWindow(1).heightProportion > beforeHeight
+
+  test "Tiled pointer resize adjusts scroller window height from edge drag":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w div 2
+    let startY = geom.y + geom.h - 1
+    let before = model.modelWindow(1).heightProportion
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(0, 100)
+    discard model.finishPointerOp()
+
+    check model.modelWindow(1).heightProportion > before
+
   test "Tiled pointer move drops frame-tree windows into target frame":
     var model = cameraModel()
     model.seedCameraWindows(2)
@@ -834,6 +1010,23 @@ suite "Core Runtime Logic: window movement":
     discard model.finishPointerOp()
 
     check model.instructionGeom(1).w > before.w
+
+  test "Tiled pointer resize adjusts native frame vertical split ratio":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFrameSplitVertical))
+    let before = model.instructionGeom(1)
+    let startX = before.x + before.w div 2
+    let startY = before.y + before.h - 1
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(0, 100)
+    discard model.finishPointerOp()
+
+    check model.instructionGeom(1).h > before.h
 
   test "Bundled Janet layout movement mirrors directional focus target":
     for layoutId in [

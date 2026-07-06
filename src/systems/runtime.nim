@@ -134,8 +134,18 @@ proc resizeEdgesUnder(geom: Rect, x, y: int32): uint32 =
   elif localY >= (geom.h * 2) div 3:
     result = result or EdgeBottom
 
+proc resolveResizeEdges(geom: Rect, x, y: int32, requestedEdges: uint32): uint32 =
+  result = resizeEdgesUnder(geom, x, y)
+  if (result and EdgeHorizontal) == 0'u32:
+    result = result or (requestedEdges and EdgeHorizontal)
+  if (result and EdgeVertical) == 0'u32:
+    result = result or (requestedEdges and EdgeVertical)
+
 proc tiledResizeContext(
-    model: Model, externalId: ExternalWindowId, startX, startY: int32
+    model: Model,
+    externalId: ExternalWindowId,
+    startX, startY: int32,
+    requestedEdges = 0'u32,
 ): tuple[
   ok: bool,
   winId: WindowId,
@@ -157,7 +167,7 @@ proc tiledResizeContext(
   let geom = model.visibleInstructionGeom(winId)
   if tagId == NullTagId or not placement.found or geom.w <= 0 or geom.h <= 0:
     return
-  let edges = resizeEdgesUnder(geom, startX, startY)
+  let edges = resolveResizeEdges(geom, startX, startY, requestedEdges)
   if edges == 0'u32:
     return
   (
@@ -646,11 +656,16 @@ proc beginPointerMove*(
         dropFloating: false,
       )
     )
+  let projectedGeom = model.visibleInstructionGeom(winId)
   model.setPointerOpState(
     PointerOpData(
       kind: PointerOpKind.OpMove,
       windowId: winId,
-      initialGeom: winOpt.get().floatingGeom,
+      initialGeom:
+        if projectedGeom.w > 0 and projectedGeom.h > 0:
+          projectedGeom
+        else:
+          winOpt.get().floatingGeom,
       startX: startX,
       startY: startY,
       currentX: startX,
@@ -677,7 +692,7 @@ proc beginPointerResize*(
       winOpt.get().isUnmanagedGlobal:
     return false
   if not winOpt.get().isFloating:
-    let context = model.tiledResizeContext(externalId, startX, startY)
+    let context = model.tiledResizeContext(externalId, startX, startY, edges)
     if not context.ok:
       return false
     if startedMs > 0:
@@ -710,12 +725,16 @@ proc beginPointerResize*(
         currentY: startY,
       )
     )
+  let resolvedEdges =
+    resolveResizeEdges(winOpt.get().floatingGeom, startX, startY, edges)
+  if resolvedEdges == 0'u32:
+    return false
   model.setPointerOpState(
     PointerOpData(
       kind: PointerOpKind.OpResize,
       windowId: winId,
       initialGeom: winOpt.get().floatingGeom,
-      edges: edges,
+      edges: resolvedEdges,
       startX: startX,
       startY: startY,
       currentX: startX,
@@ -1135,9 +1154,15 @@ proc applyPointerDelta*(
   var geom = winOpt.get().floatingGeom
   case op.kind
   of PointerOpKind.OpMove:
-    geom.x = op.initialGeom.x + dx
-    geom.y = op.initialGeom.y + dy
+    var next = op
+    next.totalDX = dx
+    next.totalDY = dy
+    next.currentX = currentX
+    next.currentY = currentY
+    return model.setPointerOpState(next)
   of PointerOpKind.OpResize:
+    if op.edges == 0'u32:
+      return false
     if (op.edges and 1) != 0:
       geom.y = op.initialGeom.y + dy
       geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h - dy)
@@ -1153,10 +1178,7 @@ proc applyPointerDelta*(
   of PointerOpKind.OpOverviewDrag, PointerOpKind.OpOverviewScroll:
     return false
 
-  if op.kind == PointerOpKind.OpMove:
-    model.setWindowManualFloatingGeom(op.windowId, geom)
-  else:
-    model.setWindowFloatingGeom(op.windowId, geom)
+  model.setWindowFloatingGeom(op.windowId, geom)
 
 proc finishPointerOp*(model: var Model): core.WindowId =
   let op = model.pointerOp
@@ -1184,6 +1206,12 @@ proc finishPointerOp*(model: var Model): core.WindowId =
       discard model.commitScrollerDrop(op)
     else:
       discard model.commitNativeDrop(op)
+  elif not op.tiled and op.kind == PointerOpKind.OpMove and
+      (op.totalDX != 0 or op.totalDY != 0):
+    var geom = op.initialGeom
+    geom.x += op.totalDX
+    geom.y += op.totalDY
+    discard model.setWindowManualFloatingGeom(op.windowId, geom)
   result = if op.kind == PointerOpKind.OpResize: op.windowId else: NullWindowId
   discard model.clearPointerOp()
 

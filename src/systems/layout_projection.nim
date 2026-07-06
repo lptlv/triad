@@ -1210,9 +1210,13 @@ proc applyOverviewDrag(model: Model, instructions: var seq[rv.RenderInstruction]
       instr.clipSet = false
       return
 
-proc applyTiledPointerDrag(model: Model, instructions: var seq[rv.RenderInstruction]) =
+proc applyPointerMovePreview(
+    model: Model, instructions: var seq[rv.RenderInstruction]
+) =
   let op = model.pointerOp
-  if op.kind != rv.PointerOpKind.OpMove or not op.tiled or not op.dragActive:
+  if op.kind != rv.PointerOpKind.OpMove:
+    return
+  if op.tiled and not op.dragActive:
     return
   let externalId = model.externalWindowId(op.windowId)
   let geom = rv.Rect(
@@ -1794,7 +1798,7 @@ proc layoutProjection*(
       excludeWindowId = dragExcludeWindowId,
     )
     result.mergeNormalProjection(tagProjection, replaceInstructions = activeTag)
-  model.applyTiledPointerDrag(result.instructions)
+  model.applyPointerMovePreview(result.instructions)
 
 proc applyLayoutProjection*(model: var Model, projection: LayoutProjection) =
   for target in projection.viewportTargets:
