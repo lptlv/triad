@@ -56,6 +56,8 @@ proc cameraModel*(): Model =
       layout: LayoutConfig(
         gaps: 10,
         defaultColumnWidth: 0.7,
+        defaultWindowWidth: 0.5,
+        defaultWindowHeight: 1.0,
         centerFocusedColumn: "always",
         enableAnimations: true,
         animationSpeed: 0.5,

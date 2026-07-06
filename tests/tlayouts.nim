@@ -35,6 +35,94 @@ suite "Layout Algorithm Math":
     check instructions[1].geom.x == 500
     check instructions[1].geom.w == 470
 
+  test "layoutScroller respects single window height proportion":
+    var tag =
+      ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 0.5)
+
+    let instructions =
+      layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.y == 255
+    check instructions[0].geom.h == 490
+
+  test "layoutScroller lets single window height exceed viewport":
+    var tag =
+      ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 1.2)
+
+    let instructions =
+      layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.y < 10
+    check instructions[0].geom.h > 980
+
+  test "layoutScroller full-width single window ignores resized height":
+    var tag =
+      ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
+    tag.columns.add(
+      ProjectedColumn(windows: @[101], widthProportion: 0.5, isFullWidth: true)
+    )
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 0.5)
+
+    let instructions =
+      layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.y == 10
+    check instructions[0].geom.h == 980
+
+  test "layoutVerticalScroller respects single window width proportion":
+    var tag = ProjectedTag(
+      tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
+    )
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, widthProportion: 0.5)
+
+    let instructions = layoutVerticalScroller(
+      tag, windows, screen, outerGap, innerGap, false, false, "never"
+    )
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.x == 255
+    check instructions[0].geom.w == 490
+
+  test "layoutVerticalScroller full-width single window ignores resized width":
+    var tag = ProjectedTag(
+      tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
+    )
+    tag.columns.add(
+      ProjectedColumn(windows: @[101], widthProportion: 0.5, isFullWidth: true)
+    )
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, widthProportion: 0.5)
+
+    let instructions = layoutVerticalScroller(
+      tag, windows, screen, outerGap, innerGap, false, false, "never"
+    )
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.x == 10
+    check instructions[0].geom.w == 980
+
   test "overview grid navigation follows row-major cells":
     check gridDimensions(5) == (cols: 3, rows: 2)
     check gridIndexByDelta(0, 5, 1, 0) == 1

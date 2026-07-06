@@ -404,11 +404,12 @@ suite "Core Runtime Logic: window movement":
     check fullWidth.handled
     check model.column(placement.columnId).get().isFullWidth
 
+    let resetGeom = model.instructionGeom(1)
     discard model.handlePointerResizeDoubleClick(
-      ExternalWindowId(1), geom.x + 1, geom.y + geom.h div 2, 2000
+      ExternalWindowId(1), resetGeom.x + 1, resetGeom.y + resetGeom.h div 2, 2000
     )
     let reset = model.handlePointerResizeDoubleClick(
-      ExternalWindowId(1), geom.x + 1, geom.y + geom.h div 2, 2200
+      ExternalWindowId(1), resetGeom.x + 1, resetGeom.y + resetGeom.h div 2, 2200
     )
     check reset.handled
     check model.modelWindow(1).widthProportion == 1.0'f32
@@ -933,6 +934,7 @@ suite "Core Runtime Logic: window movement":
     let placement = model.placementForExternal(1)
     let beforeWidth = model.column(placement.columnId).get().widthProportion
     let beforeHeight = model.modelWindow(1).heightProportion
+    let beforeGeom = model.instructionGeom(1)
 
     check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
     check model.applyPointerDelta(100, 100)
@@ -940,6 +942,7 @@ suite "Core Runtime Logic: window movement":
 
     check model.column(placement.columnId).get().widthProportion > beforeWidth
     check model.modelWindow(1).heightProportion > beforeHeight
+    check model.instructionGeom(1).h > beforeGeom.h
 
   test "Tiled pointer resize adjusts scroller window height from edge drag":
     var model = cameraModel()
@@ -948,12 +951,14 @@ suite "Core Runtime Logic: window movement":
     let startX = geom.x + geom.w div 2
     let startY = geom.y + geom.h - 1
     let before = model.modelWindow(1).heightProportion
+    let beforeGeom = model.instructionGeom(1)
 
     check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
     check model.applyPointerDelta(0, 100)
     discard model.finishPointerOp()
 
     check model.modelWindow(1).heightProportion > before
+    check model.instructionGeom(1).h > beforeGeom.h
 
   test "Tiled pointer move drops frame-tree windows into target frame":
     var model = cameraModel()
@@ -1460,6 +1465,33 @@ suite "Core Runtime Logic: window movement":
     discard model.updateModel(Msg(kind: MsgKind.CmdMaximizeColumn))
     check not model.columnData(columnId).get().isFullWidth
 
+  test "Maximize column renders resized single scroller window at full height":
+    var model = cameraModel()
+    model.seedCameraWindows(1)
+    let tagId = model.activeTag
+    let columnId = model.columnAt(tagId, 0)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let screen = model.primaryScreen()
+    let usableHeight = screen.h - 2 * model.outerGaps
+
+    check model.setWindowHeightProportion(winId, 0.5)
+    let resizedGeom = model.instructionGeom(1)
+    check resizedGeom.h < usableHeight
+
+    discard model.updateModel(Msg(kind: MsgKind.CmdMaximizeColumn))
+    let maximizedGeom = model.instructionGeom(1)
+    check model.columnData(columnId).get().isFullWidth
+    check model.modelWindow(1).heightProportion == 0.5'f32
+    check maximizedGeom.y == screen.y + model.outerGaps
+    check maximizedGeom.h == usableHeight
+
+    discard model.updateModel(Msg(kind: MsgKind.CmdMaximizeColumn))
+    let restoredGeom = model.instructionGeom(1)
+    check not model.columnData(columnId).get().isFullWidth
+    check model.modelWindow(1).heightProportion == 0.5'f32
+    check restoredGeom.h == resizedGeom.h
+    check restoredGeom.y == resizedGeom.y
+
   test "Maximize column suppresses edge-maximized presentation":
     var model = cameraModel()
     model.seedCameraWindows(1)
@@ -1485,7 +1517,9 @@ suite "Core Runtime Logic: window movement":
     let tagId = model.activeTag
     let columnId = model.columnAt(tagId, 0)
     let screen = model.primaryScreen()
+    let winId = model.windowForExternal(ExternalWindowId(1))
 
+    check model.setWindowHeightProportion(winId, 0.5)
     discard model.updateModel(Msg(kind: MsgKind.CmdMaximizeColumn))
     let effects = model.updateModel(Msg(kind: MsgKind.CmdToggleMaximized))
 

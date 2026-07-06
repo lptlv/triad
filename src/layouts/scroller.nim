@@ -4,6 +4,25 @@ import ../types/projection_values
 proc clampProportion(value: float32, lo = 0.05'f32, hi = 1.0'f32): float32 =
   clamp(value, lo, hi)
 
+proc clampWindowProportion(value: float32): float32 =
+  clamp(value, 0.05'f32, 4.0'f32)
+
+proc windowHeightProportion(
+    windows: Table[ProjectionWindowId, ProjectedWindow], winId: ProjectionWindowId
+): float32 =
+  if windows.hasKey(winId):
+    clampWindowProportion(windows[winId].heightProportion)
+  else:
+    1.0'f32
+
+proc windowWidthProportion(
+    windows: Table[ProjectionWindowId, ProjectedWindow], winId: ProjectionWindowId
+): float32 =
+  if windows.hasKey(winId):
+    clampWindowProportion(windows[winId].widthProportion)
+  else:
+    1.0'f32
+
 proc effectiveColumnProportion(col: ProjectedColumn): float32 =
   if col.isFullWidth: 1.0'f32 else: col.widthProportion
 
@@ -48,22 +67,34 @@ proc layoutScroller*(
     let totalInnerGaps = int32(numWindows - 1) * safeInnerGap
     let usableColHeight = max(0'i32, usableHeight - totalInnerGaps)
 
+    if numWindows == 1:
+      let winId = col.windows[0]
+      let winHeight =
+        if col.isFullWidth:
+          usableColHeight
+        else:
+          max(
+            0'i32,
+            int32(float32(usableColHeight) * windows.windowHeightProportion(winId)),
+          )
+      let currentY = screen.y + safeOuterGap + ((usableColHeight - winHeight) div 2)
+      instructions.add(
+        RenderInstruction(
+          windowId: winId,
+          geom: Rect(x: currentX, y: currentY, w: colWidth, h: winHeight),
+        )
+      )
+      return instructions
+
     var totalHeightProp: float32 = 0.0
     for winId in col.windows:
-      if windows.hasKey(winId):
-        totalHeightProp += clampProportion(windows[winId].heightProportion)
-      else:
-        totalHeightProp += 1.0
+      totalHeightProp += windows.windowHeightProportion(winId)
     if totalHeightProp <= 0:
       totalHeightProp = 1.0
 
     var currentY = screen.y + safeOuterGap
     for winId in col.windows:
-      let winProp =
-        if windows.hasKey(winId):
-          clampProportion(windows[winId].heightProportion)
-        else:
-          1.0'f32
+      let winProp = windows.windowHeightProportion(winId)
       let winHeight =
         max(0'i32, int32(float32(usableColHeight) * (winProp / totalHeightProp)))
 
@@ -127,13 +158,29 @@ proc layoutScroller*(
     let totalInnerGaps = int32(numWindows - 1) * safeInnerGap
     let usableColHeight = max(0'i32, usableHeight - totalInnerGaps)
 
+    if numWindows == 1:
+      let winId = col.windows[0]
+      let winHeight =
+        if col.isFullWidth:
+          usableColHeight
+        else:
+          max(
+            0'i32,
+            int32(float32(usableColHeight) * windows.windowHeightProportion(winId)),
+          )
+      let currentY = screen.y + safeOuterGap + ((usableColHeight - winHeight) div 2)
+      instructions.add(
+        RenderInstruction(
+          windowId: winId,
+          geom: Rect(x: currentX, y: currentY, w: colWidth, h: winHeight),
+        )
+      )
+      continue
+
     # Calculate sum of proportions for normalization
     var totalHeightProp: float32 = 0.0
     for winId in col.windows:
-      if windows.hasKey(winId):
-        totalHeightProp += clampProportion(windows[winId].heightProportion)
-      else:
-        totalHeightProp += 1.0
+      totalHeightProp += windows.windowHeightProportion(winId)
     if totalHeightProp <= 0:
       totalHeightProp = 1.0
 
@@ -141,11 +188,7 @@ proc layoutScroller*(
 
     for winId in col.windows:
       # Vertical stacking within the column
-      let winProp =
-        if windows.hasKey(winId):
-          clampProportion(windows[winId].heightProportion)
-        else:
-          1.0'f32
+      let winProp = windows.windowHeightProportion(winId)
       let winHeight =
         max(0'i32, int32(float32(usableColHeight) * (winProp / totalHeightProp)))
 
@@ -193,22 +236,33 @@ proc layoutVerticalScroller*(
     let totalInnerGaps = int32(numWindows - 1) * safeInnerGap
     let usableColWidth = max(0'i32, usableWidth - totalInnerGaps)
 
+    if numWindows == 1:
+      let winId = col.windows[0]
+      let winWidth =
+        if col.isFullWidth:
+          usableColWidth
+        else:
+          max(
+            0'i32, int32(float32(usableColWidth) * windows.windowWidthProportion(winId))
+          )
+      let currentX = screen.x + safeOuterGap + ((usableColWidth - winWidth) div 2)
+      instructions.add(
+        RenderInstruction(
+          windowId: winId,
+          geom: Rect(x: currentX, y: currentY, w: winWidth, h: colHeight),
+        )
+      )
+      return instructions
+
     var totalWidthProp: float32 = 0.0
     for winId in col.windows:
-      if windows.hasKey(winId):
-        totalWidthProp += clampProportion(windows[winId].widthProportion)
-      else:
-        totalWidthProp += 1.0
+      totalWidthProp += windows.windowWidthProportion(winId)
     if totalWidthProp <= 0:
       totalWidthProp = 1.0
 
     var currentX = screen.x + safeOuterGap
     for winId in col.windows:
-      let winProp =
-        if windows.hasKey(winId):
-          clampProportion(windows[winId].widthProportion)
-        else:
-          1.0'f32
+      let winProp = windows.windowWidthProportion(winId)
       let winWidth =
         max(0'i32, int32(float32(usableColWidth) * (winProp / totalWidthProp)))
 
@@ -272,13 +326,28 @@ proc layoutVerticalScroller*(
     let totalInnerGaps = int32(numWindows - 1) * safeInnerGap
     let usableColWidth = max(0'i32, usableWidth - totalInnerGaps)
 
+    if numWindows == 1:
+      let winId = col.windows[0]
+      let winWidth =
+        if col.isFullWidth:
+          usableColWidth
+        else:
+          max(
+            0'i32, int32(float32(usableColWidth) * windows.windowWidthProportion(winId))
+          )
+      let currentX = screen.x + safeOuterGap + ((usableColWidth - winWidth) div 2)
+      instructions.add(
+        RenderInstruction(
+          windowId: winId,
+          geom: Rect(x: currentX, y: currentY, w: winWidth, h: colHeight),
+        )
+      )
+      continue
+
     # Calculate sum of proportions for normalization
     var totalWidthProp: float32 = 0.0
     for winId in col.windows:
-      if windows.hasKey(winId):
-        totalWidthProp += clampProportion(windows[winId].widthProportion)
-      else:
-        totalWidthProp += 1.0
+      totalWidthProp += windows.windowWidthProportion(winId)
     if totalWidthProp <= 0:
       totalWidthProp = 1.0
 
@@ -286,11 +355,7 @@ proc layoutVerticalScroller*(
 
     for winId in col.windows:
       # Horizontal stacking within the row
-      let winProp =
-        if windows.hasKey(winId):
-          clampProportion(windows[winId].widthProportion)
-        else:
-          1.0'f32
+      let winProp = windows.windowWidthProportion(winId)
       let winWidth =
         max(0'i32, int32(float32(usableColWidth) * (winProp / totalWidthProp)))
 

@@ -5,6 +5,8 @@ import ../types/core
 import ../types/model
 from ../types/runtime_values import WindowRuleIdleInhibitMode
 
+const MaxInteractiveWindowProportion = 4.0'f32
+
 proc addWindow*(
     model: var Model,
     externalId: ExternalWindowId,
@@ -353,7 +355,7 @@ proc setWindowWidthProportion*(
   if model.windows.entity(winId).isNone:
     return false
   model.windows.mEntity(winId).widthProportion =
-    clamp(widthProportion, 0.05'f32, 1.0'f32)
+    clamp(widthProportion, 0.05'f32, MaxInteractiveWindowProportion)
   true
 
 proc setWindowHeightProportion*(
@@ -362,7 +364,7 @@ proc setWindowHeightProportion*(
   if model.windows.entity(winId).isNone:
     return false
   model.windows.mEntity(winId).heightProportion =
-    clamp(heightProportion, 0.05'f32, 1.0'f32)
+    clamp(heightProportion, 0.05'f32, MaxInteractiveWindowProportion)
   true
 
 proc setWindowInteractiveResizeStart*(
