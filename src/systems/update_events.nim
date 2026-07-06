@@ -365,7 +365,7 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
   of MsgKind.WlRecentWindowPointerMotion:
     result.dirty = model.selectRecentWindowAt(msg.recentPointerX, msg.recentPointerY)
   of MsgKind.WlPointerDelta:
-    result.dirty = model.applyPointerDelta(msg.dx, msg.dy)
+    result.dirty = model.applyPointerDelta(msg.dx, msg.dy, msg.pointerX, msg.pointerY)
   of MsgKind.WlPointerRelease:
     result.dirty = model.pointerOp.kind != PointerOpKind.OpNone
     let resized = model.finishPointerOp()

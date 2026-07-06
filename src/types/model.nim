@@ -443,8 +443,10 @@ type
     sourceColumn*: ColumnId
     sourceWindowIdx*: int
     dropKind*: PointerDropKind
+    dropOutput*: OutputId
     dropTag*: TagId
     dropColumn*: ColumnId
+    dropColumnIdx*: int
     dropFrame*: FrameId
     dropWindow*: WindowId
     dropWindowIdx*: int

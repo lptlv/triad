@@ -916,6 +916,38 @@ proc customLayoutInstructions(
   frameInstructions: seq[JanetLayoutInstruction],
 ]
 
+proc scrollerLayoutInstructionsForTag*(
+    model: Model, tagId: core_types.TagId, screen: rv.Rect
+): seq[rv.RenderInstruction] =
+  let projected = model.projectedTag(tagId)
+  if not projected.found:
+    return
+
+  let windows = model.runtimeWindowTable()
+  var currentOuterGap = model.outerGaps
+  var currentInnerGap = model.innerGaps
+  var tiledWindowCount = 0
+  for col in projected.tag.columns:
+    tiledWindowCount += col.windows.len
+
+  if model.smartGaps and tiledWindowCount <= 1:
+    currentOuterGap = 0
+    currentInnerGap = 0
+
+  let retargetViewport = model.viewportRetargetRequested(tagId)
+  var tagForLayout = projected.tag
+  result = layoutForTag(
+    tagForLayout,
+    windows,
+    screen,
+    currentOuterGap,
+    currentInnerGap,
+    retargetViewport and model.scrollerFocusCenter,
+    retargetViewport and model.scrollerPreferCenter,
+    if retargetViewport: model.centerFocusedColumn else: "never",
+  )
+  tagForLayout.applyLayoutViewportOffset(result)
+
 proc activeFocusLayoutInstructions*(model: Model): seq[rv.RenderInstruction] =
   if model.activeTag == NullTagId:
     return

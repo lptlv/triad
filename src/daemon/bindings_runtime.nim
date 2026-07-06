@@ -1021,7 +1021,12 @@ proc onOpDelta(data: pointer, seat: ptr RiverSeatV1, dx: int32, dy: int32) =
   let daemon = callbackDaemon(data, "op delta")
   if daemon == nil:
     return
-  daemon.enqueue(Msg(kind: MsgKind.WlPointerDelta, dx: dx, dy: dy))
+  let point = daemon.pointerPositionBySeat.getOrDefault(seat.id(), Rect())
+  daemon.enqueue(
+    Msg(
+      kind: MsgKind.WlPointerDelta, dx: dx, dy: dy, pointerX: point.x, pointerY: point.y
+    )
+  )
 
 proc onOpRelease(data: pointer, seat: ptr RiverSeatV1) =
   let daemon = callbackDaemon(data, "op release")

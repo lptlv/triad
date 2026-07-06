@@ -574,6 +574,7 @@ proc applyCommand*(
     let elapsedMs =
       if msg.tickElapsedMs > 0: msg.tickElapsedMs else: DefaultFrameIntervalMs
     result.dirty = model.tickAnimations(elapsedMs)
+    result.dirty = model.tickPointerDragAutoScroll(elapsedMs) or result.dirty
     result.dirty = model.tickOverviewPointerHold(elapsedMs) or result.dirty
     result.dirty = model.tickRecentWindows(elapsedMs) or result.dirty
     result.dirty = model.tickLayoutSwitchToast(elapsedMs) or result.dirty

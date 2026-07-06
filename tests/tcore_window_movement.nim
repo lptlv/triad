@@ -22,6 +22,16 @@ proc placementForExternal(
 proc modelWindow(model: Model, externalId: uint32): WindowData =
   model.windowData(model.windowForExternal(ExternalWindowId(externalId))).get()
 
+proc placementForExternalOnSlot(
+    model: Model, slot, externalId: uint32
+): tuple[found: bool, columnId: ColumnId, windowIdx: uint32] =
+  let tagId = model.tagForSlot(slot)
+  let winId = model.windowForExternal(ExternalWindowId(externalId))
+  let placement = model.placementForWindowOnTag(tagId, winId)
+  if placement.isSome:
+    return (true, placement.get().columnId, placement.get().windowIdx)
+  (false, NullColumnId, 0'u32)
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -417,6 +427,34 @@ suite "Core Runtime Logic: window movement":
     check model.activeTiledOrder() == @[2'u32, 1, 3]
     check model.focusedWindowId() == 1
 
+  test "Tiled pointer move can drop before first scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let start = model.instructionGeom(3).rectCenter()
+    let first = model.instructionGeom(1)
+    let dropX = first.x - 8
+    let dropY = first.y + first.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    discard model.finishPointerOp()
+
+    check model.activeTiledOrder() == @[3'u32, 1, 2]
+
+  test "Tiled pointer move can drop after last scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let start = model.instructionGeom(1).rectCenter()
+    let last = model.instructionGeom(3)
+    let dropX = last.x + last.w + 8
+    let dropY = last.y + last.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    discard model.finishPointerOp()
+
+    check model.activeTiledOrder() == @[2'u32, 3, 1]
+
   test "Tiled pointer move can drop into an existing scroller column":
     var model = cameraModel()
     model.seedCameraWindows(3)
@@ -434,6 +472,100 @@ suite "Core Runtime Logic: window movement":
     check first.columnId == second.columnId
     check first.windowIdx == 2
     check model.activeTiledOrder() == @[2'u32, 1, 3]
+
+  test "Tiled pointer move can drop into another output scroller workspace":
+    var model = configuredModel()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+    )
+    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+    )
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+      )
+    )
+    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let start = model.instructionGeom(1).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y + (target.h * 3) div 4
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    discard model.finishPointerOp()
+
+    let moved = model.placementForExternalOnSlot(2, 1)
+    let targetPlacement = model.placementForExternalOnSlot(2, 2)
+    check moved.found
+    check targetPlacement.found
+    check moved.columnId == targetPlacement.columnId
+    check moved.windowIdx == 2
+    check model.activeWorkspaceSlot() == 2
+    check model.focusedWindowId() == 1
+
+  test "Tiled pointer move can drop into empty scroller workspace on another output":
+    var model = configuredModel()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+    )
+    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+    )
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+      )
+    )
+    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = 1200'i32
+    let dropY = 350'i32
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    discard model.finishPointerOp()
+
+    let moved = model.placementForExternalOnSlot(2, 1)
+    check moved.found
+    check moved.windowIdx == 1
+    check model.activeWorkspaceSlot() == 2
+
+  test "Tiled pointer drag autoscrolls scroller viewport near output edge":
+    var model = cameraModel()
+    model.seedCameraWindows(6)
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = 999'i32
+    let dropY = start.y
+    let before = model.viewport(1)
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    check model.activeScrollerPointerDrag()
+    check model.tickPointerDragAutoScroll(16)
+
+    let after = model.viewport(1)
+    check after.currentViewportXOffset > before.currentViewportXOffset
 
   test "Tiled pointer resize adjusts scroller column width from edge drag":
     var model = cameraModel()

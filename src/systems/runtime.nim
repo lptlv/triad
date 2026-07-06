@@ -10,6 +10,8 @@ import focus, layout_projection, overview_geometry, placement, workspaces
 
 const ShiftModifier = 1'u32
 const PointerDragThresholdSquared = 64'i32
+const PointerDragAutoScrollEdge = 48'i32
+const PointerDragAutoScrollPxPerMs = 1.0'f32
 const PointerResizeDoubleClickMs = 400'i64
 const EdgeTop = 1'u32
 const EdgeBottom = 2'u32
@@ -17,6 +19,28 @@ const EdgeLeft = 4'u32
 const EdgeRight = 8'u32
 const EdgeHorizontal = EdgeLeft or EdgeRight
 const EdgeVertical = EdgeTop or EdgeBottom
+
+type
+  DropWindowCandidate = object
+    winId: WindowId
+    winIdx: int
+    geom: Rect
+
+  DropColumnCandidate = object
+    columnId: ColumnId
+    columnIdx: int
+    startPos: int32
+    endPos: int32
+    windows: seq[DropWindowCandidate]
+
+  ScrollerDropTarget = object
+    found: bool
+    outputId: OutputId
+    tagId: TagId
+    kind: PointerDropKind
+    columnId: ColumnId
+    columnIdx: int
+    windowIdx: int
 
 proc tickElapsedMs(msgElapsedMs: int32): int32 =
   if msgElapsedMs > 0: msgElapsedMs else: DefaultFrameIntervalMs
@@ -45,6 +69,15 @@ proc setActiveModifiers*(model: var Model, modifiers: uint32): bool =
 
 proc activeTagUsesCoreScroller(model: Model): bool =
   let tagOpt = model.tagData(model.activeTag)
+  if tagOpt.isNone:
+    return false
+  let tag = tagOpt.get()
+  tag.customLayoutId.layoutIdString().len == 0 and
+    tag.nativeLayoutId.nativeLayoutIdString().len == 0 and
+    tag.layoutMode in {LayoutMode.Scroller, LayoutMode.VerticalScroller}
+
+proc tagUsesCoreScroller(model: Model, tagId: TagId): bool =
+  let tagOpt = model.tagData(tagId)
   if tagOpt.isNone:
     return false
   let tag = tagOpt.get()
@@ -177,61 +210,233 @@ proc handlePointerResizeDoubleClick*(
       return (true, model.setWindowWidthProportion(context.winId, 1.0'f32))
   (false, false)
 
-proc updateScrollerDropTarget(model: Model, op: var PointerOpData) =
+proc clearDropTarget(op: var PointerOpData) =
   op.dropKind = PointerDropKind.DropNone
+  op.dropOutput = NullOutputId
   op.dropTag = NullTagId
   op.dropColumn = NullColumnId
+  op.dropColumnIdx = -1
   op.dropFrame = NullFrameId
   op.dropWindow = NullWindowId
   op.dropWindowIdx = -1
-  if not model.activeTagUsesCoreScroller() or op.sourceTag != model.activeTag:
+
+proc rectContainsPoint(rect: Rect, x, y: int32): bool =
+  x >= rect.x and y >= rect.y and x < rect.x + rect.w and y < rect.y + rect.h
+
+proc outputUnderPointer(model: Model, x, y: int32): Option[OutputId] =
+  for outputId in model.sortedOutputIdsByExternal():
+    let screen = model.outputScreen(outputId)
+    if screen.w > 0 and screen.h > 0 and screen.rectContainsPoint(x, y):
+      return some(outputId)
+  if model.outputCount() == 0:
+    return some(NullOutputId)
+  none(OutputId)
+
+proc pointerTargetTag(model: Model, outputId: OutputId): TagId =
+  if outputId == NullOutputId:
+    return model.activeTag
+  result = model.outputActiveTag(outputId)
+  if result == NullTagId and model.workspaceOutput(model.activeTag) == outputId:
+    result = model.activeTag
+
+proc instructionGeom(
+    instructions: openArray[rv.RenderInstruction], externalId: ExternalWindowId
+): Option[Rect] =
+  let projected = rv.ProjectionWindowId(uint32(externalId))
+  if projected == 0'u32:
+    return none(Rect)
+  for instr in instructions:
+    if instr.windowId == projected:
+      return some(instr.geom)
+  none(Rect)
+
+proc axisStart(geom: Rect, vertical: bool): int32 =
+  if vertical: geom.y else: geom.x
+
+proc axisEnd(geom: Rect, vertical: bool): int32 =
+  if vertical:
+    geom.y + geom.h
+  else:
+    geom.x + geom.w
+
+proc axisPoint(x, y: int32, vertical: bool): int32 =
+  if vertical: y else: x
+
+proc absDistance(a, b: int32): int64 =
+  abs(int64(a) - int64(b))
+
+proc midpoint(a, b: int32): int32 =
+  a + (b - a) div 2
+
+proc scrollerDropColumns(
+    model: Model,
+    tagId: TagId,
+    instructions: openArray[rv.RenderInstruction],
+    op: PointerOpData,
+    vertical: bool,
+): seq[DropColumnCandidate] =
+  var projectedIdx = 0
+  for columnId, _ in model.columnsOnTagWithId(tagId):
+    var column = DropColumnCandidate(
+      columnId: columnId,
+      columnIdx: projectedIdx,
+      startPos: high(int32),
+      endPos: low(int32),
+    )
+    for winId, win in model.windowsOnColumnWithId(columnId):
+      if tagId == op.sourceTag and winId == op.windowId:
+        continue
+      if not win.windowAdmitted() or win.isFloating or win.isMinimized or
+          win.isUnmanagedGlobal or model.windowHiddenByGroup(winId):
+        continue
+      let geomOpt = instructions.instructionGeom(win.externalId)
+      if geomOpt.isNone:
+        continue
+      let placement = model.sourcePlacement(tagId, winId)
+      if not placement.found:
+        continue
+      let geom = geomOpt.get()
+      column.startPos = min(column.startPos, geom.axisStart(vertical))
+      column.endPos = max(column.endPos, geom.axisEnd(vertical))
+      column.windows.add(
+        DropWindowCandidate(winId: winId, winIdx: placement.winIdx, geom: geom)
+      )
+    if column.windows.len > 0:
+      result.add(column)
+      inc projectedIdx
+
+proc columnGapPosition(columns: openArray[DropColumnCandidate], idx: int): int32 =
+  if columns.len == 0:
+    return 0
+  if idx <= 0:
+    return columns[0].startPos
+  if idx >= columns.len:
+    return columns[^1].endPos
+  midpoint(columns[idx - 1].endPos, columns[idx].startPos)
+
+proc closestColumnGap(
+    columns: openArray[DropColumnCandidate], primary: int32
+): tuple[idx: int, dist: int64] =
+  result = (0, high(int64))
+  for idx in 0 .. columns.len:
+    let dist = primary.absDistance(columns.columnGapPosition(idx))
+    if dist < result.dist:
+      result = (idx, dist)
+
+proc columnUnderPointer(columns: openArray[DropColumnCandidate], primary: int32): int =
+  for idx, column in columns:
+    if primary >= column.startPos and primary < column.endPos:
+      return idx
+  -1
+
+proc stackGapPosition(column: DropColumnCandidate, gapIdx: int, vertical: bool): int32 =
+  if column.windows.len == 0:
+    return 0
+  if gapIdx <= 0:
+    return column.windows[0].geom.axisStart(not vertical)
+  if gapIdx >= column.windows.len:
+    return column.windows[^1].geom.axisEnd(not vertical)
+  let before = column.windows[gapIdx - 1].geom.axisEnd(not vertical)
+  let after = column.windows[gapIdx].geom.axisStart(not vertical)
+  midpoint(before, after)
+
+proc closestStackGap(
+    column: DropColumnCandidate, stack: int32, vertical: bool
+): tuple[windowIdx: int, dist: int64] =
+  result = (0, high(int64))
+  for gapIdx in 0 .. column.windows.len:
+    let dist = stack.absDistance(column.stackGapPosition(gapIdx, vertical))
+    if dist < result.dist:
+      let windowIdx =
+        if gapIdx <= 0:
+          column.windows[0].winIdx
+        elif gapIdx >= column.windows.len:
+          column.windows[^1].winIdx + 1
+        else:
+          column.windows[gapIdx].winIdx
+      result = (windowIdx, dist)
+
+proc scrollerDropTarget(model: Model, op: PointerOpData): ScrollerDropTarget =
+  let outputOpt = model.outputUnderPointer(op.currentX, op.currentY)
+  if outputOpt.isNone:
     return
-  let x = op.currentX
-  let y = op.currentY
-  let sourceWin = model.windowData(op.windowId)
-  if sourceWin.isNone:
+  let outputId = outputOpt.get()
+  let tagId = model.pointerTargetTag(outputId)
+  if tagId == NullTagId or not model.tagUsesCoreScroller(tagId):
     return
-  let sourceExternal = uint32(sourceWin.get().externalId)
-  for instr in model.activeFocusLayoutInstructions():
-    if uint32(instr.windowId) == sourceExternal:
-      continue
-    let geom = instr.geom
-    if x < geom.x or y < geom.y or x >= geom.x + geom.w or y >= geom.y + geom.h:
-      continue
-    let targetWin = model.windowForExternal(ExternalWindowId(uint32(instr.windowId)))
-    let placement = model.sourcePlacement(op.sourceTag, targetWin)
-    if not placement.found:
-      continue
-    op.dropTag = op.sourceTag
-    op.dropColumn = placement.columnId
-    let tag = model.tagData(model.activeTag).get()
-    if tag.layoutMode == LayoutMode.Scroller:
-      let localX = x - geom.x
-      if localX < geom.w div 4:
-        op.dropKind = PointerDropKind.DropColumnBefore
-      elif localX >= (geom.w * 3) div 4:
-        op.dropKind = PointerDropKind.DropColumnAfter
-      else:
-        op.dropKind = PointerDropKind.DropIntoColumn
-        op.dropWindowIdx = placement.winIdx + (if y >= geom.y + geom.h div 2: 1 else: 0)
+  let tagOpt = model.tagData(tagId)
+  if tagOpt.isNone:
+    return
+  let screen =
+    if outputId == NullOutputId:
+      model.activeWorkspaceScreen()
     else:
-      let localY = y - geom.y
-      if localY < geom.h div 4:
-        op.dropKind = PointerDropKind.DropColumnBefore
-      elif localY >= (geom.h * 3) div 4:
-        op.dropKind = PointerDropKind.DropColumnAfter
-      else:
-        op.dropKind = PointerDropKind.DropIntoColumn
-        op.dropWindowIdx = placement.winIdx + (if x >= geom.x + geom.w div 2: 1 else: 0)
+      model.outputScreen(outputId)
+  let instructions = model.scrollerLayoutInstructionsForTag(tagId, screen)
+  let vertical = tagOpt.get().layoutMode == LayoutMode.VerticalScroller
+  let columns = model.scrollerDropColumns(tagId, instructions, op, vertical)
+  if columns.len == 0:
+    return ScrollerDropTarget(
+      found: true,
+      outputId: outputId,
+      tagId: tagId,
+      kind: PointerDropKind.DropNewColumnAt,
+      columnId: NullColumnId,
+      columnIdx: 0,
+      windowIdx: 0,
+    )
+
+  let primary = axisPoint(op.currentX, op.currentY, vertical)
+  let stack = axisPoint(op.currentX, op.currentY, not vertical)
+  let columnGap = columns.closestColumnGap(primary)
+  let columnIdx = columns.columnUnderPointer(primary)
+  if columnIdx < 0:
+    return ScrollerDropTarget(
+      found: true,
+      outputId: outputId,
+      tagId: tagId,
+      kind: PointerDropKind.DropNewColumnAt,
+      columnId: NullColumnId,
+      columnIdx: columnGap.idx,
+      windowIdx: 0,
+    )
+
+  let stackGap = columns[columnIdx].closestStackGap(stack, vertical)
+  if columnGap.dist <= stackGap.dist:
+    ScrollerDropTarget(
+      found: true,
+      outputId: outputId,
+      tagId: tagId,
+      kind: PointerDropKind.DropNewColumnAt,
+      columnId: NullColumnId,
+      columnIdx: columnGap.idx,
+      windowIdx: 0,
+    )
+  else:
+    ScrollerDropTarget(
+      found: true,
+      outputId: outputId,
+      tagId: tagId,
+      kind: PointerDropKind.DropIntoColumn,
+      columnId: columns[columnIdx].columnId,
+      columnIdx: columns[columnIdx].columnIdx,
+      windowIdx: stackGap.windowIdx,
+    )
+
+proc updateScrollerDropTarget(model: Model, op: var PointerOpData) =
+  op.clearDropTarget()
+  let target = model.scrollerDropTarget(op)
+  if not target.found:
     return
+  op.dropKind = target.kind
+  op.dropOutput = target.outputId
+  op.dropTag = target.tagId
+  op.dropColumn = target.columnId
+  op.dropColumnIdx = target.columnIdx
+  op.dropWindowIdx = target.windowIdx
 
 proc updateNativeDropTarget(model: Model, op: var PointerOpData) =
-  op.dropKind = PointerDropKind.DropNone
-  op.dropTag = NullTagId
-  op.dropColumn = NullColumnId
-  op.dropFrame = NullFrameId
-  op.dropWindow = NullWindowId
-  op.dropWindowIdx = -1
+  op.clearDropTarget()
   if op.sourceTag != model.activeTag:
     return
   let tagOpt = model.tagData(model.activeTag)
@@ -259,9 +464,16 @@ proc updateNativeDropTarget(model: Model, op: var PointerOpData) =
       op.dropFrame = model.frameForWindowOnTag(op.sourceTag, targetWin)
     return
 
+proc preparePointerDropTargetTag(model: var Model, op: PointerOpData): bool =
+  if op.dropTag == op.sourceTag:
+    return true
+  if not model.removeWindowFromTag(op.sourceTag, op.windowId):
+    return false
+  discard model.sourceWorkspaceFallbackFocus(op.sourceTag)
+  true
+
 proc commitScrollerDrop(model: var Model, op: PointerOpData): bool =
-  if op.dropKind == PointerDropKind.DropNone or op.dropTag == NullTagId or
-      op.dropColumn == NullColumnId:
+  if op.dropKind == PointerDropKind.DropNone or op.dropTag == NullTagId:
     return false
   let winOpt = model.windowData(op.windowId)
   if winOpt.isNone:
@@ -269,39 +481,61 @@ proc commitScrollerDrop(model: var Model, op: PointerOpData): bool =
   let source = model.sourcePlacement(op.sourceTag, op.windowId)
   if not source.found:
     return false
+  let sourceColumn = model.column(source.columnId)
+  let sourceWidth =
+    if sourceColumn.isSome:
+      sourceColumn.get().widthProportion
+    else:
+      model.defaultColumnWidth()
+  let sourceFullWidth = sourceColumn.isSome and sourceColumn.get().isFullWidth
+  let sourceSingleProportion =
+    if sourceColumn.isSome:
+      sourceColumn.get().scrollerSingleProportion
+    else:
+      0.0'f32
+  let sourceColumnIdx = int(model.columnIndexForTag(op.sourceTag, source.columnId)) - 1
+
   case op.dropKind
+  of PointerDropKind.DropNewColumnAt:
+    var targetIdx = max(0, op.dropColumnIdx)
+    if op.dropTag == op.sourceTag and sourceColumnIdx >= 0 and
+        model.windowCountOnColumn(source.columnId) == 1:
+      result = model.moveColumn(op.dropTag, sourceColumnIdx, max(0, targetIdx))
+    elif model.preparePointerDropTargetTag(op):
+      let newColumn = model.addPlacedWindowColumn(
+        op.dropTag,
+        op.windowId,
+        targetIdx,
+        widthProportion = sourceWidth,
+        isFullWidth = sourceFullWidth,
+        scrollerSingleProportion = sourceSingleProportion,
+      )
+      result = newColumn != NullColumnId
   of PointerDropKind.DropIntoColumn:
+    if op.dropColumn == NullColumnId:
+      return false
     var targetIdx = max(0, op.dropWindowIdx)
-    if source.columnId == op.dropColumn and source.winIdx < targetIdx:
+    if op.dropTag == op.sourceTag and source.columnId == op.dropColumn and
+        source.winIdx < targetIdx:
       dec targetIdx
-    result = model.moveWindowToColumn(op.dropTag, op.windowId, op.dropColumn, targetIdx)
+    if model.preparePointerDropTargetTag(op):
+      result =
+        model.moveWindowToColumn(op.dropTag, op.windowId, op.dropColumn, targetIdx)
   of PointerDropKind.DropColumnBefore, PointerDropKind.DropColumnAfter:
+    if op.dropColumn == NullColumnId:
+      return false
     let targetColumnIdx = int(model.columnIndexForTag(op.dropTag, op.dropColumn)) - 1
     if targetColumnIdx < 0:
       return false
-    let sourceColumnIdx =
-      int(model.columnIndexForTag(op.sourceTag, source.columnId)) - 1
     let insertAfter = op.dropKind == PointerDropKind.DropColumnAfter
-    if source.columnId != op.dropColumn and sourceColumnIdx >= 0 and
-        model.windowCountOnColumn(source.columnId) == 1:
+    if op.dropTag == op.sourceTag and source.columnId != op.dropColumn and
+        sourceColumnIdx >= 0 and model.windowCountOnColumn(source.columnId) == 1:
       var targetIdx = targetColumnIdx + (if insertAfter: 1 else: 0)
       if sourceColumnIdx < targetIdx:
         dec targetIdx
       result = model.moveColumn(op.dropTag, sourceColumnIdx, max(0, targetIdx))
-    else:
-      let sourceColumn = model.column(source.columnId)
+    elif model.preparePointerDropTargetTag(op):
       let targetIdx = targetColumnIdx + (if insertAfter: 1 else: 0)
-      let sourceWidth =
-        if sourceColumn.isSome:
-          sourceColumn.get().widthProportion
-        else:
-          model.defaultColumnWidth()
-      let sourceFullWidth = sourceColumn.isSome and sourceColumn.get().isFullWidth
-      let sourceSingleProportion =
-        if sourceColumn.isSome:
-          sourceColumn.get().scrollerSingleProportion
-        else:
-          0.0'f32
       let newColumn = model.addPlacedWindowColumn(
         op.dropTag,
         op.windowId,
@@ -314,6 +548,12 @@ proc commitScrollerDrop(model: var Model, op: PointerOpData): bool =
   of PointerDropKind.DropNone:
     result = false
   if result:
+    if op.dropOutput != NullOutputId:
+      discard model.setActiveOutput(op.dropOutput)
+      discard model.setOutputTag(op.dropOutput, op.dropTag)
+    let tagOpt = model.tagData(op.dropTag)
+    if tagOpt.isSome:
+      discard model.focusWorkspaceSlot(tagOpt.get().slot)
     discard model.setTagFocus(op.dropTag, op.windowId)
     discard model.requestTagViewportRetarget(op.dropTag)
 
@@ -365,6 +605,7 @@ proc beginPointerMove*(
         sourceTag: tagId,
         sourceColumn: placement.columnId,
         sourceWindowIdx: placement.winIdx,
+        dropColumnIdx: -1,
         dropWindowIdx: -1,
         startX: startX,
         startY: startY,
@@ -382,6 +623,8 @@ proc beginPointerMove*(
       startY: startY,
       currentX: startX,
       currentY: startY,
+      dropColumnIdx: -1,
+      dropWindowIdx: -1,
       dropFloating: true,
     )
   )
@@ -709,6 +952,7 @@ proc togglePointerDropMode*(model: var Model): bool =
   op.sourceTag = tagId
   op.sourceColumn = placement.columnId
   op.sourceWindowIdx = placement.winIdx
+  op.dropColumnIdx = -1
   op.dropWindowIdx = -1
   if model.activeTagUsesCoreScroller():
     model.updateScrollerDropTarget(op)
@@ -716,23 +960,35 @@ proc togglePointerDropMode*(model: var Model): bool =
     model.updateNativeDropTarget(op)
   model.setPointerOpState(op)
 
-proc applyPointerDelta*(model: var Model, dx, dy: int32): bool =
+proc applyPointerDelta*(
+    model: var Model, dx, dy: int32, pointerX = 0'i32, pointerY = 0'i32
+): bool =
   let op = model.pointerOp
   if op.kind == PointerOpKind.OpNone:
     return false
+  let currentX =
+    if pointerX != 0'i32 or pointerY != 0'i32:
+      pointerX
+    else:
+      op.startX + dx
+  let currentY =
+    if pointerX != 0'i32 or pointerY != 0'i32:
+      pointerY
+    else:
+      op.startY + dy
   if op.kind == PointerOpKind.OpOverviewDrag:
     var next = op
     next.totalDX = dx
     next.totalDY = dy
-    next.currentX = op.startX + dx
-    next.currentY = op.startY + dy
+    next.currentX = currentX
+    next.currentY = currentY
     return model.updateOverviewDragHover(next)
   if op.kind == PointerOpKind.OpOverviewScroll:
     var next = op
     next.totalDX = dx
     next.totalDY = dy
-    next.currentX = op.startX + dx
-    next.currentY = op.startY + dy
+    next.currentX = currentX
+    next.currentY = currentY
     discard model.setPointerOpState(next)
     return model.panOverviewWorkspace(op, dx, dy)
 
@@ -744,8 +1000,8 @@ proc applyPointerDelta*(model: var Model, dx, dy: int32): bool =
     var next = op
     next.totalDX = dx
     next.totalDY = dy
-    next.currentX = op.startX + dx
-    next.currentY = op.startY + dy
+    next.currentX = currentX
+    next.currentY = currentY
     case op.kind
     of PointerOpKind.OpMove:
       if not next.dragActive and dx * dx + dy * dy >= PointerDragThresholdSquared:
@@ -898,6 +1154,69 @@ proc finishPointerOp*(model: var Model): core.WindowId =
       discard model.commitNativeDrop(op)
   result = if op.kind == PointerOpKind.OpResize: op.windowId else: NullWindowId
   discard model.clearPointerOp()
+
+proc activeScrollerPointerDrag*(model: Model): bool =
+  let op = model.pointerOp
+  if op.kind != PointerOpKind.OpMove or not op.tiled or not op.dragActive or
+      op.dropFloating:
+    return false
+  let tagId = if op.dropTag != NullTagId: op.dropTag else: op.sourceTag
+  model.tagUsesCoreScroller(tagId)
+
+proc tickPointerDragAutoScroll*(
+    model: var Model, elapsedMs = DefaultFrameIntervalMs
+): bool =
+  if not model.activeScrollerPointerDrag():
+    return false
+  var op = model.pointerOp
+  let tagId = if op.dropTag != NullTagId: op.dropTag else: op.sourceTag
+  let tagOpt = model.tagData(tagId)
+  if tagOpt.isNone:
+    return false
+  let outputId =
+    if op.dropOutput != NullOutputId:
+      op.dropOutput
+    else:
+      model.workspaceOutput(tagId)
+  let screen =
+    if outputId != NullOutputId:
+      model.outputScreen(outputId)
+    else:
+      model.activeWorkspaceScreen()
+  if screen.w <= 0 or screen.h <= 0:
+    return false
+
+  let step = max(
+    1'i32,
+    int32(round(float32(elapsedMs.tickElapsedMs()) * PointerDragAutoScrollPxPerMs)),
+  )
+  let tag = tagOpt.get()
+  var delta = 0'i32
+  if tag.layoutMode == LayoutMode.Scroller:
+    if op.currentX < screen.x + PointerDragAutoScrollEdge:
+      delta = -step
+    elif op.currentX >= screen.x + screen.w - PointerDragAutoScrollEdge:
+      delta = step
+    if delta != 0:
+      let target = tag.targetViewportXOffset + float32(delta)
+      let current = tag.currentViewportXOffset + float32(delta)
+      result = model.setTagViewportTarget(tagId, target, tag.targetViewportYOffset)
+      result =
+        model.setTagViewportCurrent(tagId, current, tag.currentViewportYOffset) or result
+  elif tag.layoutMode == LayoutMode.VerticalScroller:
+    if op.currentY < screen.y + PointerDragAutoScrollEdge:
+      delta = -step
+    elif op.currentY >= screen.y + screen.h - PointerDragAutoScrollEdge:
+      delta = step
+    if delta != 0:
+      let target = tag.targetViewportYOffset + float32(delta)
+      let current = tag.currentViewportYOffset + float32(delta)
+      result = model.setTagViewportTarget(tagId, tag.targetViewportXOffset, target)
+      result =
+        model.setTagViewportCurrent(tagId, tag.currentViewportXOffset, current) or result
+  if result:
+    model.updateScrollerDropTarget(op)
+    discard model.setPointerOpState(op)
 
 proc tickOverviewPointerHold*(
     model: var Model, elapsedMs = DefaultFrameIntervalMs
@@ -1146,6 +1465,8 @@ proc hasPendingViewportAnimation*(model: Model): bool =
       return true
 
 proc needsFrameTick*(model: Model): bool =
+  if model.activeScrollerPointerDrag():
+    return true
   if model.hasPendingViewportAnimation():
     return true
   if model.pendingRecentFocusWindow != NullWindowId:
@@ -1158,6 +1479,8 @@ proc needsFrameTick*(model: Model): bool =
   model.pendingDialogFocusWindows.len > 0
 
 proc frameTickReasons*(model: Model): seq[string] =
+  if model.activeScrollerPointerDrag():
+    result.add("pointer-drag-autoscroll")
   if model.hasPendingViewportAnimation():
     result.add("viewport-animation")
   if model.pendingRecentFocusWindow != NullWindowId:

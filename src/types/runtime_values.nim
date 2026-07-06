@@ -559,6 +559,7 @@ type
 
   PointerDropKind* {.pure.} = enum
     DropNone
+    DropNewColumnAt
     DropColumnBefore
     DropColumnAfter
     DropIntoColumn

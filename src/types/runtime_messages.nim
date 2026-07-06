@@ -345,6 +345,7 @@ type
       recentPointerX*, recentPointerY*: int32
     of MsgKind.WlPointerDelta:
       dx*, dy*: int32
+      pointerX*, pointerY*: int32
     of MsgKind.WlShellSurfaceInteraction:
       shellSurfaceId*: uint32
     of MsgKind.WlFrameTabClicked:
