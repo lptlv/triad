@@ -53,6 +53,12 @@ proc setupSideBySideOutputs(model: var Model) =
   )
   model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
 
+proc horizontallyCentered(rect, screen: Rect): bool =
+  abs(rect.rectCenter().x - screen.rectCenter().x) <= 1
+
+proc verticallyCentered(rect, screen: Rect): bool =
+  abs(rect.rectCenter().y - screen.rectCenter().y) <= 1
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -705,7 +711,7 @@ suite "Core Runtime Logic: window movement":
     check preview.found
     check preview.rect.w == 300
     check preview.rect.h == screen.h - model.outerGaps * 2
-    check preview.rect.x == screen.x + model.outerGaps - preview.rect.w div 2
+    check preview.rect.horizontallyCentered(screen)
     check preview.rect.y == screen.y + model.outerGaps
 
   test "Tiled pointer move previews last scroller column drop":
@@ -724,7 +730,7 @@ suite "Core Runtime Logic: window movement":
     check preview.found
     check preview.rect.w == 300
     check preview.rect.h == screen.h - model.outerGaps * 2
-    check preview.rect.x == screen.x + screen.w - model.outerGaps - preview.rect.w div 2
+    check preview.rect.horizontallyCentered(screen)
     check preview.rect.y == screen.y + model.outerGaps
 
   test "Tiled pointer move previews stack insertion in scroller column":
@@ -763,7 +769,7 @@ suite "Core Runtime Logic: window movement":
     check preview.rect.w == screen.w - model.outerGaps * 2
     check preview.rect.h == 300
     check preview.rect.x == screen.x + model.outerGaps
-    check preview.rect.y == screen.y + screen.h - model.outerGaps - preview.rect.h div 2
+    check preview.rect.verticallyCentered(screen)
 
   test "Tiled pointer move hides scroller drop preview in floating drop mode":
     var model = cameraModel()
@@ -1071,10 +1077,11 @@ suite "Core Runtime Logic: window movement":
     check model.pointerOp.dropTag == rightTag
     check model.pointerOp.dropOutput == rightOutput
     check model.activeScrollerPointerDrag()
-    check model.tickPointerDragAutoScroll(16)
-    check model.pointerOp.dragAutoScrollElapsedMs == 16
-    check model.tickPointerDragAutoScroll(84)
+    let preview = model.pointerDropPreview()
+    check preview.found
+    check preview.rect.horizontallyCentered(rightScreen)
     check model.viewport(3).currentViewportXOffset < before.currentViewportXOffset
+    check model.pointerOp.dragAutoScrollElapsedMs == 0
 
     discard model.finishPointerOp()
 
@@ -1142,9 +1149,10 @@ suite "Core Runtime Logic: window movement":
     check moved.windowIdx == 1
     check model.activeWorkspaceSlot() == 2
 
-  test "Tiled pointer drag autoscrolls scroller viewport near output edge":
+  test "Tiled pointer drag centers scroller viewport on drop preview":
     var model = cameraModel()
     model.seedCameraWindows(6)
+    let screen = model.primaryScreen()
     let start = model.instructionGeom(1).rectCenter()
     let dropX = 999'i32
     let dropY = start.y
@@ -1153,13 +1161,43 @@ suite "Core Runtime Logic: window movement":
     check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
     check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
     check model.activeScrollerPointerDrag()
-    check model.tickPointerDragAutoScroll(16)
-    check model.viewport(1).currentViewportXOffset == before.currentViewportXOffset
-    check model.pointerOp.dragAutoScrollElapsedMs == 16
-    check model.tickPointerDragAutoScroll(84)
-
+    let preview = model.pointerDropPreview()
     let after = model.viewport(1)
+    check preview.found
+    check preview.rect.horizontallyCentered(screen)
     check after.currentViewportXOffset > before.currentViewportXOffset
+    check after.targetViewportXOffset == after.currentViewportXOffset
+    check model.pointerOp.dragAutoScrollElapsedMs == 0
+
+    model.setViewport(
+      1,
+      targetX = after.currentViewportXOffset + 80.0,
+      currentX = after.currentViewportXOffset + 80.0,
+    )
+    check model.tickPointerDragAutoScroll(16)
+    let tickPreview = model.pointerDropPreview()
+    check tickPreview.found
+    check tickPreview.rect.horizontallyCentered(screen)
+    check model.pointerOp.dragAutoScrollElapsedMs == 0
+
+  test "Tiled pointer drag centers vertical scroller viewport on drop preview":
+    var model = directionalModel(LayoutMode.VerticalScroller, 6)
+    let screen = model.primaryScreen()
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = start.x
+    let dropY = screen.y + screen.h - 1
+    let before = model.viewport(1)
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+
+    let preview = model.pointerDropPreview()
+    let after = model.viewport(1)
+    check preview.found
+    check preview.rect.verticallyCentered(screen)
+    check after.currentViewportYOffset > before.currentViewportYOffset
+    check after.targetViewportYOffset == after.currentViewportYOffset
+    check after.currentViewportXOffset == before.currentViewportXOffset
 
   test "Tiled pointer resize adjusts scroller column width from edge drag":
     var model = cameraModel()
