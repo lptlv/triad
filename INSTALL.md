@@ -357,12 +357,49 @@ or bar commands you use. See `examples/config/niltempus_config.kdl` in the
 GitHub repository for a setup with multiple profiles, including Noctalia and
 DankMaterialShell.
 
-### Noctalia on Fedora
+### Noctalia v5
 
 Triad does not install Noctalia. Install Noctalia first, then add a Triad shell
 profile that launches its command.
 
-Noctalia's v4 Fedora docs install `noctalia-shell` from the Terra repository:
+Noctalia v5 has native Triad IPC. Use the native profile path unless you are
+intentionally running an older Noctalia build that only understands the
+Niri-compatible workspace API.
+
+If `noctalia` is on `PATH`, enable a profile in
+`~/.config/triad/config.kdl`:
+
+```kdl
+shells {
+  enabled #true
+  active "noctalia"
+  cycle "noctalia"
+
+  watchdog {
+    enabled #true
+    fallback "noctalia"
+  }
+
+  profile "noctalia" {
+    launch "noctalia"
+    stop "pkill" "-x" "noctalia"
+    niri-compat #false
+  }
+}
+```
+
+If you install Noctalia to a fixed prefix, use the full binary path:
+
+```kdl
+profile "noctalia" {
+  launch "/home/you/.local/opt/noctalia-v5/bin/noctalia"
+  stop "pkill" "-x" "noctalia"
+  niri-compat #false
+}
+```
+
+Noctalia's older v4 Fedora docs installed `noctalia-shell` from the Terra
+repository:
 
 ```bash
 sudo dnf install --nogpgcheck --repofrompath \
@@ -370,7 +407,7 @@ sudo dnf install --nogpgcheck --repofrompath \
 sudo dnf install noctalia-shell
 ```
 
-Then enable a profile in `~/.config/triad/config.kdl`:
+For that older command name, use the Niri-compatible profile:
 
 ```kdl
 shells {
@@ -391,8 +428,9 @@ shells {
 }
 ```
 
-`niri-compat #true` is required for shells that consume Niri-compatible
-workspace IPC.
+`niri-compat #true` is only required for shells or older shell builds that
+consume Niri-compatible workspace IPC. Leave it `#false` for Noctalia v5's
+native Triad integration.
 
 See [docs/configuration.md](docs/configuration.md) for the full config surface.
 

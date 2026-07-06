@@ -169,8 +169,10 @@ query Triad through the shell-facing `$NIRI_SOCKET`. Triad also prepends
 `$XDG_RUNTIME_DIR/triad-shell-compat/share` to the shell profile's
 `XDG_DATA_DIRS` so shells can resolve Triad-provided desktop/icon aliases
 without changing the rest of the user session.
-Use this path for Niri-aware shell profiles such as Noctalia,
-DankMaterialShell, Waylee, or Waybar configured with `niri/workspaces`.
+Use this path for Niri-aware shell profiles such as DankMaterialShell, Waylee,
+or Waybar configured with `niri/workspaces`. Noctalia v5 normally uses native
+Triad IPC instead; use the Niri compatibility path only for older or explicitly
+Niri-configured Noctalia profiles.
 
 DMS screenshot actions require `grim`, `slurp`, and `wl-copy`. `satty` or
 `swappy` are opened by DMS after Triad emits the Niri-compatible
