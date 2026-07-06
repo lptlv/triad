@@ -4,14 +4,27 @@ import ../types/projection_values
 proc clampProportion(value: float32, lo = 0.05'f32, hi = 1.0'f32): float32 =
   clamp(value, lo, hi)
 
-proc clampWindowProportion(value: float32): float32 =
-  clamp(value, 0.05'f32, 4.0'f32)
+proc normalizeWindowProportion(value: float32): float32 =
+  if value != value:
+    1.0'f32
+  else:
+    clamp(value, 0.05'f32, float32(high(int32)))
+
+proc scaledWindowExtent(base: int32, proportion: float32): int32 =
+  if base <= 0:
+    return 0'i32
+  let scaled = float64(base) * float64(normalizeWindowProportion(proportion))
+  if scaled != scaled:
+    return base
+  if scaled >= float64(high(int32)):
+    return high(int32)
+  max(0'i32, int32(scaled))
 
 proc windowHeightProportion(
     windows: Table[ProjectionWindowId, ProjectedWindow], winId: ProjectionWindowId
 ): float32 =
   if windows.hasKey(winId):
-    clampWindowProportion(windows[winId].heightProportion)
+    normalizeWindowProportion(windows[winId].heightProportion)
   else:
     1.0'f32
 
@@ -19,7 +32,7 @@ proc windowWidthProportion(
     windows: Table[ProjectionWindowId, ProjectedWindow], winId: ProjectionWindowId
 ): float32 =
   if windows.hasKey(winId):
-    clampWindowProportion(windows[winId].widthProportion)
+    normalizeWindowProportion(windows[winId].widthProportion)
   else:
     1.0'f32
 
@@ -73,10 +86,7 @@ proc layoutScroller*(
         if col.isFullWidth:
           usableColHeight
         else:
-          max(
-            0'i32,
-            int32(float32(usableColHeight) * windows.windowHeightProportion(winId)),
-          )
+          scaledWindowExtent(usableColHeight, windows.windowHeightProportion(winId))
       let currentY = screen.y + safeOuterGap + ((usableColHeight - winHeight) div 2)
       instructions.add(
         RenderInstruction(
@@ -164,10 +174,7 @@ proc layoutScroller*(
         if col.isFullWidth:
           usableColHeight
         else:
-          max(
-            0'i32,
-            int32(float32(usableColHeight) * windows.windowHeightProportion(winId)),
-          )
+          scaledWindowExtent(usableColHeight, windows.windowHeightProportion(winId))
       let currentY = screen.y + safeOuterGap + ((usableColHeight - winHeight) div 2)
       instructions.add(
         RenderInstruction(
@@ -242,9 +249,7 @@ proc layoutVerticalScroller*(
         if col.isFullWidth:
           usableColWidth
         else:
-          max(
-            0'i32, int32(float32(usableColWidth) * windows.windowWidthProportion(winId))
-          )
+          scaledWindowExtent(usableColWidth, windows.windowWidthProportion(winId))
       let currentX = screen.x + safeOuterGap + ((usableColWidth - winWidth) div 2)
       instructions.add(
         RenderInstruction(
@@ -332,9 +337,7 @@ proc layoutVerticalScroller*(
         if col.isFullWidth:
           usableColWidth
         else:
-          max(
-            0'i32, int32(float32(usableColWidth) * windows.windowWidthProportion(winId))
-          )
+          scaledWindowExtent(usableColWidth, windows.windowWidthProportion(winId))
       let currentX = screen.x + safeOuterGap + ((usableColWidth - winWidth) div 2)
       instructions.add(
         RenderInstruction(

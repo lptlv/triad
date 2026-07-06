@@ -1,5 +1,6 @@
 import tcore_support
 import ../src/core/[layout_selection_codec, native_layout_codec]
+import ../src/systems/daemon_view
 import ../src/systems/runtime
 import ../src/types/janet_layouts
 
@@ -959,6 +960,42 @@ suite "Core Runtime Logic: window movement":
 
     check model.modelWindow(1).heightProportion > before
     check model.instructionGeom(1).h > beforeGeom.h
+
+  test "Scroller window height resize is not capped at four screens":
+    var model = cameraModel()
+    model.seedCameraWindows(1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let screen = model.primaryScreen()
+    let usableHeight = screen.h - 2 * model.outerGaps
+
+    check model.setWindowHeightProportion(winId, 5.0)
+
+    let geom = model.instructionGeom(1)
+    check model.modelWindow(1).heightProportion == 5.0'f32
+    check geom.h == usableHeight * 5
+    check geom.y < screen.y + model.outerGaps
+
+  test "Scroller height resize ignores client max-height hint":
+    var model = cameraModel()
+    model.seedCameraWindows(1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let screen = model.primaryScreen()
+    let usableHeight = screen.h - 2 * model.outerGaps
+
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowDimensionsHint, hintWindowId: 1, maxHeight: usableHeight
+      )
+    )
+    check model.modelWindow(1).maxHeight == usableHeight
+    check model.setWindowHeightProportion(winId, 5.0)
+
+    let geom = model.instructionGeom(1)
+    check geom.h == usableHeight * 5
+    check model.proposalDimensionsForRiverId(
+      1, geom.w, geom.h, honorMinimums = false, honorMaximums = false
+    ).h == geom.h
+    check model.manageDimensionBoundsForRiverId(1) == (w: 0'i32, h: 0'i32)
 
   test "Tiled pointer move drops frame-tree windows into target frame":
     var model = cameraModel()

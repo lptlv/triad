@@ -5,7 +5,11 @@ import ../types/core
 import ../types/model
 from ../types/runtime_values import WindowRuleIdleInhibitMode
 
-const MaxInteractiveWindowProportion = 4.0'f32
+proc validWindowProportion(value: float32): bool =
+  value == value
+
+proc normalizeWindowProportion(value: float32): float32 =
+  clamp(value, 0.05'f32, float32(high(int32)))
 
 proc addWindow*(
     model: var Model,
@@ -354,8 +358,10 @@ proc setWindowWidthProportion*(
 ): bool =
   if model.windows.entity(winId).isNone:
     return false
+  if not validWindowProportion(widthProportion):
+    return false
   model.windows.mEntity(winId).widthProportion =
-    clamp(widthProportion, 0.05'f32, MaxInteractiveWindowProportion)
+    normalizeWindowProportion(widthProportion)
   true
 
 proc setWindowHeightProportion*(
@@ -363,8 +369,10 @@ proc setWindowHeightProportion*(
 ): bool =
   if model.windows.entity(winId).isNone:
     return false
+  if not validWindowProportion(heightProportion):
+    return false
   model.windows.mEntity(winId).heightProportion =
-    clamp(heightProportion, 0.05'f32, MaxInteractiveWindowProportion)
+    normalizeWindowProportion(heightProportion)
   true
 
 proc setWindowInteractiveResizeStart*(

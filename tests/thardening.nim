@@ -1563,8 +1563,44 @@ config-notification {
     )
     check win.proposalDimensions(500, 500, honorMinimums = false) ==
       (w: 100'i32, h: 200'i32)
+    check hinted.proposalDimensionsForRiverId(
+      7, 500, 500, honorMinimums = false, honorMaximums = false
+    ) == (w: 500'i32, h: 500'i32)
+    check hinted.manageDimensionBoundsForRiverId(7) == (w: 0'i32, h: 0'i32)
     check win.needsCellClip(100, 100)
     check not win.needsCellClip(100, 220)
+
+  test "explicit rule max bounds still cap tiled proposals":
+    var model = initRuntimeStateFromConfig(
+      Config(
+        windowRules:
+          @[
+            WindowRule(
+              appIdMatch: "bounded",
+              maxWidthSet: true,
+              maxWidth: 300,
+              maxHeightSet: true,
+              maxHeight: 400,
+            )
+          ]
+      )
+    ).model
+    (model, _) = model.update(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 8, appId: "bounded", title: "app")
+    )
+    (model, _) = model.update(
+      Msg(
+        kind: MsgKind.WlWindowDimensionsHint,
+        hintWindowId: 8,
+        maxWidth: 100,
+        maxHeight: 100,
+      )
+    )
+
+    check model.proposalDimensionsForRiverId(
+      8, 900, 900, honorMinimums = false, honorMaximums = false
+    ) == (w: 300'i32, h: 400'i32)
+    check model.manageDimensionBoundsForRiverId(8) == (w: 300'i32, h: 400'i32)
 
   test "window rule tiled-state controls River tiled edges":
     var model = initRuntimeStateFromConfig(

@@ -267,8 +267,13 @@ proc proposeDesiredDimensions*(
     if daemon.windowPointers.hasKey(instr.windowId):
       visible[instr.windowId] = true
       var geom = instr.geom
+      let honorSizeHints = daemon.placementHonorsMinimums(instr.windowId)
       let proposal = daemon.currentModel.proposalDimensionsForRiverId(
-        instr.windowId, geom.w, geom.h, daemon.placementHonorsMinimums(instr.windowId)
+        instr.windowId,
+        geom.w,
+        geom.h,
+        honorMinimums = honorSizeHints,
+        honorMaximums = honorSizeHints,
       )
       let next = ProposedDimensions(w: proposal.w, h: proposal.h)
       if daemon.lastProposedDimensions.getOrDefault(instr.windowId) == next:

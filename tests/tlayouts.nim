@@ -57,7 +57,7 @@ suite "Layout Algorithm Math":
     tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
 
     var windows = initTable[ProjectionWindowId, ProjectedWindow]()
-    windows[101] = ProjectedWindow(id: 101, heightProportion: 1.2)
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 5.0)
 
     let instructions =
       layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
@@ -65,7 +65,7 @@ suite "Layout Algorithm Math":
     check instructions.len == 1
     check instructions[0].windowId == 101
     check instructions[0].geom.y < 10
-    check instructions[0].geom.h > 980
+    check instructions[0].geom.h == 4900
 
   test "layoutScroller full-width single window ignores resized height":
     var tag =
@@ -102,6 +102,24 @@ suite "Layout Algorithm Math":
     check instructions[0].windowId == 101
     check instructions[0].geom.x == 255
     check instructions[0].geom.w == 490
+
+  test "layoutVerticalScroller lets single window width exceed viewport":
+    var tag = ProjectedTag(
+      tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
+    )
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, widthProportion: 5.0)
+
+    let instructions = layoutVerticalScroller(
+      tag, windows, screen, outerGap, innerGap, false, false, "never"
+    )
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.x < 10
+    check instructions[0].geom.w == 4900
 
   test "layoutVerticalScroller full-width single window ignores resized width":
     var tag = ProjectedTag(

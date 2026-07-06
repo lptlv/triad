@@ -151,8 +151,8 @@ proc windowDataForRiverId*(model: Model, winId: uint32): Option[WindowData] =
 proc hasRiverWindow*(model: Model, winId: uint32): bool =
   model.windowForRiverId(winId) != NullWindowId
 
-proc proposalDimensions*(
-    win: WindowData, w, h: int32, honorMinimums: bool
+proc proposalDimensionsWithMax(
+    win: WindowData, w, h: int32, honorMinimums: bool, maxWidth, maxHeight: int32
 ): tuple[w, h: int32] =
   result.w = max(0'i32, w)
   result.h = max(0'i32, h)
@@ -160,10 +160,21 @@ proc proposalDimensions*(
     result.w = max(result.w, win.minWidth)
   if honorMinimums and win.minHeight > 0:
     result.h = max(result.h, win.minHeight)
-  if win.maxWidth > 0:
-    result.w = min(result.w, win.maxWidth)
-  if win.maxHeight > 0:
-    result.h = min(result.h, win.maxHeight)
+  if maxWidth > 0:
+    result.w = min(result.w, maxWidth)
+  if maxHeight > 0:
+    result.h = min(result.h, maxHeight)
+
+proc proposalDimensions*(
+    win: WindowData, w, h: int32, honorMinimums: bool, honorMaximums = true
+): tuple[w, h: int32] =
+  win.proposalDimensionsWithMax(
+    w,
+    h,
+    honorMinimums,
+    if honorMaximums: win.maxWidth else: 0'i32,
+    if honorMaximums: win.maxHeight else: 0'i32,
+  )
 
 proc boundedDimensions*(win: WindowData, w, h: int32): tuple[w, h: int32] =
   win.proposalDimensions(w, h, honorMinimums = true)
@@ -183,9 +194,33 @@ proc boundedDimensionsForRiverId*(
   (w: max(0'i32, w), h: max(0'i32, h))
 
 proc proposalDimensionsForRiverId*(
-    model: Model, winId: uint32, w, h: int32, honorMinimums: bool
+    model: Model, winId: uint32, w, h: int32, honorMinimums: bool, honorMaximums = true
 ): tuple[w, h: int32] =
-  let winOpt = model.windowDataForRiverId(winId)
+  let logicalId = model.windowForRiverId(winId)
+  let winOpt = model.windowData(logicalId)
   if winOpt.isSome:
-    return winOpt.get().proposalDimensions(w, h, honorMinimums)
+    let win = winOpt.get()
+    var maxWidth = if honorMaximums: win.maxWidth else: 0'i32
+    var maxHeight = if honorMaximums: win.maxHeight else: 0'i32
+    if not honorMaximums:
+      let ruleMatch = model.windowRuleFor(logicalId, win)
+      if ruleMatch.found:
+        if ruleMatch.rule.maxWidthSet:
+          maxWidth = win.maxWidth
+        if ruleMatch.rule.maxHeightSet:
+          maxHeight = win.maxHeight
+    return win.proposalDimensionsWithMax(w, h, honorMinimums, maxWidth, maxHeight)
   (w: max(0'i32, w), h: max(0'i32, h))
+
+proc manageDimensionBoundsForRiverId*(model: Model, winId: uint32): tuple[w, h: int32] =
+  let logicalId = model.windowForRiverId(winId)
+  let winOpt = model.windowData(logicalId)
+  if winOpt.isNone:
+    return (w: 0'i32, h: 0'i32)
+  let win = winOpt.get()
+  let ruleMatch = model.windowRuleFor(logicalId, win)
+  if ruleMatch.found:
+    if ruleMatch.rule.maxWidthSet:
+      result.w = win.maxWidth
+    if ruleMatch.rule.maxHeightSet:
+      result.h = win.maxHeight

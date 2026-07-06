@@ -2091,7 +2091,8 @@ proc applyManageState*(daemon: var TriadDaemon) =
         win.useCsd()
       else:
         win.useSsd()
-      win.setDimensionBounds(data.maxWidth, data.maxHeight)
+      let bounds = daemon.currentModel.manageDimensionBoundsForRiverId(id)
+      win.setDimensionBounds(bounds.w, bounds.h)
       edges = daemon.currentModel.tiledEdgesForWindow(data)
       discard daemon.ensureDecorationSurface(id, ProtocolSurfaceKind.PskDecorationBelow)
       discard daemon.ensureDecorationSurface(id, ProtocolSurfaceKind.PskDecorationAbove)
