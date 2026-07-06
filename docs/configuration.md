@@ -220,6 +220,11 @@ bindings {
 }
 ```
 
+Pointer move/resize works for floating windows and for tiled windows in Triad's
+built-in/native layouts. Tiled scroller windows can be dragged between columns
+or into another column stack; native layouts support tiled drag targets and
+split-ratio resize from window edges.
+
 ## Native Features
 
 ### Recent Windows

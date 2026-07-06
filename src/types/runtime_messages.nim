@@ -321,10 +321,12 @@ type
     of MsgKind.WlPointerMoveRequested:
       moveWinId*: uint32
       moveSeat*: pointer # ptr RiverSeatV1
+      moveStartX*, moveStartY*: int32
     of MsgKind.WlPointerResizeRequested:
       resizeWinId*: uint32
       resizeSeat*: pointer # ptr RiverSeatV1
       resizeEdges*: uint32
+      resizeStartX*, resizeStartY*: int32
     of MsgKind.WlOverviewPointerDragRequested:
       overviewDragWinId*: uint32
       overviewDragSeat*: pointer # ptr RiverSeatV1

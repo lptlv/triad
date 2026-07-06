@@ -1147,6 +1147,20 @@ proc applyOverviewDrag(model: Model, instructions: var seq[rv.RenderInstruction]
       instr.clipSet = false
       return
 
+proc applyTiledPointerDrag(model: Model, instructions: var seq[rv.RenderInstruction]) =
+  let op = model.pointerOp
+  if op.kind != rv.PointerOpKind.OpMove or not op.tiled or not op.dragActive:
+    return
+  let externalId = model.externalWindowId(op.windowId)
+  for instr in instructions.mitems:
+    if instr.windowId == externalId:
+      instr.geom.x = op.initialGeom.x + op.totalDX
+      instr.geom.y = op.initialGeom.y + op.totalDY
+      instr.geom.w = op.initialGeom.w
+      instr.geom.h = op.initialGeom.h
+      instr.clipSet = false
+      return
+
 proc addOverviewInstruction(
     instructions: var seq[rv.RenderInstruction], instruction: rv.RenderInstruction
 ) =
@@ -1699,6 +1713,7 @@ proc layoutProjection*(
       includeUnmanagedGlobals = activeTag,
     )
     result.mergeNormalProjection(tagProjection, replaceInstructions = activeTag)
+  model.applyTiledPointerDrag(result.instructions)
 
 proc applyLayoutProjection*(model: var Model, projection: LayoutProjection) =
   for target in projection.viewportTargets:

@@ -177,8 +177,19 @@ proc onWindowPointerMoveRequested(
   if daemon == nil:
     return
   debug "Pointer move requested", windowId = win.id()
+  let point =
+    if seat != nil:
+      daemon.pointerPositionBySeat.getOrDefault(seat.id(), Rect())
+    else:
+      Rect()
   daemon.enqueue(
-    Msg(kind: MsgKind.WlPointerMoveRequested, moveWinId: win.id(), moveSeat: seat)
+    Msg(
+      kind: MsgKind.WlPointerMoveRequested,
+      moveWinId: win.id(),
+      moveSeat: seat,
+      moveStartX: point.x,
+      moveStartY: point.y,
+    )
   )
 
 proc onWindowPointerResizeRequested(
@@ -188,12 +199,19 @@ proc onWindowPointerResizeRequested(
   if daemon == nil:
     return
   debug "Pointer resize requested", windowId = win.id(), edges = edges
+  let point =
+    if seat != nil:
+      daemon.pointerPositionBySeat.getOrDefault(seat.id(), Rect())
+    else:
+      Rect()
   daemon.enqueue(
     Msg(
       kind: MsgKind.WlPointerResizeRequested,
       resizeWinId: win.id(),
       resizeSeat: seat,
       resizeEdges: edges,
+      resizeStartX: point.x,
+      resizeStartY: point.y,
     )
   )
 

@@ -227,12 +227,12 @@ const RiverProtocolCoverage* = [
   ProtocolCoverageEntry(
     event: "river_window_v1.inform_resize_start",
     state: ProtocolCoverageState.pcsImplemented,
-    note: "Sent for interactive floating resize.",
+    note: "Sent for interactive pointer resize.",
   ),
   ProtocolCoverageEntry(
     event: "river_window_v1.inform_resize_end",
     state: ProtocolCoverageState.pcsImplemented,
-    note: "Sent when interactive floating resize ends.",
+    note: "Sent when interactive pointer resize ends.",
   ),
   ProtocolCoverageEntry(
     event: "river_window_v1.set_capabilities",
@@ -553,12 +553,12 @@ const RiverProtocolCoverage* = [
   ProtocolCoverageEntry(
     event: "river_window_v1.pointer_move_requested",
     state: ProtocolCoverageState.pcsImplemented,
-    note: "Starts pointer move for floating windows.",
+    note: "Starts pointer move for floating and tiled windows.",
   ),
   ProtocolCoverageEntry(
     event: "river_window_v1.pointer_resize_requested",
     state: ProtocolCoverageState.pcsImplemented,
-    note: "Starts pointer resize for floating windows.",
+    note: "Starts pointer resize for floating and tiled windows.",
   ),
   ProtocolCoverageEntry(
     event: "river_window_v1.show_window_menu_requested",

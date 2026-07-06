@@ -10,6 +10,15 @@ proc activeTiledOrder(model: Model): seq[uint32] =
       if win.isSome:
         result.add(uint32(win.get().externalId))
 
+proc placementForExternal(
+    model: Model, externalId: uint32
+): tuple[columnId: ColumnId, windowIdx: uint32] =
+  let winId = model.windowForExternal(ExternalWindowId(externalId))
+  let placement = model.placementForWindowOnTag(model.activeTag, winId)
+  if placement.isSome:
+    return (placement.get().columnId, placement.get().windowIdx)
+  (NullColumnId, 0'u32)
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -275,6 +284,123 @@ suite "Core Runtime Logic: window movement":
         Direction.DirLeft, Direction.DirRight, Direction.DirUp, Direction.DirDown
       ]:
         base.checkMoveMirrorsNavigation(3, direction)
+
+  test "Tiled pointer move below threshold does not reorder scroller windows":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let start = model.instructionGeom(1).rectCenter()
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(4, 4)
+    discard model.finishPointerOp()
+
+    check model.activeTiledOrder() == @[1'u32, 2, 3]
+
+  test "Tiled pointer move can structurally reorder scroller columns":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let start = model.instructionGeom(1).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w - 2
+    let dropY = target.y + target.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    let dragged = model.instructionGeom(1)
+    check dragged.x == model.pointerOp.initialGeom.x + model.pointerOp.totalDX
+    discard model.finishPointerOp()
+
+    check model.activeTiledOrder() == @[2'u32, 1, 3]
+    check model.focusedWindowId() == 1
+
+  test "Tiled pointer move can drop into an existing scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let start = model.instructionGeom(1).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y + (target.h * 3) div 4
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    discard model.finishPointerOp()
+
+    let first = model.placementForExternal(1)
+    let second = model.placementForExternal(2)
+    check first.columnId == second.columnId
+    check first.windowIdx == 2
+    check model.activeTiledOrder() == @[2'u32, 1, 3]
+
+  test "Tiled pointer resize adjusts scroller column width from edge drag":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h div 2
+    let placement = model.placementForExternal(1)
+    let before = model.column(placement.columnId).get().widthProportion
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(100, 0)
+    discard model.finishPointerOp()
+
+    check model.column(placement.columnId).get().widthProportion > before
+
+  test "Tiled pointer move drops frame-tree windows into target frame":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFrameSplitHorizontal))
+    let sourceFrame = model.frameForWindowOnTag(model.activeTag, WindowId(1))
+    let targetFrame = model.frameForWindowOnTag(model.activeTag, WindowId(2))
+    let start = model.instructionGeom(1).rectCenter()
+    let target = model.instructionGeom(2).rectCenter()
+
+    check sourceFrame != targetFrame
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(target.x - start.x, target.y - start.y)
+    discard model.finishPointerOp()
+
+    check model.frameForWindowOnTag(model.activeTag, WindowId(1)) == targetFrame
+    check model.focusedWindowId() == 1
+
+  test "Tiled pointer move swaps BSP windows under cursor":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("bsp-tree"))
+    )
+    let firstBefore = model.instructionGeom(1)
+    let secondBefore = model.instructionGeom(2)
+    let start = firstBefore.rectCenter()
+    let target = secondBefore.rectCenter()
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(target.x - start.x, target.y - start.y)
+    discard model.finishPointerOp()
+
+    check model.instructionGeom(1) == secondBefore
+    check model.instructionGeom(2) == firstBefore
+    check model.focusedWindowId() == 1
+
+  test "Tiled pointer resize adjusts native frame split ratio":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetNativeLayout, nativeLayout: nativeLayoutId("frame-tree"))
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFrameSplitHorizontal))
+    let before = model.instructionGeom(1)
+    let startX = before.x + before.w - 1
+    let startY = before.y + before.h div 2
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(100, 0)
+    discard model.finishPointerOp()
+
+    check model.instructionGeom(1).w > before.w
 
   test "Bundled Janet layout movement mirrors directional focus target":
     for layoutId in [

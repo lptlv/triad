@@ -311,12 +311,19 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
       result.effects.add(broadcastWindowFocusChanged(externalId))
       result.effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: externalId))
   of MsgKind.WlPointerMoveRequested:
-    if model.beginPointerMove(msg.moveWinId.externalWindowId()):
+    if model.beginPointerMove(
+      msg.moveWinId.externalWindowId(), msg.moveStartX, msg.moveStartY
+    ):
       result.effects.add(
         Effect(kind: EffectKind.EffOpStartPointer, opSeat: msg.moveSeat)
       )
   of MsgKind.WlPointerResizeRequested:
-    if model.beginPointerResize(msg.resizeWinId.externalWindowId(), msg.resizeEdges):
+    if model.beginPointerResize(
+      msg.resizeWinId.externalWindowId(),
+      msg.resizeEdges,
+      msg.resizeStartX,
+      msg.resizeStartY,
+    ):
       result.effects.add(
         Effect(
           kind: EffectKind.EffInformResizeStart, resizeLifecycleWinId: msg.resizeWinId

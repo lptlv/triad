@@ -1,12 +1,16 @@
 import std/[math, options]
+import ../core/layout_selection_codec
 import ../core/native_layout_codec
 import ../state/engine
 import ../types/projection_values as rv
 from ../types/runtime_values import
-  JanetLayoutId, LayoutMode, NativeLayoutId, PointerOpKind
+  FrameSplitOrientation, JanetLayoutId, LayoutMode, NativeLayoutId, PointerDropKind,
+  PointerOpKind
 import focus, layout_projection, overview_geometry, placement, workspaces
 
 const ShiftModifier = 1'u32
+const PointerDragThresholdSquared = 64'i32
+const PointerResizeEdgeMargin = 16'i32
 
 proc tickElapsedMs(msgElapsedMs: int32): int32 =
   if msgElapsedMs > 0: msgElapsedMs else: DefaultFrameIntervalMs
@@ -33,32 +37,325 @@ proc setSessionLocked*(model: var Model, locked: bool): bool =
 proc setActiveModifiers*(model: var Model, modifiers: uint32): bool =
   model.setActiveModifiersState(modifiers)
 
-proc beginPointerMove*(model: var Model, externalId: ExternalWindowId): bool =
+proc activeTagUsesCoreScroller(model: Model): bool =
+  let tagOpt = model.tagData(model.activeTag)
+  if tagOpt.isNone:
+    return false
+  let tag = tagOpt.get()
+  tag.customLayoutId.layoutIdString().len == 0 and
+    tag.nativeLayoutId.nativeLayoutIdString().len == 0 and
+    tag.layoutMode in {LayoutMode.Scroller, LayoutMode.VerticalScroller}
+
+proc activeTagUsesNativeLayout(model: Model): bool =
+  let tagOpt = model.tagData(model.activeTag)
+  tagOpt.isSome and tagOpt.get().nativeLayoutId.nativeLayoutIdString().len > 0
+
+proc activeTagSupportsTiledPointerOps(model: Model): bool =
+  model.activeTagUsesCoreScroller() or model.activeTagUsesNativeLayout()
+
+proc visibleInstructionGeom(model: Model, winId: WindowId): Rect =
+  let winOpt = model.windowData(winId)
+  if winOpt.isNone:
+    return Rect()
+  let externalId = rv.ProjectionWindowId(uint32(winOpt.get().externalId))
+  if externalId == 0'u32:
+    return Rect()
+  for instr in model.activeFocusLayoutInstructions():
+    if instr.windowId == externalId:
+      return instr.geom
+  Rect()
+
+proc sourcePlacement(
+    model: Model, tagId: TagId, winId: WindowId
+): tuple[found: bool, columnId: ColumnId, winIdx: int] =
+  let placementOpt = model.placementForWindowOnTag(tagId, winId)
+  if placementOpt.isNone:
+    return (false, NullColumnId, -1)
+  let placement = placementOpt.get()
+  (true, placement.columnId, int(placement.windowIdx) - 1)
+
+proc windowCountOnColumn(model: Model, columnId: ColumnId): int =
+  for _, _ in model.windowsOnColumnWithId(columnId):
+    inc result
+
+proc updateScrollerDropTarget(model: Model, op: var PointerOpData) =
+  op.dropKind = PointerDropKind.DropNone
+  op.dropTag = NullTagId
+  op.dropColumn = NullColumnId
+  op.dropFrame = NullFrameId
+  op.dropWindow = NullWindowId
+  op.dropWindowIdx = -1
+  if not model.activeTagUsesCoreScroller() or op.sourceTag != model.activeTag:
+    return
+  let x = op.currentX
+  let y = op.currentY
+  let sourceWin = model.windowData(op.windowId)
+  if sourceWin.isNone:
+    return
+  let sourceExternal = uint32(sourceWin.get().externalId)
+  for instr in model.activeFocusLayoutInstructions():
+    if uint32(instr.windowId) == sourceExternal:
+      continue
+    let geom = instr.geom
+    if x < geom.x or y < geom.y or x >= geom.x + geom.w or y >= geom.y + geom.h:
+      continue
+    let targetWin = model.windowForExternal(ExternalWindowId(uint32(instr.windowId)))
+    let placement = model.sourcePlacement(op.sourceTag, targetWin)
+    if not placement.found:
+      continue
+    op.dropTag = op.sourceTag
+    op.dropColumn = placement.columnId
+    let tag = model.tagData(model.activeTag).get()
+    if tag.layoutMode == LayoutMode.Scroller:
+      let localX = x - geom.x
+      if localX < geom.w div 4:
+        op.dropKind = PointerDropKind.DropColumnBefore
+      elif localX >= (geom.w * 3) div 4:
+        op.dropKind = PointerDropKind.DropColumnAfter
+      else:
+        op.dropKind = PointerDropKind.DropIntoColumn
+        op.dropWindowIdx = placement.winIdx + (if y >= geom.y + geom.h div 2: 1 else: 0)
+    else:
+      let localY = y - geom.y
+      if localY < geom.h div 4:
+        op.dropKind = PointerDropKind.DropColumnBefore
+      elif localY >= (geom.h * 3) div 4:
+        op.dropKind = PointerDropKind.DropColumnAfter
+      else:
+        op.dropKind = PointerDropKind.DropIntoColumn
+        op.dropWindowIdx = placement.winIdx + (if x >= geom.x + geom.w div 2: 1 else: 0)
+    return
+
+proc updateNativeDropTarget(model: Model, op: var PointerOpData) =
+  op.dropKind = PointerDropKind.DropNone
+  op.dropTag = NullTagId
+  op.dropColumn = NullColumnId
+  op.dropFrame = NullFrameId
+  op.dropWindow = NullWindowId
+  op.dropWindowIdx = -1
+  if op.sourceTag != model.activeTag:
+    return
+  let tagOpt = model.tagData(model.activeTag)
+  if tagOpt.isNone or tagOpt.get().nativeLayoutId.nativeLayoutIdString().len == 0:
+    return
+  let x = op.currentX
+  let y = op.currentY
+  let sourceWin = model.windowData(op.windowId)
+  if sourceWin.isNone:
+    return
+  let sourceExternal = uint32(sourceWin.get().externalId)
+  for instr in model.activeFocusLayoutInstructions():
+    if uint32(instr.windowId) == sourceExternal:
+      continue
+    let geom = instr.geom
+    if x < geom.x or y < geom.y or x >= geom.x + geom.w or y >= geom.y + geom.h:
+      continue
+    let targetWin = model.windowForExternal(ExternalWindowId(uint32(instr.windowId)))
+    if targetWin == NullWindowId:
+      continue
+    op.dropTag = op.sourceTag
+    op.dropWindow = targetWin
+    op.dropKind = PointerDropKind.DropIntoColumn
+    if tagOpt.get().nativeLayoutId.nativeLayoutIdString() == FrameTreeLayoutId:
+      op.dropFrame = model.frameForWindowOnTag(op.sourceTag, targetWin)
+    return
+
+proc commitScrollerDrop(model: var Model, op: PointerOpData): bool =
+  if op.dropKind == PointerDropKind.DropNone or op.dropTag == NullTagId or
+      op.dropColumn == NullColumnId:
+    return false
+  let winOpt = model.windowData(op.windowId)
+  if winOpt.isNone:
+    return false
+  let source = model.sourcePlacement(op.sourceTag, op.windowId)
+  if not source.found:
+    return false
+  case op.dropKind
+  of PointerDropKind.DropIntoColumn:
+    var targetIdx = max(0, op.dropWindowIdx)
+    if source.columnId == op.dropColumn and source.winIdx < targetIdx:
+      dec targetIdx
+    result = model.moveWindowToColumn(op.dropTag, op.windowId, op.dropColumn, targetIdx)
+  of PointerDropKind.DropColumnBefore, PointerDropKind.DropColumnAfter:
+    let targetColumnIdx = int(model.columnIndexForTag(op.dropTag, op.dropColumn)) - 1
+    if targetColumnIdx < 0:
+      return false
+    let sourceColumnIdx =
+      int(model.columnIndexForTag(op.sourceTag, source.columnId)) - 1
+    let insertAfter = op.dropKind == PointerDropKind.DropColumnAfter
+    if source.columnId != op.dropColumn and sourceColumnIdx >= 0 and
+        model.windowCountOnColumn(source.columnId) == 1:
+      var targetIdx = targetColumnIdx + (if insertAfter: 1 else: 0)
+      if sourceColumnIdx < targetIdx:
+        dec targetIdx
+      result = model.moveColumn(op.dropTag, sourceColumnIdx, max(0, targetIdx))
+    else:
+      let sourceColumn = model.column(source.columnId)
+      let targetIdx = targetColumnIdx + (if insertAfter: 1 else: 0)
+      let sourceWidth =
+        if sourceColumn.isSome:
+          sourceColumn.get().widthProportion
+        else:
+          model.defaultColumnWidth()
+      let sourceFullWidth = sourceColumn.isSome and sourceColumn.get().isFullWidth
+      let sourceSingleProportion =
+        if sourceColumn.isSome:
+          sourceColumn.get().scrollerSingleProportion
+        else:
+          0.0'f32
+      let newColumn = model.addPlacedWindowColumn(
+        op.dropTag,
+        op.windowId,
+        targetIdx,
+        widthProportion = sourceWidth,
+        isFullWidth = sourceFullWidth,
+        scrollerSingleProportion = sourceSingleProportion,
+      )
+      result = newColumn != NullColumnId
+  of PointerDropKind.DropNone:
+    result = false
+  if result:
+    discard model.setTagFocus(op.dropTag, op.windowId)
+    discard model.requestTagViewportRetarget(op.dropTag)
+
+proc commitNativeDrop(model: var Model, op: PointerOpData): bool =
+  if op.dropTag == NullTagId or op.dropWindow == NullWindowId:
+    return false
+  let tagOpt = model.tagData(op.dropTag)
+  if tagOpt.isNone:
+    return false
+  let nativeId = tagOpt.get().nativeLayoutId.nativeLayoutIdString()
+  if nativeId == FrameTreeLayoutId:
+    if op.dropFrame == NullFrameId:
+      return false
+    result = model.addWindowToFrame(op.dropTag, op.windowId, op.dropFrame)
+    if result:
+      discard model.setFrameActiveWindow(op.dropFrame, op.windowId)
+      discard model.setFocusedFrame(op.dropTag, op.dropFrame)
+  elif nativeId.len > 0:
+    result = model.swapPlacedWindows(op.dropTag, op.windowId, op.dropTag, op.dropWindow)
+  if result:
+    discard model.setTagFocus(op.dropTag, op.windowId)
+    discard model.requestTagViewportRetarget(op.dropTag)
+
+proc beginPointerMove*(
+    model: var Model, externalId: ExternalWindowId, startX = 0'i32, startY = 0'i32
+): bool =
   let winId = model.windowForExternal(externalId)
   let winOpt = model.windowData(winId)
-  if winOpt.isNone or not winOpt.get().isFloating:
+  if winOpt.isNone:
     return false
+  if not winOpt.get().windowAdmitted() or winOpt.get().isMinimized or
+      winOpt.get().isUnmanagedGlobal:
+    return false
+  if not winOpt.get().isFloating:
+    if not model.activeTagSupportsTiledPointerOps():
+      return false
+    let tagId = model.activeTag
+    let placement = model.sourcePlacement(tagId, winId)
+    let geom = model.visibleInstructionGeom(winId)
+    if tagId == NullTagId or not placement.found or geom.w <= 0 or geom.h <= 0:
+      return false
+    discard model.setTagFocus(tagId, winId)
+    return model.setPointerOpState(
+      PointerOpData(
+        kind: PointerOpKind.OpMove,
+        windowId: winId,
+        initialGeom: geom,
+        tiled: true,
+        sourceTag: tagId,
+        sourceColumn: placement.columnId,
+        sourceWindowIdx: placement.winIdx,
+        dropWindowIdx: -1,
+        startX: startX,
+        startY: startY,
+        currentX: startX,
+        currentY: startY,
+      )
+    )
   model.setPointerOpState(
     PointerOpData(
       kind: PointerOpKind.OpMove,
       windowId: winId,
       initialGeom: winOpt.get().floatingGeom,
+      startX: startX,
+      startY: startY,
+      currentX: startX,
+      currentY: startY,
     )
   )
 
 proc beginPointerResize*(
-    model: var Model, externalId: ExternalWindowId, edges: uint32
+    model: var Model,
+    externalId: ExternalWindowId,
+    edges: uint32,
+    startX = 0'i32,
+    startY = 0'i32,
 ): bool =
   let winId = model.windowForExternal(externalId)
   let winOpt = model.windowData(winId)
-  if winOpt.isNone or not winOpt.get().isFloating:
+  if winOpt.isNone:
     return false
+  if not winOpt.get().windowAdmitted() or winOpt.get().isMinimized or
+      winOpt.get().isUnmanagedGlobal:
+    return false
+  if not winOpt.get().isFloating:
+    if not model.activeTagSupportsTiledPointerOps():
+      return false
+    let tagId = model.activeTag
+    let placement = model.sourcePlacement(tagId, winId)
+    let geom = model.visibleInstructionGeom(winId)
+    if tagId == NullTagId or not placement.found or geom.w <= 0 or geom.h <= 0:
+      return false
+    var resizeEdges = 0'u32
+    if startY - geom.y <= PointerResizeEdgeMargin:
+      resizeEdges = resizeEdges or 1'u32
+    elif geom.y + geom.h - startY <= PointerResizeEdgeMargin:
+      resizeEdges = resizeEdges or 2'u32
+    if startX - geom.x <= PointerResizeEdgeMargin:
+      resizeEdges = resizeEdges or 4'u32
+    elif geom.x + geom.w - startX <= PointerResizeEdgeMargin:
+      resizeEdges = resizeEdges or 8'u32
+    if resizeEdges == 0'u32:
+      return false
+    let columnOpt = model.column(placement.columnId)
+    discard model.setTagFocus(tagId, winId)
+    return model.setPointerOpState(
+      PointerOpData(
+        kind: PointerOpKind.OpResize,
+        windowId: winId,
+        initialGeom: geom,
+        edges: resizeEdges,
+        tiled: true,
+        sourceTag: tagId,
+        sourceColumn: placement.columnId,
+        sourceWindowIdx: placement.winIdx,
+        resizeColumn: placement.columnId,
+        resizeHorizontal: (resizeEdges and (4'u32 or 8'u32)) != 0,
+        resizeVertical: (resizeEdges and (1'u32 or 2'u32)) != 0,
+        initialColumnWidth:
+          if columnOpt.isSome:
+            columnOpt.get().widthProportion
+          else:
+            1.0'f32,
+        initialWindowWidth: winOpt.get().widthProportion,
+        initialWindowHeight: winOpt.get().heightProportion,
+        startX: startX,
+        startY: startY,
+        currentX: startX,
+        currentY: startY,
+      )
+    )
   model.setPointerOpState(
     PointerOpData(
       kind: PointerOpKind.OpResize,
       windowId: winId,
       initialGeom: winOpt.get().floatingGeom,
       edges: edges,
+      startX: startX,
+      startY: startY,
+      currentX: startX,
+      currentY: startY,
     )
   )
 
@@ -315,6 +612,110 @@ proc applyPointerDelta*(model: var Model, dx, dy: int32): bool =
   if winOpt.isNone:
     return false
 
+  if op.tiled:
+    var next = op
+    next.totalDX = dx
+    next.totalDY = dy
+    next.currentX = op.startX + dx
+    next.currentY = op.startY + dy
+    case op.kind
+    of PointerOpKind.OpMove:
+      if not next.dragActive and dx * dx + dy * dy >= PointerDragThresholdSquared:
+        next.dragActive = true
+      if next.dragActive:
+        if model.activeTagUsesCoreScroller():
+          model.updateScrollerDropTarget(next)
+        else:
+          model.updateNativeDropTarget(next)
+      return model.setPointerOpState(next)
+    of PointerOpKind.OpResize:
+      discard model.setPointerOpState(next)
+      let screen = model.activeWorkspaceScreen()
+      let tagOpt = model.tagData(op.sourceTag)
+      if tagOpt.isNone:
+        return false
+      let tag = tagOpt.get()
+      var dirty = false
+      if model.activeTagUsesCoreScroller():
+        if next.resizeHorizontal:
+          let signedDx =
+            if (next.edges and 4'u32) != 0:
+              -dx
+            else:
+              dx
+          let delta =
+            if screen.w > 0:
+              float32(signedDx) / float32(screen.w)
+            else:
+              0.0'f32
+          if tag.layoutMode == LayoutMode.Scroller:
+            dirty =
+              model.setColumnWidth(next.resizeColumn, next.initialColumnWidth + delta) or
+              dirty
+          else:
+            dirty =
+              model.setWindowWidthProportion(
+                next.windowId, next.initialWindowWidth + delta
+              ) or dirty
+        if next.resizeVertical:
+          let signedDy =
+            if (next.edges and 1'u32) != 0:
+              -dy
+            else:
+              dy
+          let delta =
+            if screen.h > 0:
+              float32(signedDy) / float32(screen.h)
+            else:
+              0.0'f32
+          if tag.layoutMode == LayoutMode.Scroller:
+            dirty =
+              model.setWindowHeightProportion(
+                next.windowId, next.initialWindowHeight + delta
+              ) or dirty
+          else:
+            dirty =
+              model.setColumnWidth(next.resizeColumn, next.initialColumnWidth + delta) or
+              dirty
+      else:
+        let incDx = dx - op.totalDX
+        let incDy = dy - op.totalDY
+        let nativeId = tag.nativeLayoutId.nativeLayoutIdString()
+        if next.resizeHorizontal and screen.w > 0:
+          let signedDx =
+            if (next.edges and 4'u32) != 0:
+              -incDx
+            else:
+              incDx
+          if nativeId == FrameTreeLayoutId:
+            dirty =
+              model.adjustFocusedFrameSplit(
+                model.activeTag,
+                FrameSplitOrientation.Horizontal,
+                float32(signedDx) / float32(screen.w),
+              ) or dirty
+          else:
+            dirty = model.resizeWidth(float32(signedDx) / float32(screen.w)) or dirty
+        if next.resizeVertical and screen.h > 0:
+          let signedDy =
+            if (next.edges and 1'u32) != 0:
+              -incDy
+            else:
+              incDy
+          if nativeId == FrameTreeLayoutId:
+            dirty =
+              model.adjustFocusedFrameSplit(
+                model.activeTag,
+                FrameSplitOrientation.Vertical,
+                float32(signedDy) / float32(screen.h),
+              ) or dirty
+          else:
+            dirty = model.resizeHeight(float32(signedDy) / float32(screen.h)) or dirty
+      return dirty
+    of PointerOpKind.OpNone, PointerOpKind.OpOverviewDrag,
+        PointerOpKind.OpOverviewScroll:
+      return false
+
   var geom = winOpt.get().floatingGeom
   case op.kind
   of PointerOpKind.OpMove:
@@ -350,6 +751,11 @@ proc finishPointerOp*(model: var Model): core.WindowId =
   if op.kind == PointerOpKind.OpOverviewScroll:
     discard model.clearPointerOp()
     return NullWindowId
+  if op.tiled and op.kind == PointerOpKind.OpMove and op.dragActive:
+    if model.activeTagUsesCoreScroller():
+      discard model.commitScrollerDrop(op)
+    else:
+      discard model.commitNativeDrop(op)
   result = if op.kind == PointerOpKind.OpResize: op.windowId else: NullWindowId
   discard model.clearPointerOp()
 

@@ -1688,7 +1688,13 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
     case daemon.pointerBindingKinds[id]
     of PointerOpKind.OpMove:
       daemon.enqueue(
-        Msg(kind: MsgKind.WlPointerMoveRequested, moveWinId: target, moveSeat: seat)
+        Msg(
+          kind: MsgKind.WlPointerMoveRequested,
+          moveWinId: target,
+          moveSeat: seat,
+          moveStartX: point.x,
+          moveStartY: point.y,
+        )
       )
     of PointerOpKind.OpResize:
       daemon.enqueue(
@@ -1697,6 +1703,8 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
           resizeWinId: target,
           resizeSeat: seat,
           resizeEdges: RiverEdgeBottom or RiverEdgeRight,
+          resizeStartX: point.x,
+          resizeStartY: point.y,
         )
       )
     of PointerOpKind.OpNone, PointerOpKind.OpOverviewDrag,

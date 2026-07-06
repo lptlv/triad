@@ -2,6 +2,7 @@ import std/options
 from ../core/layout_selection_codec import layoutIdString
 from ../core/native_layout_codec import FrameTreeLayoutId, nativeLayoutIdString
 import ../state/engine
+from ../types/runtime_values import PointerOpKind
 import presentation_policy, window_rules
 import recent_windows
 
@@ -53,6 +54,12 @@ proc highlightRiverId*(model: Model): uint32 =
   if model.overviewActive:
     return model.riverIdForWindow(model.selectedOverviewWindow())
   model.activeFocusRiverId()
+
+proc draggedPointerRiverId*(model: Model): uint32 =
+  let op = model.pointerOp
+  if op.kind == PointerOpKind.OpMove and op.tiled and op.dragActive:
+    return model.riverIdForWindow(op.windowId)
+  0'u32
 
 proc windowRenderFocused*(model: Model, winId: uint32): bool =
   if winId == 0:

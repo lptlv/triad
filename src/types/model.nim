@@ -8,12 +8,13 @@ from runtime_values import
   JanetLayoutConfig, JanetLayoutId, KeyBindingConfig, LayoutMode, LayoutSelection,
   HotkeyOverlayConfig, FrameTabsConfig, LayoutSwitchToastConfig, OutputConfigTransform,
   OutputLayoutRow, OutputModeKind, OutputPositionKind, ParentedRole, SpiralLayoutConfig,
-  OverviewHotCornersConfig, PointerBindingConfig, PointerOpKind, PresentationMode,
-  ProtocolSurfacesConfig, ShellsConfig, RecentWindowFilter, RecentWindowScope,
-  RecentWindowsConfig, ScreenshotConfig, SwitchEventConfig, TerminalConfig,
-  WindowRuleBorderConfig, WindowRuleFloatingConfig, WindowRuleFloatingPositionConfig,
-  WindowRuleFocusRingConfig, WindowRuleIdleInhibitMode, WindowRuleMaximizePolicy,
-  SplitTreeNodeMode, Direction, FrameNodeKind, FrameSplitOrientation, NativeLayoutId
+  OverviewHotCornersConfig, PointerBindingConfig, PointerDropKind, PointerOpKind,
+  PresentationMode, ProtocolSurfacesConfig, ShellsConfig, RecentWindowFilter,
+  RecentWindowScope, RecentWindowsConfig, ScreenshotConfig, SwitchEventConfig,
+  TerminalConfig, WindowRuleBorderConfig, WindowRuleFloatingConfig,
+  WindowRuleFloatingPositionConfig, WindowRuleFocusRingConfig,
+  WindowRuleIdleInhibitMode, WindowRuleMaximizePolicy, SplitTreeNodeMode, Direction,
+  FrameNodeKind, FrameSplitOrientation, NativeLayoutId
 
 type
   WindowAdmissionState* {.pure.} = enum
@@ -433,6 +434,23 @@ type
     windowId*: WindowId
     initialGeom*: Rect
     edges*: uint32
+    tiled*: bool
+    dragActive*: bool
+    sourceTag*: TagId
+    sourceColumn*: ColumnId
+    sourceWindowIdx*: int
+    dropKind*: PointerDropKind
+    dropTag*: TagId
+    dropColumn*: ColumnId
+    dropFrame*: FrameId
+    dropWindow*: WindowId
+    dropWindowIdx*: int
+    resizeColumn*: ColumnId
+    resizeHorizontal*: bool
+    resizeVertical*: bool
+    initialColumnWidth*: float32
+    initialWindowWidth*: float32
+    initialWindowHeight*: float32
     startX*, startY*: int32
     currentX*, currentY*: int32
     totalDX*, totalDY*: int32

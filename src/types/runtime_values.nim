@@ -557,6 +557,12 @@ type
     OpOverviewDrag
     OpOverviewScroll
 
+  PointerDropKind* {.pure.} = enum
+    DropNone
+    DropColumnBefore
+    DropColumnAfter
+    DropIntoColumn
+
   HotkeyOverlayTitleKind* {.pure.} = enum
     HotkeyTitleDefault
     HotkeyTitleCustom

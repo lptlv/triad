@@ -154,15 +154,22 @@ proc orderedDesiredInstructions*(daemon: TriadDaemon): seq[RenderInstruction] =
       daemon.currentModel.highlightRiverId()
     else:
       0'u32
+  let dragged = daemon.currentModel.draggedPointerRiverId()
   for id in daemon.orderedDesiredIds():
-    if id != highlighted:
+    if id != highlighted and id != dragged:
       result.add(desiredInstruction(id))
   if highlighted != 0 and daemon.desiredPlacements.hasKey(highlighted):
     result.add(desiredInstruction(highlighted))
+  if dragged != 0 and dragged != highlighted and daemon.desiredPlacements.hasKey(
+    dragged
+  ):
+    result.add(desiredInstruction(dragged))
 
 proc renderOrderKey(daemon: TriadDaemon, ids: seq[uint32]): seq[uint32] =
   let highlighted = daemon.currentModel.highlightRiverId()
+  let dragged = daemon.currentModel.draggedPointerRiverId()
   result.add(highlighted)
+  result.add(dragged)
   result.add(daemon.currentModel.visibleScratchpadRiverId())
   result.add(daemon.ownedShellSurfaceId)
   for outputId in daemon.currentModel.sortedOutputIdsByExternal():
@@ -190,6 +197,8 @@ proc renderOrderKey(daemon: TriadDaemon, ids: seq[uint32]): seq[uint32] =
       flags = flags or 8'u32
     if id == highlighted:
       flags = flags or 64'u32
+    if id == daemon.currentModel.draggedPointerRiverId():
+      flags = flags or 128'u32
     result.add(id)
     result.add(flags)
 
@@ -440,10 +449,11 @@ proc renderDesiredPlacements*(daemon: var TriadDaemon) =
           daemon.currentModel.isScratchpadVisible and visibleScratchpad == id
         let winOpt = daemon.currentModel.windowDataForRiverId(id)
         let isFloating = winOpt.isSome and winOpt.get().isFloating
+        let isDragged = id == daemon.currentModel.draggedPointerRiverId()
         let isFullscreen = winOpt.isSome and winOpt.get().isFullscreen
         let isMaximized = daemon.currentModel.effectivelyMaximizedForRiverId(id)
         if not isFloating and not isScratchpad and
-            (isFullscreen or isMaximized or id == highlighted):
+            (isFullscreen or isMaximized or id == highlighted or isDragged):
           daemon.windowNodes[id].placeTop()
 
     for id in ids:
@@ -453,7 +463,8 @@ proc renderDesiredPlacements*(daemon: var TriadDaemon) =
           daemon.currentModel.isScratchpadVisible and visibleScratchpad == id
         let winOpt = daemon.currentModel.windowDataForRiverId(id)
         let isFloating = winOpt.isSome and winOpt.get().isFloating
-        if isFloating or isScratchpad or id == highlighted:
+        let isDragged = id == daemon.currentModel.draggedPointerRiverId()
+        if isFloating or isScratchpad or id == highlighted or isDragged:
           daemon.windowNodes[id].placeTop()
 
     for id in ids:
@@ -466,6 +477,9 @@ proc renderDesiredPlacements*(daemon: var TriadDaemon) =
 
     if highlighted != 0 and daemon.windowNodes.hasKey(highlighted):
       daemon.windowNodes[highlighted].placeTop()
+    let dragged = daemon.currentModel.draggedPointerRiverId()
+    if dragged != 0 and daemon.windowNodes.hasKey(dragged):
+      daemon.windowNodes[dragged].placeTop()
 
   if daemon.ownedShellSurfaceId != 0 and
       daemon.surfaceTable.hasKey(daemon.ownedShellSurfaceId):
