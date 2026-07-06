@@ -1,3 +1,4 @@
+import std/math
 import tcore_support
 import ../src/core/[layout_selection_codec, native_layout_codec]
 import ../src/systems/daemon_view
@@ -304,7 +305,7 @@ suite "Core Runtime Logic: window movement":
     check cornerModel.modelWindow(1).floatingGeom.w == cornerGeom.w + 40
     check cornerModel.modelWindow(1).floatingGeom.h == cornerGeom.h + 40
 
-  test "Floating pointer resize fills missing axis from binding edges":
+  test "Floating pointer resize locks dominant axis for accidental corner drift":
     var model = cameraModel()
     model.seedCameraWindows(2)
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -312,14 +313,15 @@ suite "Core Runtime Logic: window movement":
     check model.setWindowFloating(winId, true, geom)
 
     check model.beginPointerResize(
-      ExternalWindowId(1), 10'u32, geom.x + geom.w - 1, geom.y + geom.h div 2
+      ExternalWindowId(1), 10'u32, geom.x + geom.w - 1, geom.y + 1
     )
-    check model.applyPointerDelta(40, 40)
+    check model.applyPointerDelta(40, 4)
     discard model.finishPointerOp()
 
     let win = model.modelWindow(1)
     check win.floatingGeom.w == geom.w + 40
-    check win.floatingGeom.h == geom.h + 40
+    check win.floatingGeom.y == geom.y
+    check win.floatingGeom.h == geom.h
 
   test "Floating pointer resize preserves hit-tested top-left direction":
     var model = cameraModel()
@@ -926,24 +928,61 @@ suite "Core Runtime Logic: window movement":
 
     check model.column(placement.columnId).get().widthProportion > before
 
-  test "Tiled pointer resize fills missing vertical axis from binding edges":
+  test "Tiled pointer resize center fallback uses binding edges":
     var model = cameraModel()
     model.seedCameraWindows(2)
     let geom = model.instructionGeom(1)
-    let startX = geom.x + geom.w - 1
-    let startY = geom.y + geom.h div 2
+    let center = geom.rectCenter()
     let placement = model.placementForExternal(1)
     let beforeWidth = model.column(placement.columnId).get().widthProportion
     let beforeHeight = model.modelWindow(1).heightProportion
     let beforeGeom = model.instructionGeom(1)
 
-    check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, center.x, center.y)
     check model.applyPointerDelta(100, 100)
     discard model.finishPointerOp()
 
     check model.column(placement.columnId).get().widthProportion > beforeWidth
     check model.modelWindow(1).heightProportion > beforeHeight
     check model.instructionGeom(1).h > beforeGeom.h
+
+  test "Tiled pointer resize width drag does not clamp height from corner drift":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + 1
+    let placement = model.placementForExternal(1)
+    let beforeWidth = model.column(placement.columnId).get().widthProportion
+    let beforeHeight = model.modelWindow(1).heightProportion
+    let beforeGeom = model.instructionGeom(1)
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
+    check model.applyPointerDelta(100, 20)
+    discard model.finishPointerOp()
+
+    check model.column(placement.columnId).get().widthProportion > beforeWidth
+    check model.modelWindow(1).heightProportion == beforeHeight
+    check model.instructionGeom(1).h == beforeGeom.h
+
+  test "Tiled pointer resize height drag does not resize width from corner drift":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h - 1
+    let placement = model.placementForExternal(1)
+    let beforeWidth = model.column(placement.columnId).get().widthProportion
+    let beforeHeight = model.modelWindow(1).heightProportion
+    let beforeGeom = model.instructionGeom(1)
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
+    check model.applyPointerDelta(20, 100)
+    discard model.finishPointerOp()
+
+    check model.column(placement.columnId).get().widthProportion == beforeWidth
+    check model.modelWindow(1).heightProportion > beforeHeight
+    check model.instructionGeom(1).w == beforeGeom.w
 
   test "Tiled pointer resize adjusts scroller window height from edge drag":
     var model = cameraModel()
@@ -996,6 +1035,34 @@ suite "Core Runtime Logic: window movement":
       1, geom.w, geom.h, honorMinimums = false, honorMaximums = false
     ).h == geom.h
     check model.manageDimensionBoundsForRiverId(1) == (w: 0'i32, h: 0'i32)
+
+  test "Window proportion state paths sanitize invalid resize proportions":
+    var model = cameraModel()
+    let added = model.addWindow(
+      ExternalWindowId(90), widthProportion = 0.0'f32, heightProportion = float32(NaN)
+    )
+    check model.windowData(added).get().widthProportion == 0.05'f32
+    check model.windowData(added).get().heightProportion == 1.0'f32
+
+    check model.setWindowCreatedState(
+      added, widthProportion = 0.0'f32, heightProportion = float32(NaN)
+    )
+    check model.windowData(added).get().widthProportion == 0.05'f32
+    check model.windowData(added).get().heightProportion == 1.0'f32
+
+    var source = model.windowData(added).get()
+    source.widthProportion = 0.0'f32
+    source.heightProportion = float32(NaN)
+    check model.preserveWindowRuntimeAttributes(added, source)
+    check model.windowData(added).get().widthProportion == 0.05'f32
+    check model.windowData(added).get().heightProportion == 1.0'f32
+
+    check model.setWindowRestoredState(
+      added,
+      RestoredWindowData(widthProportion: 0.0'f32, heightProportion: float32(NaN)),
+    )
+    check model.windowData(added).get().widthProportion == 0.05'f32
+    check model.windowData(added).get().heightProportion == 1.0'f32
 
   test "Tiled pointer move drops frame-tree windows into target frame":
     var model = cameraModel()

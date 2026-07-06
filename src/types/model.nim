@@ -453,6 +453,9 @@ type
     resizeColumn*: ColumnId
     resizeHorizontal*: bool
     resizeVertical*: bool
+    resizeIntentLocked*: bool
+    resizeIntentHorizontal*: bool
+    resizeIntentVertical*: bool
     initialColumnWidth*: float32
     initialWindowWidth*: float32
     initialWindowHeight*: float32

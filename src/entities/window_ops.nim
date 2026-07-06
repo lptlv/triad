@@ -11,6 +11,12 @@ proc validWindowProportion(value: float32): bool =
 proc normalizeWindowProportion(value: float32): float32 =
   clamp(value, 0.05'f32, float32(high(int32)))
 
+proc sanitizeWindowProportion(value, fallback: float32): float32 =
+  if validWindowProportion(value):
+    normalizeWindowProportion(value)
+  else:
+    fallback
+
 proc addWindow*(
     model: var Model,
     externalId: ExternalWindowId,
@@ -61,8 +67,8 @@ proc addWindow*(
       pid: pid,
       title: title,
       appId: appId,
-      widthProportion: widthProportion,
-      heightProportion: heightProportion,
+      widthProportion: sanitizeWindowProportion(widthProportion, 1.0'f32),
+      heightProportion: sanitizeWindowProportion(heightProportion, 1.0'f32),
       isFloating: isFloating,
       isFullscreen: isFullscreen,
       isMaximized: isMaximized,
@@ -187,9 +193,15 @@ proc setWindowCreatedState*(
     appId: appId,
     identifier: identifier,
     widthProportion:
-      if preserveRuntimeState: current.widthProportion else: widthProportion,
+      if preserveRuntimeState:
+        current.widthProportion
+      else:
+        sanitizeWindowProportion(widthProportion, current.widthProportion),
     heightProportion:
-      if preserveRuntimeState: current.heightProportion else: heightProportion,
+      if preserveRuntimeState:
+        current.heightProportion
+      else:
+        sanitizeWindowProportion(heightProportion, current.heightProportion),
     isFloating: if preserveRuntimeState: current.isFloating else: isFloating,
     isFullscreen: if preserveRuntimeState: current.isFullscreen else: isFullscreen,
     isMaximized: if preserveRuntimeState: current.isMaximized else: isMaximized,
@@ -316,8 +328,10 @@ proc preserveWindowRuntimeAttributes*(
 
   var win = model.windows.mEntity(winId)
   win.pid = source.pid
-  win.widthProportion = source.widthProportion
-  win.heightProportion = source.heightProportion
+  win.widthProportion =
+    sanitizeWindowProportion(source.widthProportion, current.widthProportion)
+  win.heightProportion =
+    sanitizeWindowProportion(source.heightProportion, current.heightProportion)
   win.isFloating = source.isFloating
   win.isFullscreen = source.isFullscreen
   win.isMaximized = source.isMaximized
@@ -443,10 +457,14 @@ proc setWindowDimensions*(
 proc setWindowRestoredState*(
     model: var Model, winId: WindowId, restored: RestoredWindowData
 ): bool =
-  if model.windows.entity(winId).isNone:
+  let currentOpt = model.windows.entity(winId)
+  if currentOpt.isNone:
     return false
-  model.windows.mEntity(winId).widthProportion = restored.widthProportion
-  model.windows.mEntity(winId).heightProportion = restored.heightProportion
+  let current = currentOpt.get()
+  model.windows.mEntity(winId).widthProportion =
+    sanitizeWindowProportion(restored.widthProportion, current.widthProportion)
+  model.windows.mEntity(winId).heightProportion =
+    sanitizeWindowProportion(restored.heightProportion, current.heightProportion)
   model.windows.mEntity(winId).isFloating =
     restored.isFloating or restored.isUnmanagedGlobal
   model.windows.mEntity(winId).parentAutoFloating = false

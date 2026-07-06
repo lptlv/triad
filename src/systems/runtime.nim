@@ -135,11 +135,48 @@ proc resizeEdgesUnder(geom: Rect, x, y: int32): uint32 =
     result = result or EdgeBottom
 
 proc resolveResizeEdges(geom: Rect, x, y: int32, requestedEdges: uint32): uint32 =
-  result = resizeEdgesUnder(geom, x, y)
-  if (result and EdgeHorizontal) == 0'u32:
-    result = result or (requestedEdges and EdgeHorizontal)
-  if (result and EdgeVertical) == 0'u32:
-    result = result or (requestedEdges and EdgeVertical)
+  let hitEdges = resizeEdgesUnder(geom, x, y)
+  if hitEdges != 0'u32:
+    return hitEdges
+  requestedEdges and (EdgeHorizontal or EdgeVertical)
+
+proc updateResizeIntent(op: var PointerOpData, dx, dy: int32) =
+  let baseHorizontal = (op.edges and EdgeHorizontal) != 0'u32
+  let baseVertical = (op.edges and EdgeVertical) != 0'u32
+  if not (baseHorizontal and baseVertical):
+    op.resizeIntentLocked = true
+    op.resizeIntentHorizontal = baseHorizontal
+    op.resizeIntentVertical = baseVertical
+    return
+  if op.resizeIntentLocked:
+    return
+  let distanceSquared = int64(dx) * int64(dx) + int64(dy) * int64(dy)
+  if distanceSquared < int64(PointerDragThresholdSquared):
+    return
+  op.resizeIntentLocked = true
+  let absDx = abs(int64(dx))
+  let absDy = abs(int64(dy))
+  if absDx >= absDy * 2:
+    op.resizeIntentHorizontal = true
+    op.resizeIntentVertical = false
+  elif absDy >= absDx * 2:
+    op.resizeIntentHorizontal = false
+    op.resizeIntentVertical = true
+  else:
+    op.resizeIntentHorizontal = true
+    op.resizeIntentVertical = true
+
+proc effectiveResizeHorizontal(op: PointerOpData): bool =
+  if op.resizeIntentLocked:
+    op.resizeIntentHorizontal
+  else:
+    (op.edges and EdgeHorizontal) != 0'u32
+
+proc effectiveResizeVertical(op: PointerOpData): bool =
+  if op.resizeIntentLocked:
+    op.resizeIntentVertical
+  else:
+    (op.edges and EdgeVertical) != 0'u32
 
 proc tiledResizeContext(
     model: Model,
@@ -1064,6 +1101,7 @@ proc applyPointerDelta*(
           model.updateNativeDropTarget(next)
       return model.setPointerOpState(next)
     of PointerOpKind.OpResize:
+      next.updateResizeIntent(dx, dy)
       discard model.setPointerOpState(next)
       let screen = model.activeWorkspaceScreen()
       let tagOpt = model.tagData(op.sourceTag)
@@ -1072,7 +1110,7 @@ proc applyPointerDelta*(
       let tag = tagOpt.get()
       var dirty = false
       if model.activeTagUsesCoreScroller():
-        if next.resizeHorizontal:
+        if next.effectiveResizeHorizontal():
           let signedDx =
             if (next.edges and 4'u32) != 0:
               -dx
@@ -1092,7 +1130,7 @@ proc applyPointerDelta*(
               model.setWindowWidthProportion(
                 next.windowId, next.initialWindowWidth + delta
               ) or dirty
-        if next.resizeVertical:
+        if next.effectiveResizeVertical():
           let signedDy =
             if (next.edges and 1'u32) != 0:
               -dy
@@ -1116,7 +1154,7 @@ proc applyPointerDelta*(
         let incDx = dx - op.totalDX
         let incDy = dy - op.totalDY
         let nativeId = tag.nativeLayoutId.nativeLayoutIdString()
-        if next.resizeHorizontal and screen.w > 0:
+        if next.effectiveResizeHorizontal() and screen.w > 0:
           let signedDx =
             if (next.edges and 4'u32) != 0:
               -incDx
@@ -1131,7 +1169,7 @@ proc applyPointerDelta*(
               ) or dirty
           else:
             dirty = model.resizeWidth(float32(signedDx) / float32(screen.w)) or dirty
-        if next.resizeVertical and screen.h > 0:
+        if next.effectiveResizeVertical() and screen.h > 0:
           let signedDy =
             if (next.edges and 1'u32) != 0:
               -incDy
@@ -1163,22 +1201,30 @@ proc applyPointerDelta*(
   of PointerOpKind.OpResize:
     if op.edges == 0'u32:
       return false
-    if (op.edges and 1) != 0:
-      geom.y = op.initialGeom.y + dy
-      geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h - dy)
-    elif (op.edges and 2) != 0:
-      geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h + dy)
-    if (op.edges and 4) != 0:
-      geom.x = op.initialGeom.x + dx
-      geom.w = max(model.effectiveFloatingMinWidth(), op.initialGeom.w - dx)
-    elif (op.edges and 8) != 0:
-      geom.w = max(model.effectiveFloatingMinWidth(), op.initialGeom.w + dx)
+    var next = op
+    next.totalDX = dx
+    next.totalDY = dy
+    next.currentX = currentX
+    next.currentY = currentY
+    next.updateResizeIntent(dx, dy)
+    if next.effectiveResizeVertical():
+      if (op.edges and 1) != 0:
+        geom.y = op.initialGeom.y + dy
+        geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h - dy)
+      elif (op.edges and 2) != 0:
+        geom.h = max(model.effectiveFloatingMinHeight(), op.initialGeom.h + dy)
+    if next.effectiveResizeHorizontal():
+      if (op.edges and 4) != 0:
+        geom.x = op.initialGeom.x + dx
+        geom.w = max(model.effectiveFloatingMinWidth(), op.initialGeom.w - dx)
+      elif (op.edges and 8) != 0:
+        geom.w = max(model.effectiveFloatingMinWidth(), op.initialGeom.w + dx)
+    let stateDirty = model.setPointerOpState(next)
+    return model.setWindowFloatingGeom(op.windowId, geom) or stateDirty
   of PointerOpKind.OpNone:
     return false
   of PointerOpKind.OpOverviewDrag, PointerOpKind.OpOverviewScroll:
     return false
-
-  model.setWindowFloatingGeom(op.windowId, geom)
 
 proc finishPointerOp*(model: var Model): core.WindowId =
   let op = model.pointerOp
