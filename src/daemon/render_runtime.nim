@@ -349,13 +349,15 @@ proc overviewDraggedRiverId(model: Model): uint32 =
     return model.riverIdForWindow(op.windowId)
   0
 
-proc desiredVisibilityBounds(daemon: TriadDaemon, id: uint32): Rect =
+proc desiredVisibilityBounds*(daemon: TriadDaemon, id: uint32): Rect =
   if daemon.currentModel.overviewActive:
     if id == daemon.currentModel.overviewDraggedRiverId():
       return daemon.currentModel.overviewDragVisibilityBounds()
     return daemon.currentModel.activeWorkspaceScreen()
   if daemon.currentModel.recentWindowsActive:
     return daemon.currentModel.activeWorkspaceScreen()
+  if id == daemon.currentModel.draggedPointerRiverId():
+    return daemon.currentModel.overviewDragVisibilityBounds()
   let logicalId = daemon.currentModel.windowForRiverId(id)
   if uint32(logicalId) != 0:
     if daemon.currentModel.isScratchpadVisible and

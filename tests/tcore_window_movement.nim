@@ -34,6 +34,12 @@ proc placementForExternalOnSlot(
     return (true, placement.get().columnId, placement.get().windowIdx)
   (false, NullColumnId, 0'u32)
 
+proc projectedInstruction(model: Model, externalId: uint32): RenderInstruction =
+  for instr in model.layoutProjection().instructions:
+    if uint32(instr.windowId) == externalId:
+      return instr
+  RenderInstruction()
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -986,6 +992,62 @@ suite "Core Runtime Logic: window movement":
     check moved.windowIdx == 2
     check model.activeWorkspaceSlot() == 2
     check model.focusedWindowId() == 1
+
+  test "Tiled pointer drag remains render-visible across outputs before drop":
+    var model = configuredModel()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+    )
+    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+    )
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 1000, outputY: 0
+      )
+    )
+    model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let sourceScreen = model.activeWorkspaceScreen()
+    let target = model.instructionGeom(2)
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = target.x + target.w div 2
+    let dropY = target.y + target.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+
+    let dragged = model.projectedInstruction(1)
+    let allOutputBounds = model.overviewDragVisibilityBounds()
+    let sourceVisibility = renderVisibility(dragged.geom, sourceScreen, 4)
+    let allOutputVisibility = renderVisibility(dragged.geom, allOutputBounds, 4)
+    var daemon = initTriadDaemon()
+    daemon.runtimeState.model = model
+    let visibilityBounds = daemon.desiredVisibilityBounds(1)
+    let state =
+      daemon.desiredRenderWindowState(1, dragged.geom, visibilityBounds, false)
+
+    check model.draggedPointerRiverId() == 1
+    check uint32(dragged.windowId) == 1
+    check dragged.geom.x < sourceScreen.x + sourceScreen.w
+    check dragged.geom.x + dragged.geom.w > sourceScreen.x + sourceScreen.w
+    check sourceVisibility.visible
+    check sourceVisibility.clipped
+    check sourceVisibility.clipW < dragged.geom.w
+    check allOutputVisibility.visible
+    check not allOutputVisibility.clipped
+    check visibilityBounds == allOutputBounds
+    check state.visible
 
   test "Tiled pointer move can drop into empty scroller workspace on another output":
     var model = configuredModel()
