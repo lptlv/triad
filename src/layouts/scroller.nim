@@ -36,6 +36,91 @@ proc scaledScrollAxisExtent(base: int32, proportion: float32): int32 =
     return high(int32)
   max(0'i32, int32(scaled))
 
+proc boundedExtent(value, minBound, maxBound: int32): int32 =
+  let lo = max(0'i32, minBound)
+  let hi =
+    if maxBound > 0:
+      max(maxBound, lo)
+    else:
+      high(int32)
+  max(min(max(0'i32, value), hi), lo)
+
+proc columnWidthBounds(
+    windows: Table[ProjectionWindowId, ProjectedWindow], col: ProjectedColumn
+): tuple[minBound, maxBound: int32] =
+  var foundMax = false
+  result.maxBound = high(int32)
+  for winId in col.windows:
+    if not windows.hasKey(winId):
+      continue
+    let win = windows[winId]
+    result.minBound = max(result.minBound, win.minWidth)
+    if win.maxWidth > 0:
+      result.maxBound =
+        if foundMax:
+          min(result.maxBound, win.maxWidth)
+        else:
+          win.maxWidth
+      foundMax = true
+  if not foundMax:
+    result.maxBound = 0'i32
+
+proc columnHeightBounds(
+    windows: Table[ProjectionWindowId, ProjectedWindow], col: ProjectedColumn
+): tuple[minBound, maxBound: int32] =
+  var foundMax = false
+  result.maxBound = high(int32)
+  for winId in col.windows:
+    if not windows.hasKey(winId):
+      continue
+    let win = windows[winId]
+    result.minBound = max(result.minBound, win.minHeight)
+    if win.maxHeight > 0:
+      result.maxBound =
+        if foundMax:
+          min(result.maxBound, win.maxHeight)
+        else:
+          win.maxHeight
+      foundMax = true
+  if not foundMax:
+    result.maxBound = 0'i32
+
+proc boundedColumnWidth(
+    windows: Table[ProjectionWindowId, ProjectedWindow],
+    col: ProjectedColumn,
+    width: int32,
+): int32 =
+  let bounds = windows.columnWidthBounds(col)
+  boundedExtent(width, bounds.minBound, bounds.maxBound)
+
+proc boundedColumnHeight(
+    windows: Table[ProjectionWindowId, ProjectedWindow],
+    col: ProjectedColumn,
+    height: int32,
+): int32 =
+  let bounds = windows.columnHeightBounds(col)
+  boundedExtent(height, bounds.minBound, bounds.maxBound)
+
+proc boundedWindowHeight(
+    windows: Table[ProjectionWindowId, ProjectedWindow],
+    winId: ProjectionWindowId,
+    height: int32,
+): int32 =
+  if windows.hasKey(winId):
+    let win = windows[winId]
+    return boundedExtent(height, win.minHeight, win.maxHeight)
+  height
+
+proc boundedWindowWidth(
+    windows: Table[ProjectionWindowId, ProjectedWindow],
+    winId: ProjectionWindowId,
+    width: int32,
+): int32 =
+  if windows.hasKey(winId):
+    let win = windows[winId]
+    return boundedExtent(width, win.minWidth, win.maxWidth)
+  width
+
 proc windowHeightProportion(
     windows: Table[ProjectionWindowId, ProjectedWindow], winId: ProjectionWindowId
 ): float32 =
@@ -88,8 +173,11 @@ proc layoutScroller*(
     if col.windows.len == 0:
       return instructions
 
-    let colWidth = int32(
-      float32(usableWidth) * clampProportion(col.effectiveSingleColumnProportion())
+    let colWidth = windows.boundedColumnWidth(
+      col,
+      int32(
+        float32(usableWidth) * clampProportion(col.effectiveSingleColumnProportion())
+      ),
     )
     let currentX = screen.x + safeOuterGap + ((usableWidth - colWidth) div 2)
     let numWindows = col.windows.len
@@ -102,7 +190,10 @@ proc layoutScroller*(
         if col.isFullWidth:
           usableColHeight
         else:
-          scaledWindowExtent(usableColHeight, windows.windowHeightProportion(winId))
+          windows.boundedWindowHeight(
+            winId,
+            scaledWindowExtent(usableColHeight, windows.windowHeightProportion(winId)),
+          )
       let currentY = screen.y + safeOuterGap + ((usableColHeight - winHeight) div 2)
       instructions.add(
         RenderInstruction(
@@ -121,8 +212,9 @@ proc layoutScroller*(
     var currentY = screen.y + safeOuterGap
     for winId in col.windows:
       let winProp = windows.windowHeightProportion(winId)
-      let winHeight =
-        max(0'i32, int32(float32(usableColHeight) * (winProp / totalHeightProp)))
+      let winHeight = windows.boundedWindowHeight(
+        winId, max(0'i32, int32(float32(usableColHeight) * (winProp / totalHeightProp)))
+      )
 
       instructions.add(
         RenderInstruction(
@@ -143,14 +235,22 @@ proc layoutScroller*(
     if col.windows.contains(tag.focusedWindow):
       focusedColIdx = i
 
-    let colWidth = scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion())
+    let desiredWidth =
+      scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion())
+    let colWidth =
+      windows.boundedColumnWidth(col, max(0'i32, desiredWidth - safeInnerGap)) +
+      safeInnerGap
     virtualX.add(totalVirtualWidth)
     totalVirtualWidth += colWidth
 
   # Calculate target offset for centering
   if focusedColIdx != -1:
     let col = tag.columns[focusedColIdx]
-    let colWidth = scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion())
+    let desiredWidth =
+      scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion())
+    let colWidth =
+      windows.boundedColumnWidth(col, max(0'i32, desiredWidth - safeInnerGap)) +
+      safeInnerGap
     let colCenterX = virtualX[focusedColIdx] + (colWidth div 2)
     let screenCenterX = usableWidth div 2
 
@@ -170,7 +270,14 @@ proc layoutScroller*(
   for i, col in tag.columns:
     let colWidth = max(
       0'i32,
-      scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion()) - safeInnerGap,
+      windows.boundedColumnWidth(
+        col,
+        max(
+          0'i32,
+          scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion()) -
+            safeInnerGap,
+        ),
+      ),
     )
     let currentX = screen.x + safeOuterGap + virtualX[i] - int32(renderOffset)
 
@@ -187,7 +294,10 @@ proc layoutScroller*(
         if col.isFullWidth:
           usableColHeight
         else:
-          scaledWindowExtent(usableColHeight, windows.windowHeightProportion(winId))
+          windows.boundedWindowHeight(
+            winId,
+            scaledWindowExtent(usableColHeight, windows.windowHeightProportion(winId)),
+          )
       let currentY = screen.y + safeOuterGap + ((usableColHeight - winHeight) div 2)
       instructions.add(
         RenderInstruction(
@@ -209,8 +319,9 @@ proc layoutScroller*(
     for winId in col.windows:
       # Vertical stacking within the column
       let winProp = windows.windowHeightProportion(winId)
-      let winHeight =
-        max(0'i32, int32(float32(usableColHeight) * (winProp / totalHeightProp)))
+      let winHeight = windows.boundedWindowHeight(
+        winId, max(0'i32, int32(float32(usableColHeight) * (winProp / totalHeightProp)))
+      )
 
       instructions.add(
         RenderInstruction(
@@ -248,8 +359,11 @@ proc layoutVerticalScroller*(
     if col.windows.len == 0:
       return instructions
 
-    let colHeight = int32(
-      float32(usableHeight) * clampProportion(col.effectiveSingleColumnProportion())
+    let colHeight = windows.boundedColumnHeight(
+      col,
+      int32(
+        float32(usableHeight) * clampProportion(col.effectiveSingleColumnProportion())
+      ),
     )
     let currentY = screen.y + safeOuterGap + ((usableHeight - colHeight) div 2)
     let numWindows = col.windows.len
@@ -262,7 +376,10 @@ proc layoutVerticalScroller*(
         if col.isFullWidth:
           usableColWidth
         else:
-          scaledWindowExtent(usableColWidth, windows.windowWidthProportion(winId))
+          windows.boundedWindowWidth(
+            winId,
+            scaledWindowExtent(usableColWidth, windows.windowWidthProportion(winId)),
+          )
       let currentX = screen.x + safeOuterGap + ((usableColWidth - winWidth) div 2)
       instructions.add(
         RenderInstruction(
@@ -281,8 +398,9 @@ proc layoutVerticalScroller*(
     var currentX = screen.x + safeOuterGap
     for winId in col.windows:
       let winProp = windows.windowWidthProportion(winId)
-      let winWidth =
-        max(0'i32, int32(float32(usableColWidth) * (winProp / totalWidthProp)))
+      let winWidth = windows.boundedWindowWidth(
+        winId, max(0'i32, int32(float32(usableColWidth) * (winProp / totalWidthProp)))
+      )
 
       instructions.add(
         RenderInstruction(
@@ -303,18 +421,22 @@ proc layoutVerticalScroller*(
     if col.windows.contains(tag.focusedWindow):
       focusedColIdx = i
 
-    let colHeight =
+    let desiredHeight =
       scaledScrollAxisExtent(usableHeight, col.effectiveColumnProportion())
+    let colHeight =
+      windows.boundedColumnHeight(col, max(0'i32, desiredHeight - safeInnerGap)) +
+      2'i32 * safeInnerGap
     virtualY.add(totalVirtualHeight)
-    totalVirtualHeight += colHeight + safeInnerGap
+    totalVirtualHeight += colHeight
 
   # Calculate target offset for centering
   if focusedColIdx != -1:
-    let colHeight = int32(
-      scaledScrollAxisExtent(
-        usableHeight, tag.columns[focusedColIdx].effectiveColumnProportion()
-      )
-    )
+    let focusedCol = tag.columns[focusedColIdx]
+    let desiredHeight =
+      scaledScrollAxisExtent(usableHeight, focusedCol.effectiveColumnProportion())
+    let colHeight =
+      windows.boundedColumnHeight(focusedCol, max(0'i32, desiredHeight - safeInnerGap)) +
+      safeInnerGap
     let colCenterY = virtualY[focusedColIdx] + (colHeight div 2)
     let screenCenterY = usableHeight div 2
 
@@ -333,8 +455,14 @@ proc layoutVerticalScroller*(
   for i, col in tag.columns:
     let colHeight = max(
       0'i32,
-      scaledScrollAxisExtent(usableHeight, col.effectiveColumnProportion()) -
-        safeInnerGap,
+      windows.boundedColumnHeight(
+        col,
+        max(
+          0'i32,
+          scaledScrollAxisExtent(usableHeight, col.effectiveColumnProportion()) -
+            safeInnerGap,
+        ),
+      ),
     )
     let currentY = screen.y + safeOuterGap + virtualY[i] - int32(renderOffset)
 
@@ -351,7 +479,10 @@ proc layoutVerticalScroller*(
         if col.isFullWidth:
           usableColWidth
         else:
-          scaledWindowExtent(usableColWidth, windows.windowWidthProportion(winId))
+          windows.boundedWindowWidth(
+            winId,
+            scaledWindowExtent(usableColWidth, windows.windowWidthProportion(winId)),
+          )
       let currentX = screen.x + safeOuterGap + ((usableColWidth - winWidth) div 2)
       instructions.add(
         RenderInstruction(
@@ -373,8 +504,9 @@ proc layoutVerticalScroller*(
     for winId in col.windows:
       # Horizontal stacking within the row
       let winProp = windows.windowWidthProportion(winId)
-      let winWidth =
-        max(0'i32, int32(float32(usableColWidth) * (winProp / totalWidthProp)))
+      let winWidth = windows.boundedWindowWidth(
+        winId, max(0'i32, int32(float32(usableColWidth) * (winProp / totalWidthProp)))
+      )
 
       instructions.add(
         RenderInstruction(

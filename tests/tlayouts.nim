@@ -83,6 +83,38 @@ suite "Layout Algorithm Math":
     check instructions[0].geom.x == 10
     check instructions[0].geom.w == 4880
 
+  test "layoutScroller clamps scroll-axis column width to window max-width":
+    var tag =
+      ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 5.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 1.0, maxWidth: 600)
+
+    let instructions =
+      layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.x == 10
+    check instructions[0].geom.w == 600
+
+  test "layoutScroller clamps window height to max-height":
+    var tag =
+      ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 1.0, maxHeight: 400)
+
+    let instructions =
+      layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.y == 300
+    check instructions[0].geom.h == 400
+
   test "layoutScroller full-width single window ignores resized height":
     var tag =
       ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
@@ -154,6 +186,42 @@ suite "Layout Algorithm Math":
     check instructions[0].windowId == 101
     check instructions[0].geom.y == 10
     check instructions[0].geom.h == 4880
+
+  test "layoutVerticalScroller clamps window width to max-width":
+    var tag = ProjectedTag(
+      tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
+    )
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, widthProportion: 1.0, maxWidth: 400)
+
+    let instructions = layoutVerticalScroller(
+      tag, windows, screen, outerGap, innerGap, false, false, "never"
+    )
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.x == 300
+    check instructions[0].geom.w == 400
+
+  test "layoutVerticalScroller clamps scroll-axis row height to window max-height":
+    var tag = ProjectedTag(
+      tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
+    )
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 5.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, widthProportion: 1.0, maxHeight: 600)
+
+    let instructions = layoutVerticalScroller(
+      tag, windows, screen, outerGap, innerGap, false, false, "never"
+    )
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.y == 10
+    check instructions[0].geom.h == 600
 
   test "layoutVerticalScroller full-width single window ignores resized width":
     var tag = ProjectedTag(
