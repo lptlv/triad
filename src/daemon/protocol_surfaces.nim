@@ -12,6 +12,7 @@ type
     PskOverview
     PskRecentWindows
     PskRecentWindowsChrome
+    PskPointerDropPreview
     PskDecorationAbove
     PskDecorationBelow
     PskFrameEmpty
@@ -44,6 +45,7 @@ type
     overviewSurfaceByOutput*: Table[OutputId, uint32]
     recentWindowsSurfaceId*: uint32
     recentWindowsChromeSurfaceId*: uint32
+    pointerDropPreviewSurfaceId*: uint32
     windowDecorationAbove*: Table[uint32, uint32]
     windowDecorationBelow*: Table[uint32, uint32]
     frameEmptySurfaces*: Table[uint32, uint32]

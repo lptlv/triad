@@ -646,9 +646,97 @@ suite "Core Runtime Logic: window movement":
 
     check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
     check model.applyPointerDelta(4, 4)
+    check not model.pointerDropPreview().found
     discard model.finishPointerOp()
 
     check model.activeTiledOrder() == @[1'u32, 2, 3]
+
+  test "Tiled pointer move previews first scroller column drop":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let screen = model.primaryScreen()
+    let first = model.instructionGeom(1)
+    let start = model.instructionGeom(3).rectCenter()
+    let dropX = first.x - 8
+    let dropY = first.y + first.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+
+    let preview = model.pointerDropPreview()
+    check preview.found
+    check preview.rect.w == 300
+    check preview.rect.h == screen.h - model.outerGaps * 2
+    check preview.rect.x == screen.x + model.outerGaps - preview.rect.w div 2
+    check preview.rect.y == screen.y + model.outerGaps
+
+  test "Tiled pointer move previews last scroller column drop":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    let screen = model.primaryScreen()
+    let last = model.instructionGeom(3)
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = last.x + last.w + 8
+    let dropY = last.y + last.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+
+    let preview = model.pointerDropPreview()
+    check preview.found
+    check preview.rect.w == 300
+    check preview.rect.h == screen.h - model.outerGaps * 2
+    check preview.rect.x == screen.x + screen.w - model.outerGaps - preview.rect.w div 2
+    check preview.rect.y == screen.y + model.outerGaps
+
+  test "Tiled pointer move previews stack insertion in scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    model.stackWindowOneIntoTwo()
+
+    let start = model.instructionGeom(3).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y + target.h - 1
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+
+    let preview = model.pointerDropPreview()
+    check preview.found
+    check preview.rect.w == target.w
+    check preview.rect.h in [150'i32, 300'i32]
+    check preview.rect.x == target.x
+    check preview.rect.y >= target.y
+
+  test "Tiled pointer move previews vertical scroller row drop":
+    var model = directionalModel(LayoutMode.VerticalScroller, 3)
+    let screen = model.primaryScreen()
+    let last = model.instructionGeom(3)
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = last.x + last.w div 2
+    let dropY = last.y + last.h + 8
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+
+    let preview = model.pointerDropPreview()
+    check preview.found
+    check preview.rect.w == screen.w - model.outerGaps * 2
+    check preview.rect.h == 300
+    check preview.rect.x == screen.x + model.outerGaps
+    check preview.rect.y == screen.y + screen.h - model.outerGaps - preview.rect.h div 2
+
+  test "Tiled pointer move hides scroller drop preview in floating drop mode":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let start = model.activatePointerDrag(1)
+    let target = model.instructionGeom(2)
+
+    model.applyPointerDrop(start, target.x + target.w div 2, target.y + target.h div 2)
+    check model.pointerDropPreview().found
+    check model.togglePointerDropMode()
+    check not model.pointerDropPreview().found
 
   test "Tiled pointer move can structurally reorder scroller columns":
     var model = cameraModel()

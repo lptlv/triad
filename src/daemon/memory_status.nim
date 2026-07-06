@@ -100,6 +100,7 @@ proc surfaceKindId(kind: ProtocolSurfaceKind): string =
   of ProtocolSurfaceKind.PskOverview: "overview"
   of ProtocolSurfaceKind.PskRecentWindows: "recent_windows"
   of ProtocolSurfaceKind.PskRecentWindowsChrome: "recent_windows_chrome"
+  of ProtocolSurfaceKind.PskPointerDropPreview: "pointer_drop_preview"
   of ProtocolSurfaceKind.PskDecorationAbove: "decoration_above"
   of ProtocolSurfaceKind.PskDecorationBelow: "decoration_below"
   of ProtocolSurfaceKind.PskFrameEmpty: "frame_empty"

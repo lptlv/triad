@@ -10,6 +10,7 @@ import ../src/daemon/frame_tab_bar_render
 import ../src/daemon/layout_switch_toast_render
 import ../src/daemon/overlay_text_render
 import ../src/daemon/overview_overlay_render
+import ../src/daemon/pointer_drop_preview_render
 import ../src/daemon/recent_windows_overlay_render
 import ../src/state/engine except WindowId
 import ../src/state/[compaction, entity_manager, invariants, live_restore, snapshot]
@@ -22,6 +23,7 @@ import ../src/types/janet_layouts
 import ../src/types/core as tc
 import ../src/types/[model, runtime_values]
 import ../src/types/projection_values as pv
+import ../src/types/system_views
 import ../src/utils/event_poll
 
 const DeletedRuntimeModules = [
@@ -611,6 +613,22 @@ suite "Runtime state primitives":
     check placement.y == screen.y + (screen.h - rendered.height) div 2
     check pixelAt(rendered, 0, 0) == 0xff00ff00'u32
     check pixelAt(rendered, rendered.width - 1, 0) == 0xff00ff00'u32
+
+  test "pointer drop preview renderer strokes target slot only":
+    let screen = Rect(x: 10, y: 20, w: 800, h: 600)
+    let preview = PointerDropPreview(
+      found: true, outputId: tc.OutputId(1), rect: Rect(x: 110, y: 120, w: 300, h: 150)
+    )
+    let rendered = renderPointerDropPreviewBuffer(preview, screen, 4, 0x112233ff'u32)
+
+    check rendered.width == screen.w
+    check rendered.height == screen.h
+    check pixelAt(rendered, 0, 0) == 0'u32
+    check pixelAt(rendered, preview.rect.x - screen.x, preview.rect.y - screen.y) ==
+      testArgb(0x112233ff'u32)
+    check pixelAt(
+      rendered, preview.rect.x - screen.x + 20, preview.rect.y - screen.y + 20
+    ) == 0'u32
 
   test "overlay text renderer measures clips and draws text":
     let style = OverlayTextStyle(sizePx: 14.0, color: 0xffffffff'u32)

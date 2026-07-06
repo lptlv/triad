@@ -526,6 +526,7 @@ proc renderDesiredPlacements*(daemon: var TriadDaemon) =
   if draggedOverviewWindow != 0 and daemon.windowNodes.hasKey(draggedOverviewWindow):
     daemon.windowNodes[draggedOverviewWindow].placeTop()
 
+  daemon.syncPointerDropPreviewSurface()
   daemon.syncHotkeyOverlaySurface(screen)
   daemon.syncRecentWindowsSurface(screen)
   if daemon.currentModel.recentWindowsVisible():

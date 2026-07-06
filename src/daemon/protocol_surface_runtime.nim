@@ -7,7 +7,7 @@ import protocols/river/client as river
 import wayland/protocols/wayland/client as wlCore
 import wayland/protocols/staging/singlepixelbuffer/v1/client as singlepixel
 import ../state/engine
-import ../systems/[hotkey_overlay, layout_projection, recent_windows]
+import ../systems/[hotkey_overlay, layout_projection, recent_windows, runtime]
 import ../types/core
 from ../types/projection_values import
   ProjectedBspPreselection, ProjectedFrameEmptyChrome, ProjectedFrameTabBar
@@ -15,7 +15,8 @@ import ../types/runtime_values
 import
   bsp_preselection_render, exit_session_dialog_render, frame_tab_bar_render,
   hotkey_overlay_render, layout_switch_toast_render, overview_overlay_render,
-  pixel_buffer, protocol_surfaces, recent_windows_overlay_render, state, wayland_helpers
+  pixel_buffer, pointer_drop_preview_render, protocol_surfaces,
+  recent_windows_overlay_render, state, wayland_helpers
 from std/posix import nil
 
 when defined(linux):
@@ -51,6 +52,9 @@ template recentWindowsSurfaceId(daemon: TriadDaemon): untyped =
 
 template recentWindowsChromeSurfaceId(daemon: TriadDaemon): untyped =
   daemon.protocolSurfaceRuntime.recentWindowsChromeSurfaceId
+
+template pointerDropPreviewSurfaceId(daemon: TriadDaemon): untyped =
+  daemon.protocolSurfaceRuntime.pointerDropPreviewSurfaceId
 
 template windowDecorationAbove(daemon: TriadDaemon): untyped =
   daemon.protocolSurfaceRuntime.windowDecorationAbove
@@ -96,6 +100,8 @@ proc createProtocolBuffer(daemon: TriadDaemon, kind: ProtocolSurfaceKind): ptr B
       0x11111100'u32 or alpha
     of ProtocolSurfaceKind.PskRecentWindowsChrome:
       0x11111100'u32 or alpha
+    of ProtocolSurfaceKind.PskPointerDropPreview:
+      0x00000000'u32 or alpha
     of ProtocolSurfaceKind.PskDecorationAbove:
       0xffcc0000'u32 or alpha
     of ProtocolSurfaceKind.PskDecorationBelow:
@@ -178,6 +184,7 @@ type ScreenOverlayBufferKind {.pure.} = enum
   SobOverview
   SobRecentBackdrop
   SobRecentChrome
+  SobPointerDropPreview
 
 proc drawScreenOverlayBuffer(
     daemon: TriadDaemon,
@@ -193,6 +200,12 @@ proc drawScreenOverlayBuffer(
     daemon.currentModel.drawRecentWindowsBackdropBuffer(screen, buf)
   of SobRecentChrome:
     daemon.currentModel.drawRecentWindowsChromeBuffer(screen, buf)
+  of SobPointerDropPreview:
+    let preview = daemon.currentModel.pointerDropPreview()
+    preview.drawPointerDropPreviewBuffer(
+      screen, daemon.currentModel.borderWidth, daemon.currentModel.focusedBorderColor,
+      buf,
+    )
 
 proc createMappedScreenOverlayBuffer(
     daemon: var TriadDaemon,
@@ -244,6 +257,11 @@ proc createMappedScreenOverlayBuffer(
         daemon.currentModel.renderRecentWindowsBackdropBuffer(screen)
       of SobRecentChrome:
         daemon.currentModel.renderRecentWindowsChromeBuffer(screen)
+      of SobPointerDropPreview:
+        daemon.currentModel.pointerDropPreview().renderPointerDropPreviewBuffer(
+          screen, daemon.currentModel.borderWidth,
+          daemon.currentModel.focusedBorderColor,
+        )
     daemon.createArgbShmBuffer(rendered)
 
 proc createMappedOverviewOverlayBuffer(
@@ -258,6 +276,13 @@ proc createMappedRecentWindowsBackdropBuffer(
 ): ptr Buffer =
   daemon.createMappedScreenOverlayBuffer(
     NullOutputId, screen, "triad-recent-windows-backdrop", SobRecentBackdrop
+  )
+
+proc createMappedPointerDropPreviewBuffer(
+    daemon: var TriadDaemon, outputId: OutputId, screen: Rect
+): ptr Buffer =
+  daemon.createMappedScreenOverlayBuffer(
+    outputId, screen, "triad-pointer-drop-preview", SobPointerDropPreview
   )
 
 proc createMappedRecentWindowsChromeBuffer(
@@ -538,6 +563,31 @@ proc ensureRecentWindowsChromeSurface*(daemon: var TriadDaemon) =
   daemon.surfaceTable[daemon.recentWindowsChromeSurfaceId] = surf
   debug "Created recent-windows chrome shell surface",
     shellSurfaceId = daemon.recentWindowsChromeSurfaceId
+
+proc ensurePointerDropPreviewSurface*(daemon: var TriadDaemon) =
+  if not daemon.currentModel.protocolSurfaces.enabled:
+    return
+  if daemon.pointerDropPreviewSurfaceId != 0 and
+      daemon.surfaceTable.hasKey(daemon.pointerDropPreviewSurfaceId):
+    return
+  if daemon.riverManager == nil or daemon.compositor == nil:
+    return
+  var surf = daemon.createProtocolWlSurface(ProtocolSurfaceKind.PskPointerDropPreview)
+  if surf.surface == nil:
+    warn "Unable to create pointer drop preview wl_surface"
+    return
+  surf.shellSurface = daemon.riverManager.getShellSurface(surf.surface)
+  if surf.shellSurface == nil:
+    warn "Unable to create pointer drop preview shell surface"
+    daemon.destroyProtocolSurface(surf)
+    return
+  surf.node = surf.shellSurface.getNode()
+  daemon.pointerDropPreviewSurfaceId = surf.shellSurface.id()
+  daemon.shellSurfacePointers[daemon.pointerDropPreviewSurfaceId] = surf.shellSurface
+  daemon.commitProtocolSurface(surf)
+  daemon.surfaceTable[daemon.pointerDropPreviewSurfaceId] = surf
+  debug "Created pointer drop preview shell surface",
+    shellSurfaceId = daemon.pointerDropPreviewSurfaceId
 
 proc syncOwnedShellSurface*(daemon: var TriadDaemon, screen: Rect) =
   if daemon.ownedShellSurfaceId == 0 or
@@ -858,6 +908,62 @@ proc syncRecentWindowsSurface*(daemon: var TriadDaemon, screen: Rect) =
     chromeSurf.node.setPosition(screen.x, screen.y)
   daemon.surfaceTable[daemon.recentWindowsChromeSurfaceId] = chromeSurf
 
+proc syncPointerDropPreviewSurface*(daemon: var TriadDaemon) =
+  let preview = daemon.currentModel.pointerDropPreview()
+  if not preview.found:
+    if daemon.pointerDropPreviewSurfaceId != 0 and
+        daemon.surfaceTable.hasKey(daemon.pointerDropPreviewSurfaceId):
+      var surf = daemon.surfaceTable[daemon.pointerDropPreviewSurfaceId]
+      surf.inputW = 0
+      surf.inputH = 0
+      let key = "hidden:" & $daemon.currentModel.protocolSurfaces.visibleDebug
+      if surf.bufferCacheKey != key:
+        let buffer =
+          daemon.createProtocolBuffer(ProtocolSurfaceKind.PskPointerDropPreview)
+        if buffer != nil:
+          surf.setProtocolSurfaceBuffer(buffer, 1, 1)
+          surf.bufferCacheKey = key
+      if surf.node != nil:
+        surf.node.placeBottom()
+      daemon.commitProtocolSurface(surf)
+      daemon.surfaceTable[daemon.pointerDropPreviewSurfaceId] = surf
+    return
+
+  daemon.ensurePointerDropPreviewSurface()
+  if daemon.pointerDropPreviewSurfaceId == 0 or
+      not daemon.surfaceTable.hasKey(daemon.pointerDropPreviewSurfaceId):
+    return
+
+  let outputId =
+    if preview.outputId != NullOutputId:
+      preview.outputId
+    else:
+      daemon.currentModel.activeOutput
+  let screen = daemon.currentModel.outputScreen(outputId)
+  var surf = daemon.surfaceTable[daemon.pointerDropPreviewSurfaceId]
+  let desiredW = max(1'i32, screen.w)
+  let desiredH = max(1'i32, screen.h)
+  let key = preview.pointerDropPreviewCacheKey(
+    screen, daemon.currentModel.borderWidth, daemon.currentModel.focusedBorderColor
+  )
+  if surf.buffer == nil or surf.bufferW != desiredW or surf.bufferH != desiredH or
+      surf.bufferCacheKey != key:
+    let buffer = daemon.createMappedPointerDropPreviewBuffer(outputId, screen)
+    if buffer != nil:
+      surf.setProtocolSurfaceBuffer(buffer, desiredW, desiredH)
+      surf.bufferCacheKey = key
+    else:
+      warn "Pointer drop preview buffer unavailable", outputId = uint32(outputId)
+      return
+
+  surf.inputW = 0
+  surf.inputH = 0
+  daemon.commitProtocolSurface(surf)
+  if surf.node != nil:
+    surf.node.setPosition(screen.x, screen.y)
+    surf.node.placeTop()
+  daemon.surfaceTable[daemon.pointerDropPreviewSurfaceId] = surf
+
 proc ensureDecorationSurface*(
     daemon: var TriadDaemon, windowId: uint32, kind: ProtocolSurfaceKind
 ): uint32 =
@@ -1166,6 +1272,7 @@ proc destroyAllProtocolSurfaces*(daemon: var TriadDaemon) =
   daemon.overviewSurfaceByOutput.clear()
   daemon.recentWindowsSurfaceId = 0
   daemon.recentWindowsChromeSurfaceId = 0
+  daemon.pointerDropPreviewSurfaceId = 0
   daemon.windowDecorationAbove.clear()
   daemon.windowDecorationBelow.clear()
   daemon.frameEmptySurfaces.clear()

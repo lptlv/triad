@@ -53,3 +53,8 @@ type
     before*: bool
     after*: bool
     rect*: pv.Rect
+
+  PointerDropPreview* = object
+    found*: bool
+    outputId*: core_types.OutputId
+    rect*: pv.Rect

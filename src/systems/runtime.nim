@@ -6,6 +6,7 @@ import ../types/projection_values as rv
 from ../types/runtime_values import
   FrameSplitOrientation, JanetLayoutId, LayoutMode, NativeLayoutId, PointerDropKind,
   PointerOpKind
+from ../types/system_views import PointerDropPreview
 import focus, layout_projection, overview_geometry, placement, workspaces
 
 const ShiftModifier = 1'u32
@@ -522,6 +523,145 @@ proc updateScrollerDropTarget(model: Model, op: var PointerOpData) =
   op.dropColumn = target.columnId
   op.dropColumnIdx = target.columnIdx
   op.dropWindowIdx = target.windowIdx
+
+proc effectivePointerDropOuterGap(
+    model: Model, instructions: openArray[rv.RenderInstruction]
+): int32 =
+  if model.smartGaps and instructions.len <= 1:
+    0'i32
+  else:
+    max(0'i32, model.outerGaps)
+
+proc clampNewColumnPreview(
+    rect: var Rect, screen: Rect, vertical: bool, outerGap: int32
+) =
+  if vertical:
+    let startY = screen.y + outerGap
+    let endY = screen.y + screen.h - outerGap
+    rect.y = max(rect.y, startY - rect.h div 2)
+    rect.y = min(rect.y, endY - rect.h div 2)
+  else:
+    let startX = screen.x + outerGap
+    let endX = screen.x + screen.w - outerGap
+    rect.x = max(rect.x, startX - rect.w div 2)
+    rect.x = min(rect.x, endX - rect.w div 2)
+
+proc pointerDropNewColumnPreview(
+    screen: Rect,
+    columns: openArray[DropColumnCandidate],
+    columnIdx: int,
+    vertical: bool,
+    outerGap, innerGap: int32,
+): Rect =
+  const HintPrimary = 300'i32
+  let usableX = screen.x + outerGap
+  let usableY = screen.y + outerGap
+  let usableW = max(1'i32, screen.w - outerGap * 2)
+  let usableH = max(1'i32, screen.h - outerGap * 2)
+
+  if vertical:
+    result = Rect(x: usableX, y: usableY, w: usableW, h: HintPrimary)
+    if columns.len > 0:
+      if columnIdx <= 0:
+        result.y = columns[0].startPos - HintPrimary - innerGap
+      elif columnIdx >= columns.len:
+        result.y = columns[^1].endPos + innerGap
+      else:
+        result.y = columns[columnIdx].startPos - HintPrimary div 2 - innerGap div 2
+  else:
+    result = Rect(x: usableX, y: usableY, w: HintPrimary, h: usableH)
+    if columns.len > 0:
+      if columnIdx <= 0:
+        result.x = columns[0].startPos - HintPrimary - innerGap
+      elif columnIdx >= columns.len:
+        result.x = columns[^1].endPos + innerGap
+      else:
+        result.x = columns[columnIdx].startPos - HintPrimary div 2 - innerGap div 2
+
+  result.clampNewColumnPreview(screen, vertical, outerGap)
+
+proc pointerDropStackPreview(
+    column: DropColumnCandidate, windowIdx: int, vertical: bool, innerGap: int32
+): Rect =
+  const
+    EdgeHint = 150'i32
+    MiddleHint = 300'i32
+  if column.windows.len == 0:
+    return
+
+  let gapIdx = max(0, min(windowIdx, column.windows.len))
+  let primarySize = max(1'i32, column.endPos - column.startPos)
+  let stackPos = column.stackInsertionPosition(gapIdx, vertical, innerGap)
+  let stackSize =
+    if gapIdx <= 0 or gapIdx >= column.windows.len: EdgeHint else: MiddleHint
+  let stackStart =
+    if gapIdx <= 0:
+      stackPos
+    elif gapIdx >= column.windows.len:
+      stackPos - innerGap - stackSize
+    else:
+      stackPos - innerGap div 2 - stackSize div 2
+
+  if vertical:
+    Rect(x: stackStart, y: column.startPos, w: stackSize, h: primarySize)
+  else:
+    Rect(x: column.startPos, y: stackStart, w: primarySize, h: stackSize)
+
+proc pointerDropPreview*(model: Model): PointerDropPreview =
+  let op = model.pointerOp
+  if op.kind != PointerOpKind.OpMove or not op.tiled or not op.dragActive or
+      op.dropFloating or op.dropKind == PointerDropKind.DropNone or
+      op.dropTag == NullTagId:
+    return
+
+  let tagOpt = model.tagData(op.dropTag)
+  if tagOpt.isNone or not model.tagUsesCoreScroller(op.dropTag):
+    return
+
+  let screen =
+    if op.dropOutput == NullOutputId:
+      model.activeWorkspaceScreen()
+    else:
+      model.outputScreen(op.dropOutput)
+  let instructions =
+    model.scrollerLayoutInstructionsForTag(op.dropTag, screen, op.windowId)
+  let tag = tagOpt.get()
+  let vertical = tag.layoutMode == LayoutMode.VerticalScroller
+  let columns = model.scrollerDropColumns(op.dropTag, instructions, op, vertical)
+  let outerGap = model.effectivePointerDropOuterGap(instructions)
+  let innerGap = max(0'i32, model.innerGaps)
+
+  var rect: Rect
+  case op.dropKind
+  of PointerDropKind.DropNewColumnAt:
+    rect = pointerDropNewColumnPreview(
+      screen, columns, op.dropColumnIdx, vertical, outerGap, innerGap
+    )
+  of PointerDropKind.DropIntoColumn:
+    var foundColumn = false
+    var column = DropColumnCandidate()
+    for candidate in columns:
+      if candidate.columnId == op.dropColumn or candidate.columnIdx == op.dropColumnIdx:
+        column = candidate
+        foundColumn = true
+        break
+    if not foundColumn:
+      return
+    rect = column.pointerDropStackPreview(op.dropWindowIdx, vertical, innerGap)
+  of PointerDropKind.DropColumnBefore:
+    rect = pointerDropNewColumnPreview(
+      screen, columns, op.dropColumnIdx, vertical, outerGap, innerGap
+    )
+  of PointerDropKind.DropColumnAfter:
+    rect = pointerDropNewColumnPreview(
+      screen, columns, op.dropColumnIdx + 1, vertical, outerGap, innerGap
+    )
+  of PointerDropKind.DropNone:
+    return
+
+  if rect.w <= 0 or rect.h <= 0:
+    return
+  PointerDropPreview(found: true, outputId: op.dropOutput, rect: rect)
 
 proc updateNativeDropTarget(model: Model, op: var PointerOpData) =
   op.clearDropTarget()
