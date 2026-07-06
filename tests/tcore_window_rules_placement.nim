@@ -1,4 +1,5 @@
 import tcore_support
+import ../src/systems/daemon_view
 
 suite "Core Runtime Logic: window rules placement":
   test "Window rule workspace placement is layout agnostic":
@@ -163,6 +164,108 @@ suite "Core Runtime Logic: window rules placement":
     check win.widthProportion == 0.75'f32
     check win.heightProportion == 0.85'f32
 
+  test "Window rule opening defaults clamp to default proportion range":
+    var model = initRuntimeStateFromConfig(
+      Config(
+        layout: LayoutConfig(defaultWindowWidth: 0.5, defaultWindowHeight: 1.0),
+        workspaces: WorkspaceConfig(defaultCount: 1, defaultLayout: LayoutMode.Scroller),
+        windowRules:
+          @[
+            WindowRule(
+              appIdMatch: "oversized-default",
+              defaultWindowWidthSet: true,
+              defaultWindowWidth: 2.0,
+              defaultWindowHeightSet: true,
+              defaultWindowHeight: 2.0,
+            ),
+            WindowRule(
+              appIdMatch: "undersized-default",
+              defaultWindowWidthSet: true,
+              defaultWindowWidth: 0.0,
+              defaultWindowHeightSet: true,
+              defaultWindowHeight: 0.0,
+            ),
+          ],
+      )
+    ).model
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+    )
+
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowCreated,
+        windowId: 20,
+        appId: "oversized-default",
+        title: "Large",
+      )
+    )
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowCreated,
+        windowId: 21,
+        appId: "undersized-default",
+        title: "Small",
+      )
+    )
+
+    check model.snapshotWindow(20).widthProportion == 1.0'f32
+    check model.snapshotWindow(20).heightProportion == 1.0'f32
+    check model.snapshotWindow(21).widthProportion == 0.05'f32
+    check model.snapshotWindow(21).heightProportion == 0.05'f32
+
+  test "Window rule min and max bounds do not rewrite default proportions":
+    var model = initRuntimeStateFromConfig(
+      Config(
+        layout: LayoutConfig(defaultWindowWidth: 0.5, defaultWindowHeight: 1.0),
+        workspaces: WorkspaceConfig(defaultCount: 1, defaultLayout: LayoutMode.Scroller),
+        windowRules:
+          @[
+            WindowRule(
+              appIdMatch: "min-bounded",
+              defaultWindowHeightSet: true,
+              defaultWindowHeight: 0.5,
+              minHeightSet: true,
+              minHeight: 600,
+            ),
+            WindowRule(
+              appIdMatch: "max-bounded",
+              defaultWindowHeightSet: true,
+              defaultWindowHeight: 1.0,
+              maxHeightSet: true,
+              maxHeight: 400,
+            ),
+          ],
+      )
+    ).model
+    model.applyMsg(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+    )
+
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowCreated, windowId: 22, appId: "min-bounded", title: "Min"
+      )
+    )
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowCreated, windowId: 23, appId: "max-bounded", title: "Max"
+      )
+    )
+
+    let minGeom = model.instructionGeom(22)
+    let maxGeom = model.instructionGeom(23)
+    check model.snapshotWindow(22).heightProportion == 0.5'f32
+    check model.snapshotWindow(23).heightProportion == 1.0'f32
+    check minGeom.h < 600
+    check maxGeom.h > 400
+    check model.proposalDimensionsForRiverId(
+      22, minGeom.w, minGeom.h, honorMinimums = true, honorMaximums = false
+    ).h == 600
+    check model.proposalDimensionsForRiverId(
+      23, maxGeom.w, maxGeom.h, honorMinimums = false, honorMaximums = false
+    ).h == 400
+
   test "Scroller window rule proportion overrides default column width":
     var model = initRuntimeStateFromConfig(
       Config(
@@ -237,7 +340,7 @@ suite "Core Runtime Logic: window rules placement":
     var model = initRuntimeStateFromConfig(
       Config(
         layout: LayoutConfig(
-          defaultColumnWidth: 0.4, defaultWindowWidth: 0.5, defaultWindowHeight: 1.0
+          defaultColumnWidth: 0.4, defaultWindowWidth: 1.0, defaultWindowHeight: 1.0
         ),
         workspaces:
           WorkspaceConfig(defaultCount: 3, defaultLayout: LayoutMode.VerticalScroller),

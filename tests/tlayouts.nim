@@ -51,7 +51,7 @@ suite "Layout Algorithm Math":
     check instructions[0].geom.y == 255
     check instructions[0].geom.h == 490
 
-  test "layoutScroller lets single window height exceed viewport":
+  test "layoutScroller clamps single window height to viewport":
     var tag =
       ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
     tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 1.0))
@@ -64,8 +64,24 @@ suite "Layout Algorithm Math":
 
     check instructions.len == 1
     check instructions[0].windowId == 101
-    check instructions[0].geom.y < 10
-    check instructions[0].geom.h == 4900
+    check instructions[0].geom.y == 10
+    check instructions[0].geom.h == 980
+
+  test "layoutScroller lets scroll-axis column width exceed viewport":
+    var tag =
+      ProjectedTag(tagId: 1, layoutMode: LayoutMode.Scroller, focusedWindow: 101)
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 5.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, heightProportion: 1.0)
+
+    let instructions =
+      layoutScroller(tag, windows, screen, outerGap, innerGap, false, false, "never")
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.x == 10
+    check instructions[0].geom.w == 4880
 
   test "layoutScroller full-width single window ignores resized height":
     var tag =
@@ -103,7 +119,7 @@ suite "Layout Algorithm Math":
     check instructions[0].geom.x == 255
     check instructions[0].geom.w == 490
 
-  test "layoutVerticalScroller lets single window width exceed viewport":
+  test "layoutVerticalScroller clamps single window width to viewport":
     var tag = ProjectedTag(
       tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
     )
@@ -118,8 +134,26 @@ suite "Layout Algorithm Math":
 
     check instructions.len == 1
     check instructions[0].windowId == 101
-    check instructions[0].geom.x < 10
-    check instructions[0].geom.w == 4900
+    check instructions[0].geom.x == 10
+    check instructions[0].geom.w == 980
+
+  test "layoutVerticalScroller lets scroll-axis row height exceed viewport":
+    var tag = ProjectedTag(
+      tagId: 1, layoutMode: LayoutMode.VerticalScroller, focusedWindow: 101
+    )
+    tag.columns.add(ProjectedColumn(windows: @[101], widthProportion: 5.0))
+
+    var windows = initTable[ProjectionWindowId, ProjectedWindow]()
+    windows[101] = ProjectedWindow(id: 101, widthProportion: 1.0)
+
+    let instructions = layoutVerticalScroller(
+      tag, windows, screen, outerGap, innerGap, false, false, "never"
+    )
+
+    check instructions.len == 1
+    check instructions[0].windowId == 101
+    check instructions[0].geom.y == 10
+    check instructions[0].geom.h == 4880
 
   test "layoutVerticalScroller full-width single window ignores resized width":
     var tag = ProjectedTag(

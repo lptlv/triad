@@ -2,6 +2,12 @@ import std/[options, tables]
 import ../state/[entity_manager, id_gen]
 import ../types/[core, model]
 
+proc normalizeColumnProportion(value: float32): float32 =
+  if value == value:
+    clamp(value, 0.05'f32, float32(high(int32)))
+  else:
+    1.0'f32
+
 proc addColumn*(
     model: var Model,
     tagId: TagId,
@@ -17,7 +23,7 @@ proc addColumn*(
     ColumnData(
       id: id,
       tagId: tagId,
-      widthProportion: max(0.05'f32, min(1.0'f32, widthProportion)),
+      widthProportion: normalizeColumnProportion(widthProportion),
       scrollerSingleProportion: clamp(scrollerSingleProportion, 0.0'f32, 1.0'f32),
       isFullWidth: isFullWidth,
       focusedWindow: NullWindowId,
@@ -49,7 +55,7 @@ proc setColumnWidth*(
   if model.columns.entity(columnId).isNone:
     return false
   model.columns.mEntity(columnId).widthProportion =
-    clamp(widthProportion, 0.05'f32, 1.0'f32)
+    normalizeColumnProportion(widthProportion)
   model.columns.mEntity(columnId).isFullWidth = false
   true
 

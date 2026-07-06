@@ -26,6 +26,12 @@ type GeometryRect* = typeof(WindowData().floatingGeom)
 proc clampProportion*(value: float32, lo = 0.05'f32, hi = 1.0'f32): float32 =
   clamp(value, lo, hi)
 
+proc clampDefaultWindowProportion*(value, fallback: float32): float32 =
+  if value == value:
+    clampProportion(value)
+  else:
+    fallback
+
 proc defaultScrollerProportionPresets*(): seq[float32] =
   @[
     DefaultScrollerProportionPresetSmall, DefaultScrollerProportionPresetMedium,
@@ -50,13 +56,13 @@ proc scrollerProportionPresets*(model: Model): seq[float32] =
 
 proc defaultWindowWidth*(model: Model): float32 =
   if model.defaultWindowWidth > 0:
-    clampProportion(model.defaultWindowWidth)
+    clampDefaultWindowProportion(model.defaultWindowWidth, DefaultWindowWidth)
   else:
     DefaultWindowWidth
 
 proc defaultWindowHeight*(model: Model): float32 =
   if model.defaultWindowHeight > 0:
-    clampProportion(model.defaultWindowHeight)
+    clampDefaultWindowProportion(model.defaultWindowHeight, DefaultWindowHeight)
   else:
     DefaultWindowHeight
 

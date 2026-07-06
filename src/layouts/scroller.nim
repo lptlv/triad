@@ -8,12 +8,28 @@ proc normalizeWindowProportion(value: float32): float32 =
   if value != value:
     1.0'f32
   else:
+    clamp(value, 0.05'f32, 1.0'f32)
+
+proc normalizeScrollAxisProportion(value: float32): float32 =
+  if value != value:
+    1.0'f32
+  else:
     clamp(value, 0.05'f32, float32(high(int32)))
 
 proc scaledWindowExtent(base: int32, proportion: float32): int32 =
   if base <= 0:
     return 0'i32
   let scaled = float64(base) * float64(normalizeWindowProportion(proportion))
+  if scaled != scaled:
+    return base
+  if scaled >= float64(high(int32)):
+    return high(int32)
+  max(0'i32, int32(scaled))
+
+proc scaledScrollAxisExtent(base: int32, proportion: float32): int32 =
+  if base <= 0:
+    return 0'i32
+  let scaled = float64(base) * float64(normalizeScrollAxisProportion(proportion))
   if scaled != scaled:
     return base
   if scaled >= float64(high(int32)):
@@ -127,16 +143,14 @@ proc layoutScroller*(
     if col.windows.contains(tag.focusedWindow):
       focusedColIdx = i
 
-    let colWidth =
-      int32(float32(usableWidth) * clampProportion(col.effectiveColumnProportion()))
+    let colWidth = scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion())
     virtualX.add(totalVirtualWidth)
     totalVirtualWidth += colWidth
 
   # Calculate target offset for centering
   if focusedColIdx != -1:
     let col = tag.columns[focusedColIdx]
-    let colWidth =
-      int32(float32(usableWidth) * clampProportion(col.effectiveColumnProportion()))
+    let colWidth = scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion())
     let colCenterX = virtualX[focusedColIdx] + (colWidth div 2)
     let screenCenterX = usableWidth div 2
 
@@ -156,8 +170,7 @@ proc layoutScroller*(
   for i, col in tag.columns:
     let colWidth = max(
       0'i32,
-      int32(float32(usableWidth) * clampProportion(col.effectiveColumnProportion())) -
-        safeInnerGap,
+      scaledScrollAxisExtent(usableWidth, col.effectiveColumnProportion()) - safeInnerGap,
     )
     let currentX = screen.x + safeOuterGap + virtualX[i] - int32(renderOffset)
 
@@ -291,15 +304,16 @@ proc layoutVerticalScroller*(
       focusedColIdx = i
 
     let colHeight =
-      int32(float32(usableHeight) * clampProportion(col.effectiveColumnProportion()))
+      scaledScrollAxisExtent(usableHeight, col.effectiveColumnProportion())
     virtualY.add(totalVirtualHeight)
     totalVirtualHeight += colHeight + safeInnerGap
 
   # Calculate target offset for centering
   if focusedColIdx != -1:
     let colHeight = int32(
-      float32(usableHeight) *
-        clampProportion(tag.columns[focusedColIdx].effectiveColumnProportion())
+      scaledScrollAxisExtent(
+        usableHeight, tag.columns[focusedColIdx].effectiveColumnProportion()
+      )
     )
     let colCenterY = virtualY[focusedColIdx] + (colHeight div 2)
     let screenCenterY = usableHeight div 2
@@ -319,7 +333,7 @@ proc layoutVerticalScroller*(
   for i, col in tag.columns:
     let colHeight = max(
       0'i32,
-      int32(float32(usableHeight) * clampProportion(col.effectiveColumnProportion())) -
+      scaledScrollAxisExtent(usableHeight, col.effectiveColumnProportion()) -
         safeInnerGap,
     )
     let currentY = screen.y + safeOuterGap + virtualY[i] - int32(renderOffset)

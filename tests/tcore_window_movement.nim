@@ -931,6 +931,8 @@ suite "Core Runtime Logic: window movement":
   test "Tiled pointer resize center fallback uses binding edges":
     var model = cameraModel()
     model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
     let geom = model.instructionGeom(1)
     let center = geom.rectCenter()
     let placement = model.placementForExternal(1)
@@ -968,6 +970,8 @@ suite "Core Runtime Logic: window movement":
   test "Tiled pointer resize height drag does not resize width from corner drift":
     var model = cameraModel()
     model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
     let geom = model.instructionGeom(1)
     let startX = geom.x + geom.w - 1
     let startY = geom.y + geom.h - 1
@@ -987,6 +991,8 @@ suite "Core Runtime Logic: window movement":
   test "Tiled pointer resize adjusts scroller window height from edge drag":
     var model = cameraModel()
     model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
     let geom = model.instructionGeom(1)
     let startX = geom.x + geom.w div 2
     let startY = geom.y + geom.h - 1
@@ -1000,7 +1006,81 @@ suite "Core Runtime Logic: window movement":
     check model.modelWindow(1).heightProportion > before
     check model.instructionGeom(1).h > beforeGeom.h
 
-  test "Scroller window height resize is not capped at four screens":
+  test "Tiled pointer resize caps scroller window height at viewport":
+    var model = cameraModel()
+    model.seedCameraWindows(1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
+    let screen = model.primaryScreen()
+    let usableHeight = screen.h - 2 * model.outerGaps
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w div 2
+    let startY = geom.y + geom.h - 1
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(0, screen.h * 2)
+    discard model.finishPointerOp()
+
+    let resized = model.instructionGeom(1)
+    check model.modelWindow(1).heightProportion == 1.0'f32
+    check resized.h == usableHeight
+    check resized.y == screen.y + model.outerGaps
+
+  test "Tiled pointer resize lets scroller column width exceed viewport":
+    var model = cameraModel()
+    model.seedCameraWindows(1)
+    let screen = model.primaryScreen()
+    let usableWidth = screen.w - 2 * model.outerGaps
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h div 2
+    let placement = model.placementForExternal(1)
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(screen.w * 2, 0)
+    discard model.finishPointerOp()
+
+    let resized = model.instructionGeom(1)
+    check model.column(placement.columnId).get().widthProportion > 1.0'f32
+    check resized.w > usableWidth
+
+  test "Vertical scroller pointer resize caps window width at viewport":
+    var model = directionalModel(LayoutMode.VerticalScroller, 1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowWidthProportion(winId, 0.5)
+    let screen = model.primaryScreen()
+    let usableWidth = screen.w - 2 * model.outerGaps
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h div 2
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(screen.w * 2, 0)
+    discard model.finishPointerOp()
+
+    let resized = model.instructionGeom(1)
+    check model.modelWindow(1).widthProportion == 1.0'f32
+    check resized.x == screen.x + model.outerGaps
+    check resized.w == usableWidth
+
+  test "Vertical scroller pointer resize lets row height exceed viewport":
+    var model = directionalModel(LayoutMode.VerticalScroller, 1)
+    let screen = model.primaryScreen()
+    let usableHeight = screen.h - 2 * model.outerGaps
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w div 2
+    let startY = geom.y + geom.h - 1
+    let placement = model.placementForExternal(1)
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(0, screen.h * 2)
+    discard model.finishPointerOp()
+
+    let resized = model.instructionGeom(1)
+    check model.column(placement.columnId).get().widthProportion > 1.0'f32
+    check resized.h > usableHeight
+
+  test "Scroller command resize caps window height at viewport":
     var model = cameraModel()
     model.seedCameraWindows(1)
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -1010,9 +1090,9 @@ suite "Core Runtime Logic: window movement":
     check model.setWindowHeightProportion(winId, 5.0)
 
     let geom = model.instructionGeom(1)
-    check model.modelWindow(1).heightProportion == 5.0'f32
-    check geom.h == usableHeight * 5
-    check geom.y < screen.y + model.outerGaps
+    check model.modelWindow(1).heightProportion == 1.0'f32
+    check geom.h == usableHeight
+    check geom.y == screen.y + model.outerGaps
 
   test "Scroller height resize ignores client max-height hint":
     var model = cameraModel()
@@ -1030,7 +1110,8 @@ suite "Core Runtime Logic: window movement":
     check model.setWindowHeightProportion(winId, 5.0)
 
     let geom = model.instructionGeom(1)
-    check geom.h == usableHeight * 5
+    check model.modelWindow(1).heightProportion == 1.0'f32
+    check geom.h == usableHeight
     check model.proposalDimensionsForRiverId(
       1, geom.w, geom.h, honorMinimums = false, honorMaximums = false
     ).h == geom.h

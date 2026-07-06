@@ -129,6 +129,11 @@ proc windowRuleData(rule: rv.WindowRule, ruleIdx: int): Option[WindowRuleData] =
     excludes.add(compiled.get())
 
   let targets = rule.workspaceTargets()
+  let defaultColumnWidthSet = rule.defaultColumnWidthSet or rule.defaultColumnWidth > 0
+  let scrollerProportionSet = rule.scrollerProportionSet or rule.scrollerProportion > 0
+  let defaultWindowWidthSet = rule.defaultWindowWidthSet or rule.defaultWindowWidth > 0
+  let defaultWindowHeightSet =
+    rule.defaultWindowHeightSet or rule.defaultWindowHeight > 0
   some(
     WindowRuleData(
       matches: matches,
@@ -140,18 +145,33 @@ proc windowRuleData(rule: rv.WindowRule, ruleIdx: int): Option[WindowRuleData] =
           0'u32,
       defaultSlots: targets,
       openOnOutput: rule.openOnOutput,
-      defaultColumnWidthSet: rule.defaultColumnWidthSet or rule.defaultColumnWidth > 0,
-      defaultColumnWidth: rule.defaultColumnWidth,
-      scrollerProportionSet: rule.scrollerProportionSet or rule.scrollerProportion > 0,
-      scrollerProportion: rule.scrollerProportion,
+      defaultColumnWidthSet: defaultColumnWidthSet,
+      defaultColumnWidth:
+        if defaultColumnWidthSet:
+          clampProportion(rule.defaultColumnWidth)
+        else:
+          0.0'f32,
+      scrollerProportionSet: scrollerProportionSet,
+      scrollerProportion:
+        if scrollerProportionSet:
+          clampProportion(rule.scrollerProportion)
+        else:
+          0.0'f32,
       scrollerSingleProportionSet:
         rule.scrollerSingleProportionSet or rule.scrollerSingleProportion > 0,
       scrollerSingleProportion: rule.scrollerSingleProportion,
-      defaultWindowWidthSet: rule.defaultWindowWidthSet or rule.defaultWindowWidth > 0,
-      defaultWindowWidth: rule.defaultWindowWidth,
-      defaultWindowHeightSet:
-        rule.defaultWindowHeightSet or rule.defaultWindowHeight > 0,
-      defaultWindowHeight: rule.defaultWindowHeight,
+      defaultWindowWidthSet: defaultWindowWidthSet,
+      defaultWindowWidth:
+        if defaultWindowWidthSet:
+          clampDefaultWindowProportion(rule.defaultWindowWidth, DefaultWindowWidth)
+        else:
+          0.0'f32,
+      defaultWindowHeightSet: defaultWindowHeightSet,
+      defaultWindowHeight:
+        if defaultWindowHeightSet:
+          clampDefaultWindowProportion(rule.defaultWindowHeight, DefaultWindowHeight)
+        else:
+          0.0'f32,
       minWidthSet: rule.minWidthSet,
       minWidth: rule.minWidth,
       minHeightSet: rule.minHeightSet,

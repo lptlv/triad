@@ -682,13 +682,17 @@ proc createWindowForExternal*(
       isUnmanagedGlobal = ruleMatch.rule.openUnmanagedGlobal
     if not hasRestoredWindow:
       if ruleMatch.rule.defaultWindowWidthSet:
-        widthProportion = ruleMatch.rule.defaultWindowWidth
+        widthProportion = clampDefaultWindowProportion(
+          ruleMatch.rule.defaultWindowWidth, widthProportion
+        )
       if ruleMatch.rule.defaultWindowHeightSet:
-        heightProportion = ruleMatch.rule.defaultWindowHeight
+        heightProportion = clampDefaultWindowProportion(
+          ruleMatch.rule.defaultWindowHeight, heightProportion
+        )
       if ruleMatch.rule.defaultColumnWidthSet:
-        columnWidthProportion = ruleMatch.rule.defaultColumnWidth
+        columnWidthProportion = clampProportion(ruleMatch.rule.defaultColumnWidth)
       if ruleMatch.rule.scrollerProportionSet:
-        columnWidthProportion = ruleMatch.rule.scrollerProportion
+        columnWidthProportion = clampProportion(ruleMatch.rule.scrollerProportion)
       if ruleMatch.rule.scrollerSingleProportionSet:
         columnScrollerSingleProportion = ruleMatch.rule.scrollerSingleProportion
   if hasRestoredWindow:

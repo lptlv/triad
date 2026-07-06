@@ -9,7 +9,7 @@ proc validWindowProportion(value: float32): bool =
   value == value
 
 proc normalizeWindowProportion(value: float32): float32 =
-  clamp(value, 0.05'f32, float32(high(int32)))
+  clamp(value, 0.05'f32, 1.0'f32)
 
 proc sanitizeWindowProportion(value, fallback: float32): float32 =
   if validWindowProportion(value):
