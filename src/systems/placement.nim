@@ -115,6 +115,40 @@ proc addPlacedWindowColumn*(
     model.insertColumn(tagId, index, width, isFullWidth, scrollerSingleProportion)
   discard model.moveWindowToColumn(tagId, winId, result, 0)
 
+proc moveWindowBeforeAfter*(
+    model: var Model, tagId: TagId, winId, targetWinId: WindowId, after: bool
+): bool =
+  if winId == NullWindowId or targetWinId == NullWindowId or winId == targetWinId:
+    return false
+  let sourceOpt = model.placementForWindowOnTag(tagId, winId)
+  let targetOpt = model.placementForWindowOnTag(tagId, targetWinId)
+  if sourceOpt.isNone or targetOpt.isNone:
+    return false
+  let source = sourceOpt.get()
+  let target = targetOpt.get()
+  let sourceColumnIdx = int(model.columnIndexForTag(tagId, source.columnId)) - 1
+  let targetColumnIdx = int(model.columnIndexForTag(tagId, target.columnId)) - 1
+  if sourceColumnIdx < 0 or targetColumnIdx < 0:
+    return false
+
+  var sourceLen = 0
+  for _, _ in model.windowsOnColumnWithId(source.columnId):
+    inc sourceLen
+  let targetWindowIdx = int(target.windowIdx) - 1
+  if targetWindowIdx < 0:
+    return false
+
+  if source.columnId != target.columnId and sourceLen == 1:
+    var targetIdx = targetColumnIdx + (if after: 1 else: 0)
+    if sourceColumnIdx < targetIdx:
+      dec targetIdx
+    return model.moveColumn(tagId, sourceColumnIdx, max(0, targetIdx))
+
+  var insertIdx = targetWindowIdx + (if after: 1 else: 0)
+  if source.columnId == target.columnId and int(source.windowIdx) - 1 < insertIdx:
+    dec insertIdx
+  model.moveWindowToColumn(tagId, winId, target.columnId, max(0, insertIdx))
+
 proc sourceWorkspaceFallbackFocus*(model: var Model, tagId: TagId): WindowId =
   if tagId == NullTagId:
     return NullWindowId

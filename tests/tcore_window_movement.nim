@@ -639,6 +639,25 @@ suite "Core Runtime Logic: window movement":
       ]:
         base.checkMoveMirrorsNavigation(3, direction)
 
+  test "Built-in fallback pointer move works without split resize":
+    var model = directionalModel(LayoutMode.Grid, 4)
+    let start = model.instructionGeom(4).rectCenter()
+    let target = model.instructionGeom(1)
+    let dropX = target.x + 1
+    let dropY = target.y + target.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(4), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    check model.pointerDropPreview().found
+    discard model.finishPointerOp()
+
+    check model.activeTiledOrder() == @[4'u32, 1, 2, 3]
+
+    let geom = model.instructionGeom(4)
+    check not model.beginPointerResize(
+      ExternalWindowId(4), 0'u32, geom.x + geom.w - 1, geom.y + geom.h div 2
+    )
+
   test "Tiled pointer move below threshold does not reorder scroller windows":
     var model = cameraModel()
     model.seedCameraWindows(3)
@@ -1670,6 +1689,96 @@ suite "Core Runtime Logic: window movement":
         Direction.DirLeft, Direction.DirRight, Direction.DirUp, Direction.DirDown
       ]:
         base.checkMoveMirrorsNavigation(3, direction)
+
+  test "Bundled Janet tiled pointer move previews and reorders algorithmic layout":
+    var model = directionalModel(LayoutMode.Scroller, 4)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("tile"))
+    )
+    let start = model.instructionGeom(3).rectCenter()
+    let target = model.instructionGeom(1)
+    let dropX = target.x + 1
+    let dropY = target.y + target.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+
+    let preview = model.pointerDropPreview()
+    check preview.found
+    check preview.rect.x == target.x
+    check preview.rect.y == target.y
+    check preview.rect.w == target.w div 2
+    check preview.rect.h == target.h
+
+    discard model.finishPointerOp()
+
+    check model.focusedWindowId() == 3
+    check model.activeTiledOrder() == @[3'u32, 1, 2, 4]
+
+  test "Bundled Janet tiled pointer move works for grid-shaped layout":
+    var model = directionalModel(LayoutMode.Scroller, 4)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("grid"))
+    )
+    let start = model.instructionGeom(4).rectCenter()
+    let target = model.instructionGeom(1)
+    let dropX = target.x + 1
+    let dropY = target.y + target.h div 2
+
+    check model.beginPointerMove(ExternalWindowId(4), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    check model.pointerDropPreview().found
+    discard model.finishPointerOp()
+
+    check model.focusedWindowId() == 4
+    check model.activeTiledOrder() == @[4'u32, 1, 2, 3]
+
+  test "Bundled Janet tiled pointer resize adjusts horizontal master split":
+    var model = directionalModel(LayoutMode.Scroller, 2)
+    model.applyMsg(
+      Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("tile"))
+    )
+    let beforeRatio = model.tagData(model.activeTag).get().masterSplitRatio
+    let beforeGeom = model.instructionGeom(1)
+    let startX = beforeGeom.x + beforeGeom.w - 1
+    let startY = beforeGeom.y + beforeGeom.h div 2
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(100, 0)
+    discard model.finishPointerOp()
+
+    check model.tagData(model.activeTag).get().masterSplitRatio > beforeRatio
+    check model.instructionGeom(1).w > beforeGeom.w
+
+  test "Bundled Janet tiled pointer resize adjusts vertical master split":
+    var model = directionalModel(LayoutMode.Scroller, 2)
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId("vertical-tile")
+      )
+    )
+    let beforeRatio = model.tagData(model.activeTag).get().masterSplitRatio
+    let beforeGeom = model.instructionGeom(1)
+    let startX = beforeGeom.x + beforeGeom.w div 2
+    let startY = beforeGeom.y + beforeGeom.h - 1
+
+    check model.beginPointerResize(ExternalWindowId(1), 0'u32, startX, startY)
+    check model.applyPointerDelta(0, 100)
+    discard model.finishPointerOp()
+
+    check model.tagData(model.activeTag).get().masterSplitRatio > beforeRatio
+    check model.instructionGeom(1).h > beforeGeom.h
+
+  test "Bundled Janet move-only layouts reject tiled pointer resize":
+    for layoutId in ["grid", "vertical-grid", "monocle", "spiral"]:
+      var model = directionalModel(LayoutMode.Scroller, 4)
+      model.applyMsg(
+        Msg(kind: MsgKind.CmdSetCustomLayout, customLayout: janetLayoutId(layoutId))
+      )
+      let geom = model.instructionGeom(1)
+      check not model.beginPointerResize(
+        ExternalWindowId(1), 0'u32, geom.x + geom.w - 1, geom.y + geom.h div 2
+      )
 
   test "Center tile side-stack movement swaps through center pane":
     var base = directionalModel(LayoutMode.CenterTile, 7)

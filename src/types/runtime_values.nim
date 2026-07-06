@@ -563,6 +563,8 @@ type
     DropColumnBefore
     DropColumnAfter
     DropIntoColumn
+    DropWindowBefore
+    DropWindowAfter
 
   HotkeyOverlayTitleKind* {.pure.} = enum
     HotkeyTitleDefault

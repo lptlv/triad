@@ -916,7 +916,7 @@ proc customLayoutInstructions(
   frameInstructions: seq[JanetLayoutInstruction],
 ]
 
-proc removeWindowFromScrollerProjection(
+proc removeWindowFromTiledProjection(
     tag: var rv.ProjectedTag, windowId: rv.ProjectionWindowId
 ) =
   if windowId == 0'u32:
@@ -952,7 +952,7 @@ proc scrollerLayoutInstructionsForTag*(
   let windows = model.runtimeWindowTable()
   var tagForLayout = projected.tag
   if excludeWindowId != NullWindowId:
-    tagForLayout.removeWindowFromScrollerProjection(
+    tagForLayout.removeWindowFromTiledProjection(
       model.externalWindowId(excludeWindowId)
     )
 
@@ -1293,8 +1293,9 @@ proc projectNormalTag(
 
   let tagData = tagDataOpt.get()
   var tagForLayout = projectedTag
-  if excludeWindowId != NullWindowId and tagData.tagDataUsesCoreScroller():
-    tagForLayout.removeWindowFromScrollerProjection(
+  if excludeWindowId != NullWindowId and
+      tagData.nativeLayoutId.nativeLayoutIdString().len == 0:
+    tagForLayout.removeWindowFromTiledProjection(
       model.externalWindowId(excludeWindowId)
     )
 
