@@ -148,8 +148,6 @@ proc updateResizeIntent(op: var PointerOpData, dx, dy: int32) =
     op.resizeIntentHorizontal = baseHorizontal
     op.resizeIntentVertical = baseVertical
     return
-  if op.resizeIntentLocked:
-    return
   let distanceSquared = int64(dx) * int64(dx) + int64(dy) * int64(dy)
   if distanceSquared < int64(PointerDragThresholdSquared):
     return

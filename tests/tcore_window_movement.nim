@@ -323,6 +323,27 @@ suite "Core Runtime Logic: window movement":
     check win.floatingGeom.y == geom.y
     check win.floatingGeom.h == geom.h
 
+  test "Floating pointer resize can become diagonal after dominant-axis start":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let geom = model.instructionGeom(1)
+    check model.setWindowFloating(winId, true, geom)
+
+    check model.beginPointerResize(
+      ExternalWindowId(1), 10'u32, geom.x + geom.w - 1, geom.y + geom.h - 1
+    )
+    check model.applyPointerDelta(40, 0)
+    check model.modelWindow(1).floatingGeom.w == geom.w + 40
+    check model.modelWindow(1).floatingGeom.h == geom.h
+
+    check model.applyPointerDelta(40, 40)
+    discard model.finishPointerOp()
+
+    let win = model.modelWindow(1)
+    check win.floatingGeom.w == geom.w + 40
+    check win.floatingGeom.h == geom.h + 40
+
   test "Floating pointer resize preserves hit-tested top-left direction":
     var model = cameraModel()
     model.seedCameraWindows(2)
@@ -987,6 +1008,58 @@ suite "Core Runtime Logic: window movement":
     check model.column(placement.columnId).get().widthProportion == beforeWidth
     check model.modelWindow(1).heightProportion > beforeHeight
     check model.instructionGeom(1).w == beforeGeom.w
+
+  test "Tiled pointer resize can add height after width-dominant start":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h - 1
+    let placement = model.placementForExternal(1)
+    let beforeWidth = model.column(placement.columnId).get().widthProportion
+    let beforeHeight = model.modelWindow(1).heightProportion
+    let beforeGeom = model.instructionGeom(1)
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
+    check model.applyPointerDelta(100, 0)
+    check model.column(placement.columnId).get().widthProportion > beforeWidth
+    check model.modelWindow(1).heightProportion == beforeHeight
+    check model.instructionGeom(1).h == beforeGeom.h
+
+    check model.applyPointerDelta(100, 100)
+    discard model.finishPointerOp()
+
+    check model.column(placement.columnId).get().widthProportion > beforeWidth
+    check model.modelWindow(1).heightProportion > beforeHeight
+    check model.instructionGeom(1).h > beforeGeom.h
+
+  test "Tiled pointer resize can add width after height-dominant start":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
+    let geom = model.instructionGeom(1)
+    let startX = geom.x + geom.w - 1
+    let startY = geom.y + geom.h - 1
+    let placement = model.placementForExternal(1)
+    let beforeWidth = model.column(placement.columnId).get().widthProportion
+    let beforeHeight = model.modelWindow(1).heightProportion
+    let beforeGeom = model.instructionGeom(1)
+
+    check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
+    check model.applyPointerDelta(0, 100)
+    check model.column(placement.columnId).get().widthProportion == beforeWidth
+    check model.modelWindow(1).heightProportion > beforeHeight
+    check model.instructionGeom(1).w == beforeGeom.w
+
+    check model.applyPointerDelta(100, 100)
+    discard model.finishPointerOp()
+
+    check model.column(placement.columnId).get().widthProportion > beforeWidth
+    check model.modelWindow(1).heightProportion > beforeHeight
+    check model.instructionGeom(1).w > beforeGeom.w
 
   test "Tiled pointer resize adjusts scroller window height from edge drag":
     var model = cameraModel()
