@@ -265,9 +265,6 @@ proc axisPoint(x, y: int32, vertical: bool): int32 =
 proc absDistance(a, b: int32): int64 =
   abs(int64(a) - int64(b))
 
-proc midpoint(a, b: int32): int32 =
-  a + (b - a) div 2
-
 proc scrollerDropColumns(
     model: Model,
     tagId: TagId,
@@ -305,47 +302,55 @@ proc scrollerDropColumns(
       result.add(column)
       inc projectedIdx
 
-proc columnGapPosition(columns: openArray[DropColumnCandidate], idx: int): int32 =
+proc columnInsertionPosition(
+    columns: openArray[DropColumnCandidate], idx: int, gap: int32
+): int32 =
   if columns.len == 0:
     return 0
   if idx <= 0:
     return columns[0].startPos
   if idx >= columns.len:
-    return columns[^1].endPos
-  midpoint(columns[idx - 1].endPos, columns[idx].startPos)
+    return columns[^1].endPos + gap
+  columns[idx].startPos
 
-proc closestColumnGap(
-    columns: openArray[DropColumnCandidate], primary: int32
+proc closestColumnInsertion(
+    columns: openArray[DropColumnCandidate], primary, gap: int32
 ): tuple[idx: int, dist: int64] =
   result = (0, high(int64))
   for idx in 0 .. columns.len:
-    let dist = primary.absDistance(columns.columnGapPosition(idx))
+    let dist = primary.absDistance(columns.columnInsertionPosition(idx, gap))
     if dist < result.dist:
       result = (idx, dist)
 
-proc columnUnderPointer(columns: openArray[DropColumnCandidate], primary: int32): int =
+proc columnForInsertionPosition(
+    columns: openArray[DropColumnCandidate], primary, gap: int32
+): int =
+  if columns.len == 0 or primary < columns[0].startPos:
+    return -1
+  if primary >= columns.columnInsertionPosition(columns.len, gap):
+    return columns.len
   for idx, column in columns:
-    if primary >= column.startPos and primary < column.endPos:
-      return idx
-  -1
+    if column.startPos > primary:
+      return idx - 1
+  columns.high
 
-proc stackGapPosition(column: DropColumnCandidate, gapIdx: int, vertical: bool): int32 =
+proc stackInsertionPosition(
+    column: DropColumnCandidate, gapIdx: int, vertical: bool, gap: int32
+): int32 =
   if column.windows.len == 0:
     return 0
   if gapIdx <= 0:
     return column.windows[0].geom.axisStart(not vertical)
   if gapIdx >= column.windows.len:
-    return column.windows[^1].geom.axisEnd(not vertical)
-  let before = column.windows[gapIdx - 1].geom.axisEnd(not vertical)
-  let after = column.windows[gapIdx].geom.axisStart(not vertical)
-  midpoint(before, after)
+    return column.windows[^1].geom.axisEnd(not vertical) + gap
+  column.windows[gapIdx].geom.axisStart(not vertical)
 
-proc closestStackGap(
-    column: DropColumnCandidate, stack: int32, vertical: bool
+proc closestStackInsertion(
+    column: DropColumnCandidate, stack: int32, vertical: bool, gap: int32
 ): tuple[windowIdx: int, dist: int64] =
   result = (0, high(int64))
   for gapIdx in 0 .. column.windows.len:
-    let dist = stack.absDistance(column.stackGapPosition(gapIdx, vertical))
+    let dist = stack.absDistance(column.stackInsertionPosition(gapIdx, vertical, gap))
     if dist < result.dist:
       let windowIdx =
         if gapIdx <= 0:
@@ -386,11 +391,13 @@ proc scrollerDropTarget(model: Model, op: PointerOpData): ScrollerDropTarget =
       windowIdx: 0,
     )
 
-  let primary = axisPoint(op.currentX, op.currentY, vertical)
-  let stack = axisPoint(op.currentX, op.currentY, not vertical)
-  let columnGap = columns.closestColumnGap(primary)
-  let columnIdx = columns.columnUnderPointer(primary)
-  if columnIdx < 0:
+  let gap = max(0'i32, model.innerGaps)
+  let gapShift = gap div 2
+  let primary = axisPoint(op.currentX, op.currentY, vertical) + gapShift
+  let stack = axisPoint(op.currentX, op.currentY, not vertical) + gapShift
+  let columnGap = columns.closestColumnInsertion(primary, gap)
+  let columnIdx = columns.columnForInsertionPosition(primary, gap)
+  if columnIdx < 0 or columnIdx >= columns.len:
     return ScrollerDropTarget(
       found: true,
       outputId: outputId,
@@ -401,7 +408,7 @@ proc scrollerDropTarget(model: Model, op: PointerOpData): ScrollerDropTarget =
       windowIdx: 0,
     )
 
-  let stackGap = columns[columnIdx].closestStackGap(stack, vertical)
+  let stackGap = columns[columnIdx].closestStackInsertion(stack, vertical, gap)
   if columnGap.dist <= stackGap.dist:
     ScrollerDropTarget(
       found: true,

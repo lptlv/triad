@@ -96,6 +96,36 @@ proc checkMoveMirrorsNavigation(base: Model, focused: uint32, direction: Directi
   check moved.focusedWindowId() == focused
   check moved.activeTiledOrder() == beforeOrder.expectedSwapOrder(focused, target)
 
+proc stackWindowOneIntoTwo(model: var Model) =
+  let start = model.instructionGeom(1).rectCenter()
+  let target = model.instructionGeom(2)
+  let dropX = target.x + target.w div 2
+  let dropY = target.y + (target.h * 3) div 4
+
+  check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+  check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+  discard model.finishPointerOp()
+
+  let first = model.placementForExternal(1)
+  let second = model.placementForExternal(2)
+  check first.columnId == second.columnId
+  check first.windowIdx == 2
+
+proc stackWindowOneIntoTwoVertical(model: var Model) =
+  let start = model.instructionGeom(1).rectCenter()
+  let target = model.instructionGeom(2)
+  let dropX = target.x + target.w + max(0'i32, model.innerGaps) - 1
+  let dropY = target.y + target.h div 2
+
+  check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+  check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+  discard model.finishPointerOp()
+
+  let first = model.placementForExternal(1)
+  let second = model.placementForExternal(2)
+  check first.columnId == second.columnId
+  check first.windowIdx == 2
+
 suite "Core Runtime Logic: window movement":
   test "Pointer drag can toggle tiled window to floating on release":
     var model = cameraModel()
@@ -458,20 +488,70 @@ suite "Core Runtime Logic: window movement":
   test "Tiled pointer move can drop into an existing scroller column":
     var model = cameraModel()
     model.seedCameraWindows(3)
-    let start = model.instructionGeom(1).rectCenter()
-    let target = model.instructionGeom(2)
-    let dropX = target.x + target.w div 2
-    let dropY = target.y + (target.h * 3) div 4
-
-    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
-    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
-    discard model.finishPointerOp()
+    model.stackWindowOneIntoTwo()
 
     let first = model.placementForExternal(1)
     let second = model.placementForExternal(2)
     check first.columnId == second.columnId
     check first.windowIdx == 2
     check model.activeTiledOrder() == @[2'u32, 1, 3]
+
+  test "Tiled pointer move near scroller stack side creates sibling column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    model.stackWindowOneIntoTwo()
+
+    let start = model.instructionGeom(3).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w + max(0'i32, model.innerGaps) - 1
+    let dropY = target.y + target.h - 1
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    discard model.finishPointerOp()
+
+    let third = model.placementForExternal(3)
+    let second = model.placementForExternal(2)
+    check third.columnId != second.columnId
+    check third.windowIdx == 1
+    check model.activeTiledOrder() == @[2'u32, 1, 3]
+
+  test "Tiled pointer move near scroller stack middle still stacks":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    model.stackWindowOneIntoTwo()
+
+    let start = model.instructionGeom(3).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y + target.h - 1
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    discard model.finishPointerOp()
+
+    let third = model.placementForExternal(3)
+    let second = model.placementForExternal(2)
+    check third.columnId == second.columnId
+    check third.windowIdx == 2
+
+  test "Tiled pointer move near vertical scroller stack side creates sibling row":
+    var model = directionalModel(LayoutMode.VerticalScroller, 3)
+    model.stackWindowOneIntoTwoVertical()
+
+    let start = model.instructionGeom(3).rectCenter()
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w - 1
+    let dropY = target.y + target.h + max(0'i32, model.innerGaps) - 1
+
+    check model.beginPointerMove(ExternalWindowId(3), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    discard model.finishPointerOp()
+
+    let third = model.placementForExternal(3)
+    let second = model.placementForExternal(2)
+    check third.columnId != second.columnId
+    check third.windowIdx == 1
 
   test "Tiled pointer move can drop into another output scroller workspace":
     var model = configuredModel()
