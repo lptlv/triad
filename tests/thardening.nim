@@ -1035,6 +1035,16 @@ suite "Crash hardening":
     check protocolBindVersion("wl_compositor", 99'u32) == 6'u32
     check protocolBindVersion("unknown_protocol_v1", 99'u32) == 0'u32
 
+  test "River capture sessions support follows bound manager version":
+    check RiverWindowManagerCaptureSessionsVersion == 5'u32
+
+    var daemon = initTriadDaemon()
+    daemon.boundProtocolVersions["river_window_manager_v1"] = 4'u32
+    check not daemon.captureSessionsSupported()
+
+    daemon.boundProtocolVersions["river_window_manager_v1"] = 5'u32
+    check daemon.captureSessionsSupported()
+
   test "River v5 capture session counts are daemon-local":
     var daemon = initTriadDaemon()
 

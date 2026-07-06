@@ -1139,6 +1139,10 @@ proc main*() =
     {.cast(gcsafe).}:
       daemon.captureSessionsJson()
 
+  proc snapshotCaptureSessionsSupported(): bool {.gcsafe.} =
+    {.cast(gcsafe).}:
+      daemon.captureSessionsSupported()
+
   proc dispatchBindingJson(request: BindingDispatchRequest): string {.gcsafe.} =
     {.cast(gcsafe).}:
       daemon.dispatchBindingRequest(request).bindingDispatchReply()
@@ -1187,6 +1191,7 @@ proc main*() =
       snapshotPerfStatusJson,
       snapshotMemStatusJson,
       snapshotCaptureSessionsJson,
+      snapshotCaptureSessionsSupported,
       dispatchBindingJson,
       listenReady = triadListenReady,
     )
@@ -1204,6 +1209,7 @@ proc main*() =
         snapshotPerfStatusJson,
         snapshotMemStatusJson,
         snapshotCaptureSessionsJson,
+        snapshotCaptureSessionsSupported,
         dispatchBindingJson,
         listenReady = niriListenReady,
         requestTimeoutMs = IpcNoRequestTimeoutMs,

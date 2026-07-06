@@ -128,6 +128,8 @@ sh tools/triad-capture-status.sh --watch --waybar
 `capture_sessions.windows` always carries `id`, `count`, and `known`. When the
 window is still known to Triad, the entry also includes app id, title,
 workspace, tag, output name, and common window state flags.
+On River window-management protocol v4, this payload remains present and empty,
+and `capabilities.capture_sessions` is false.
 
 Waybar custom module:
 

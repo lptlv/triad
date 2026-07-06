@@ -538,7 +538,7 @@ proc captureSessionsOrEmpty*(captureSessions: JsonNode): JsonNode =
   else:
     captureSessions
 
-proc triadCapabilitiesJson*(): JsonNode =
+proc triadCapabilitiesJson*(captureSessionsSupported = true): JsonNode =
   %*{
     "event_stream": true,
     "state": true,
@@ -553,18 +553,20 @@ proc triadCapabilitiesJson*(): JsonNode =
     "keyboard_layout": true,
     "output_metadata": true,
     "monitor_power": true,
-    "capture_sessions": true,
+    "capture_sessions": captureSessionsSupported,
     "workspace_urgency": false,
   }
 
 proc triadStateJson*(
-    snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+    snapshot: ShellSnapshot,
+    captureSessions: JsonNode = nil,
+    captureSessionsSupported = true,
 ): JsonNode =
   let keyboardLayouts = triadKeyboardLayoutsJson(snapshot)
 
   %*{
     "version": snapshot.version,
-    "capabilities": triadCapabilitiesJson(),
+    "capabilities": triadCapabilitiesJson(captureSessionsSupported),
     "overview": triadOverviewJson(snapshot),
     "layout": triadLayoutStateJson(snapshot),
     "keyboard_layouts": keyboardLayouts["names"],
@@ -586,14 +588,16 @@ proc triadLayoutStateChangedEvent*(snapshot: ShellSnapshot): string =
   )
 
 proc triadStateChangedEvent*(
-    snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+    snapshot: ShellSnapshot,
+    captureSessions: JsonNode = nil,
+    captureSessionsSupported = true,
 ): string =
   $(
     %*{
       "triad": {
         "version": TriadIpcVersion,
         "event": "state-changed",
-        "state": triadStateJson(snapshot, captureSessions),
+        "state": triadStateJson(snapshot, captureSessions, captureSessionsSupported),
       }
     }
   )
@@ -621,7 +625,7 @@ proc triadCaptureSessionsChangedEvent*(captureSessions: JsonNode): string =
   )
 
 proc triadStatePayloadWithCaptureSessions*(
-    payload: string, captureSessions: JsonNode
+    payload: string, captureSessions: JsonNode, captureSessionsSupported = true
 ): string =
   try:
     let root = parseJson(payload)
@@ -634,6 +638,8 @@ proc triadStatePayloadWithCaptureSessions*(
     if state.kind != JObject:
       return payload
     state["capture_sessions"] = captureSessions.captureSessionsOrEmpty()
+    if state.hasKey("capabilities") and state["capabilities"].kind == JObject:
+      state["capabilities"]["capture_sessions"] = %captureSessionsSupported
     $root
   except CatchableError:
     payload

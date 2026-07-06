@@ -190,7 +190,9 @@ proc executeEffect*(daemon: var TriadDaemon, eff: Effect) =
     let payload =
       if eff.triadEventName == "state":
         triadStatePayloadWithCaptureSessions(
-          eff.jsonPayload, daemon.captureSessionsJson()
+          eff.jsonPayload,
+          daemon.captureSessionsJson(),
+          daemon.captureSessionsSupported(),
         )
       else:
         eff.jsonPayload

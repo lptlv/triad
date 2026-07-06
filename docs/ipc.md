@@ -89,6 +89,8 @@ The `capture_sessions` object is stable and additive. It always includes
 output entries always include `id`, `count`, and `known`; when `known` is true,
 window entries also include app/title/workspace/output metadata and output
 entries include name, geometry, scale, transform, and primary status.
+On River window-management protocol v4, the object is still present and empty,
+and `capabilities.capture_sessions` is false.
 
 For a shell-bar friendly consumer, use:
 ```bash

@@ -33,6 +33,7 @@ type
 const UpstreamRiverHint* = "install upstream River 0.4+ or set TRIAD_RIVER_BIN"
 
 const RiverXkbBindingsModifierWatchVersion* = 3'u32
+const RiverWindowManagerCaptureSessionsVersion* = 5'u32
 
 const ProtocolSpecs* = [
   ProtocolSpec(

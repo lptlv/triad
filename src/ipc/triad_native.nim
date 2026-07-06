@@ -416,7 +416,10 @@ proc targetTagFromPayload(
   (false, 0'u32, "target must contain tag or workspace_idx")
 
 proc handleTriadRequest*(
-    line: string, snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+    line: string,
+    snapshot: ShellSnapshot,
+    captureSessions: JsonNode = nil,
+    captureSessionsSupported = true,
 ): TriadIpcResult =
   result.handled = false
   let stripped = line.strip()
@@ -450,7 +453,7 @@ proc handleTriadRequest*(
       %*{
         "version": TriadIpcVersion,
         "type": "state",
-        "state": triadStateJson(snapshot, captureSessions),
+        "state": triadStateJson(snapshot, captureSessions, captureSessionsSupported),
       }
     )
   of "captures":
@@ -466,7 +469,7 @@ proc handleTriadRequest*(
       %*{
         "version": TriadIpcVersion,
         "type": "capabilities",
-        "capabilities": triadCapabilitiesJson(),
+        "capabilities": triadCapabilitiesJson(captureSessionsSupported),
       }
     )
   of "workspaces":
@@ -584,7 +587,9 @@ proc handleTriadRequest*(
     if result.subscribeLayout:
       result.initialEvents.add(triadLayoutStateChangedEvent(snapshot))
     if result.subscribeState:
-      result.initialEvents.add(triadStateChangedEvent(snapshot, captureSessions))
+      result.initialEvents.add(
+        triadStateChangedEvent(snapshot, captureSessions, captureSessionsSupported)
+      )
     if result.subscribeCapture:
       result.initialEvents.add(triadCaptureSessionsChangedEvent(captureSessions))
   of "dispatch-binding":

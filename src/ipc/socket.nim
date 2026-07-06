@@ -364,6 +364,7 @@ proc startIpcServer*(
     getPerfStatusJson: proc(): string {.gcsafe.} = nil,
     getMemStatusJson: proc(): string {.gcsafe.} = nil,
     getCaptureSessionsJson: proc(): JsonNode {.gcsafe.} = nil,
+    getCaptureSessionsSupported: proc(): bool {.gcsafe.} = nil,
     dispatchBinding: proc(request: BindingDispatchRequest): string {.gcsafe.} = nil,
     listenReady: Future[bool] = nil,
     requestTimeoutMs = IpcRequestTimeoutMs,
@@ -463,7 +464,11 @@ proc startIpcServer*(
                     nil
                   else:
                     getCaptureSessionsJson()
-                let triad = handleTriadRequest(line, snapshot, captureSessions)
+                let captureSessionsSupported =
+                  getCaptureSessionsSupported == nil or getCaptureSessionsSupported()
+                let triad = handleTriadRequest(
+                  line, snapshot, captureSessions, captureSessionsSupported
+                )
                 if triad.handled:
                   inc ipcPerfCounters.triadRequests
                   if (

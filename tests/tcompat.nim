@@ -112,9 +112,14 @@ proc handleNiriRequest(line: string, snapshot: ShellSnapshot): NiriIpcResult =
   niri_compat.handleNiriRequest(line, snapshot)
 
 proc handleTriadRequest(
-    line: string, snapshot: ShellSnapshot, captureSessions: JsonNode = nil
+    line: string,
+    snapshot: ShellSnapshot,
+    captureSessions: JsonNode = nil,
+    captureSessionsSupported = true,
 ): TriadIpcResult =
-  triad_native.handleTriadRequest(line, snapshot, captureSessions)
+  triad_native.handleTriadRequest(
+    line, snapshot, captureSessions, captureSessionsSupported
+  )
 
 proc handleTriadAction(action: string, payload: JsonNode): TriadIpcResult =
   var actionPayload =
@@ -646,6 +651,36 @@ suite "Shell compatibility contracts":
     check capabilities["monitor_power"].getBool()
     check capabilities["capture_sessions"].getBool()
 
+    let v4StateReply = handleTriadRequest(
+      """{"triad":{"version":1,"request":"state"}}""",
+      snapshot,
+      nil,
+      captureSessionsSupported = false,
+    )
+    let v4State = parseJson(v4StateReply.reply)["triad"]["state"]
+    check not v4State["capabilities"]["capture_sessions"].getBool()
+    check not v4State["capture_sessions"]["active"].getBool()
+    check v4State["capture_sessions"]["windows"].len == 0
+
+    let v4CapabilitiesReply = handleTriadRequest(
+      """{"triad":{"version":1,"request":"capabilities"}}""",
+      snapshot,
+      nil,
+      captureSessionsSupported = false,
+    )
+    let v4Capabilities = parseJson(v4CapabilitiesReply.reply)["triad"]["capabilities"]
+    check not v4Capabilities["capture_sessions"].getBool()
+
+    let v4CapturesReply = handleTriadRequest(
+      """{"triad":{"version":1,"request":"captures"}}""",
+      snapshot,
+      nil,
+      captureSessionsSupported = false,
+    )
+    let v4Captures = parseJson(v4CapturesReply.reply)["triad"]["capture_sessions"]
+    check not v4Captures["active"].getBool()
+    check v4Captures["window_total"].getInt() == 0
+
     let setLayout = handleTriadRequest(
       """{"triad":{"version":1,"request":"set-layout","layout":"deck","target":{"workspace_idx":2}}}""",
       snapshot,
@@ -922,9 +957,11 @@ suite "Shell compatibility contracts":
           "windows": [{"id": 10, "count": 1}],
           "outputs": [],
         },
+        captureSessionsSupported = false,
       )
     )["triad"]
     check stateEvent["state"]["capture_sessions"]["active"].getBool()
+    check not stateEvent["state"]["capabilities"]["capture_sessions"].getBool()
 
   test "native state exposes urgency capability and stable workspace urgency":
     let capabilitiesReply = handleTriadRequest(

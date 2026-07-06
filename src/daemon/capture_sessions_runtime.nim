@@ -4,7 +4,9 @@ import ../systems/runtime_facade
 import ../types/model
 import ../types/runtime_values
 import ../utils/behavior_log
-import child_process_runtime, ipc_broadcast_runtime, process_runner, state
+import
+  child_process_runtime, ipc_broadcast_runtime, process_runner, protocol_diagnostics,
+  state
 
 proc captureTableActive(table: Table[uint32, uint32]): bool =
   table.len > 0
@@ -19,6 +21,10 @@ proc captureSessionsJson*(daemon: TriadDaemon): JsonNode =
 proc captureSessionsActive*(daemon: TriadDaemon): bool =
   daemon.windowCaptureSessions.captureTableActive() or
     daemon.outputCaptureSessions.captureTableActive()
+
+proc captureSessionsSupported*(daemon: TriadDaemon): bool =
+  daemon.boundProtocolVersions.getOrDefault("river_window_manager_v1", 0'u32) >=
+    RiverWindowManagerCaptureSessionsVersion
 
 proc captureSessionCommand(model: Model, event: CaptureSessionEvent): seq[string] =
   case event
