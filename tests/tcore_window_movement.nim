@@ -96,14 +96,21 @@ proc checkMoveMirrorsNavigation(base: Model, focused: uint32, direction: Directi
   check moved.focusedWindowId() == focused
   check moved.activeTiledOrder() == beforeOrder.expectedSwapOrder(focused, target)
 
+proc activatePointerDrag(model: var Model, externalId: uint32): tuple[x, y: int32] =
+  result = model.instructionGeom(externalId).rectCenter()
+  check model.beginPointerMove(ExternalWindowId(externalId), result.x, result.y)
+  check model.applyPointerDelta(9, 0)
+
+proc applyPointerDrop(model: var Model, start: tuple[x, y: int32], x, y: int32) =
+  check model.applyPointerDelta(x - start.x, y - start.y, x, y)
+
 proc stackWindowOneIntoTwo(model: var Model) =
-  let start = model.instructionGeom(1).rectCenter()
+  let start = model.activatePointerDrag(1)
   let target = model.instructionGeom(2)
   let dropX = target.x + target.w div 2
   let dropY = target.y + (target.h * 3) div 4
 
-  check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
-  check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+  model.applyPointerDrop(start, dropX, dropY)
   discard model.finishPointerOp()
 
   let first = model.placementForExternal(1)
@@ -112,19 +119,52 @@ proc stackWindowOneIntoTwo(model: var Model) =
   check first.windowIdx == 2
 
 proc stackWindowOneIntoTwoVertical(model: var Model) =
-  let start = model.instructionGeom(1).rectCenter()
+  let start = model.activatePointerDrag(1)
   let target = model.instructionGeom(2)
   let dropX = target.x + target.w + max(0'i32, model.innerGaps) - 1
   let dropY = target.y + target.h div 2
 
-  check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
-  check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+  model.applyPointerDrop(start, dropX, dropY)
   discard model.finishPointerOp()
 
   let first = model.placementForExternal(1)
   let second = model.placementForExternal(2)
   check first.columnId == second.columnId
   check first.windowIdx == 2
+
+proc stackWindowThreeIntoTwoColumn(model: var Model) =
+  model.stackWindowOneIntoTwo()
+  let start = model.activatePointerDrag(3)
+  let target = model.instructionGeom(1)
+  let dropX = target.x + target.w div 2
+  let dropY = target.y + target.h - 1
+
+  model.applyPointerDrop(start, dropX, dropY)
+  discard model.finishPointerOp()
+
+  let first = model.placementForExternal(1)
+  let second = model.placementForExternal(2)
+  let third = model.placementForExternal(3)
+  check first.columnId == second.columnId
+  check third.columnId == second.columnId
+  check model.activeTiledOrder() == @[2'u32, 1, 3]
+
+proc stackWindowThreeIntoTwoRow(model: var Model) =
+  model.stackWindowOneIntoTwoVertical()
+  let start = model.activatePointerDrag(3)
+  let target = model.instructionGeom(1)
+  let dropX = target.x + target.w - 1
+  let dropY = target.y + target.h div 2
+
+  model.applyPointerDrop(start, dropX, dropY)
+  discard model.finishPointerOp()
+
+  let first = model.placementForExternal(1)
+  let second = model.placementForExternal(2)
+  let third = model.placementForExternal(3)
+  check first.columnId == second.columnId
+  check third.columnId == second.columnId
+  check model.activeTiledOrder() == @[2'u32, 1, 3]
 
 suite "Core Runtime Logic: window movement":
   test "Pointer drag can toggle tiled window to floating on release":
@@ -443,13 +483,12 @@ suite "Core Runtime Logic: window movement":
   test "Tiled pointer move can structurally reorder scroller columns":
     var model = cameraModel()
     model.seedCameraWindows(3)
-    let start = model.instructionGeom(1).rectCenter()
+    let start = model.activatePointerDrag(1)
     let target = model.instructionGeom(2)
     let dropX = target.x + target.w - 2
     let dropY = target.y + target.h div 2
 
-    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
-    check model.applyPointerDelta(dropX - start.x, dropY - start.y)
+    model.applyPointerDrop(start, dropX, dropY)
     let dragged = model.instructionGeom(1)
     check dragged.x == model.pointerOp.initialGeom.x + model.pointerOp.totalDX
     discard model.finishPointerOp()
@@ -535,6 +574,63 @@ suite "Core Runtime Logic: window movement":
     check third.columnId == second.columnId
     check third.windowIdx == 2
 
+  test "Tiled pointer move can reorder to top of same scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    model.stackWindowThreeIntoTwoColumn()
+
+    let start = model.activatePointerDrag(3)
+    let target = model.instructionGeom(2)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y
+
+    model.applyPointerDrop(start, dropX, dropY)
+    discard model.finishPointerOp()
+
+    let third = model.placementForExternal(3)
+    let second = model.placementForExternal(2)
+    check third.columnId == second.columnId
+    check third.windowIdx == 1
+    check model.activeTiledOrder() == @[3'u32, 2, 1]
+
+  test "Tiled pointer move can reorder to middle of same scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    model.stackWindowThreeIntoTwoColumn()
+
+    let start = model.activatePointerDrag(3)
+    let target = model.instructionGeom(1)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y
+
+    model.applyPointerDrop(start, dropX, dropY)
+    discard model.finishPointerOp()
+
+    let third = model.placementForExternal(3)
+    let second = model.placementForExternal(2)
+    check third.columnId == second.columnId
+    check third.windowIdx == 2
+    check model.activeTiledOrder() == @[2'u32, 3, 1]
+
+  test "Tiled pointer move can reorder to bottom of same scroller column":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+    model.stackWindowThreeIntoTwoColumn()
+
+    let start = model.activatePointerDrag(2)
+    let target = model.instructionGeom(3)
+    let dropX = target.x + target.w div 2
+    let dropY = target.y + target.h + max(0'i32, model.innerGaps) - 1
+
+    model.applyPointerDrop(start, dropX, dropY)
+    discard model.finishPointerOp()
+
+    let second = model.placementForExternal(2)
+    let third = model.placementForExternal(3)
+    check second.columnId == third.columnId
+    check second.windowIdx == 3
+    check model.activeTiledOrder() == @[1'u32, 3, 2]
+
   test "Tiled pointer move near vertical scroller stack side creates sibling row":
     var model = directionalModel(LayoutMode.VerticalScroller, 3)
     model.stackWindowOneIntoTwoVertical()
@@ -552,6 +648,24 @@ suite "Core Runtime Logic: window movement":
     let second = model.placementForExternal(2)
     check third.columnId != second.columnId
     check third.windowIdx == 1
+
+  test "Tiled pointer move can reorder within same vertical scroller row":
+    var model = directionalModel(LayoutMode.VerticalScroller, 3)
+    model.stackWindowThreeIntoTwoRow()
+
+    let start = model.activatePointerDrag(3)
+    let target = model.instructionGeom(1)
+    let dropX = target.x
+    let dropY = target.y + target.h div 2
+
+    model.applyPointerDrop(start, dropX, dropY)
+    discard model.finishPointerOp()
+
+    let third = model.placementForExternal(3)
+    let second = model.placementForExternal(2)
+    check third.columnId == second.columnId
+    check third.windowIdx == 2
+    check model.activeTiledOrder() == @[2'u32, 3, 1]
 
   test "Tiled pointer move can drop into another output scroller workspace":
     var model = configuredModel()
@@ -643,6 +757,9 @@ suite "Core Runtime Logic: window movement":
     check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
     check model.activeScrollerPointerDrag()
     check model.tickPointerDragAutoScroll(16)
+    check model.viewport(1).currentViewportXOffset == before.currentViewportXOffset
+    check model.pointerOp.dragAutoScrollElapsedMs == 16
+    check model.tickPointerDragAutoScroll(84)
 
     let after = model.viewport(1)
     check after.currentViewportXOffset > before.currentViewportXOffset

@@ -463,6 +463,7 @@ type
     startScrollOffset*: float32
     hoverSlot*: uint32
     hoverElapsedMs*: int32
+    dragAutoScrollElapsedMs*: int32
 
   ViewportState* = object
     targetViewportXOffset*: float32

@@ -916,18 +916,50 @@ proc customLayoutInstructions(
   frameInstructions: seq[JanetLayoutInstruction],
 ]
 
+proc removeWindowFromScrollerProjection(
+    tag: var rv.ProjectedTag, windowId: rv.ProjectionWindowId
+) =
+  if windowId == 0'u32:
+    return
+
+  var columns: seq[rv.ProjectedColumn] = @[]
+  var nextFocused = 0'u32
+  for column in tag.columns:
+    var nextColumn = column
+    nextColumn.windows.setLen(0)
+    for candidate in column.windows:
+      if candidate == windowId:
+        continue
+      if nextFocused == 0'u32:
+        nextFocused = candidate
+      nextColumn.windows.add(candidate)
+    if nextColumn.windows.len > 0:
+      columns.add(nextColumn)
+  tag.columns = columns
+  if tag.focusedWindow == windowId:
+    tag.focusedWindow = nextFocused
+
 proc scrollerLayoutInstructionsForTag*(
-    model: Model, tagId: core_types.TagId, screen: rv.Rect
+    model: Model,
+    tagId: core_types.TagId,
+    screen: rv.Rect,
+    excludeWindowId: core_types.WindowId = NullWindowId,
 ): seq[rv.RenderInstruction] =
   let projected = model.projectedTag(tagId)
   if not projected.found:
     return
 
   let windows = model.runtimeWindowTable()
+  var tagForLayout = projected.tag
+  if excludeWindowId != NullWindowId:
+    tagForLayout.removeWindowFromScrollerProjection(
+      model.externalWindowId(excludeWindowId)
+    )
+
   var currentOuterGap = model.outerGaps
   var currentInnerGap = model.innerGaps
   var tiledWindowCount = 0
-  for col in projected.tag.columns:
+  for col in tagForLayout.columns:
     tiledWindowCount += col.windows.len
 
   if model.smartGaps and tiledWindowCount <= 1:
@@ -935,7 +967,6 @@ proc scrollerLayoutInstructionsForTag*(
     currentInnerGap = 0
 
   let retargetViewport = model.viewportRetargetRequested(tagId)
-  var tagForLayout = projected.tag
   result = layoutForTag(
     tagForLayout,
     windows,
@@ -1184,14 +1215,18 @@ proc applyTiledPointerDrag(model: Model, instructions: var seq[rv.RenderInstruct
   if op.kind != rv.PointerOpKind.OpMove or not op.tiled or not op.dragActive:
     return
   let externalId = model.externalWindowId(op.windowId)
+  let geom = rv.Rect(
+    x: op.initialGeom.x + op.totalDX,
+    y: op.initialGeom.y + op.totalDY,
+    w: op.initialGeom.w,
+    h: op.initialGeom.h,
+  )
   for instr in instructions.mitems:
     if instr.windowId == externalId:
-      instr.geom.x = op.initialGeom.x + op.totalDX
-      instr.geom.y = op.initialGeom.y + op.totalDY
-      instr.geom.w = op.initialGeom.w
-      instr.geom.h = op.initialGeom.h
+      instr.geom = geom
       instr.clipSet = false
       return
+  instructions.upsertInstruction(rv.RenderInstruction(windowId: externalId, geom: geom))
 
 proc addOverviewInstruction(
     instructions: var seq[rv.RenderInstruction], instruction: rv.RenderInstruction
@@ -1246,15 +1281,23 @@ proc projectNormalTag(
     focusForLayout: core_types.WindowId,
     includeScratchpad = false,
     includeUnmanagedGlobals = false,
+    excludeWindowId: core_types.WindowId = NullWindowId,
 ): LayoutProjection =
   let tagDataOpt = model.tagData(tagId)
   if tagDataOpt.isNone:
     return
 
+  let tagData = tagDataOpt.get()
+  var tagForLayout = projectedTag
+  if excludeWindowId != NullWindowId and tagData.tagDataUsesCoreScroller():
+    tagForLayout.removeWindowFromScrollerProjection(
+      model.externalWindowId(excludeWindowId)
+    )
+
   var currentOuterGap = model.outerGaps
   var currentInnerGap = model.innerGaps
   var tiledWindowCount = 0
-  for col in projectedTag.columns:
+  for col in tagForLayout.columns:
     tiledWindowCount += col.windows.len
 
   if model.smartGaps and tiledWindowCount <= 1:
@@ -1262,9 +1305,7 @@ proc projectNormalTag(
     currentInnerGap = 0
 
   let retargetViewport = model.viewportRetargetRequested(tagId)
-  var tagForLayout = projectedTag
   model.applyPopupLayoutFocus(tagForLayout, focusForLayout)
-  let tagData = tagDataOpt.get()
   if tagData.frameTreeActive():
     model.applyFrameTreeRects(
       tagId, tagForLayout, screen, currentOuterGap, currentInnerGap
@@ -1731,6 +1772,13 @@ proc layoutProjection*(
     if not projected.found:
       continue
     let activeTag = item.tagId == model.activeTag
+    let dragExcludeWindowId =
+      if activeTag and model.pointerOp.kind == rv.PointerOpKind.OpMove and
+          model.pointerOp.tiled and model.pointerOp.dragActive and
+          item.tagId == model.pointerOp.sourceTag:
+        model.pointerOp.windowId
+      else:
+        NullWindowId
     let tagProjection = model.projectNormalTag(
       item.tagId,
       projected.tag,
@@ -1743,6 +1791,7 @@ proc layoutProjection*(
         model.effectiveTagFocusedWindow(item.tagId),
       includeScratchpad = activeTag,
       includeUnmanagedGlobals = activeTag,
+      excludeWindowId = dragExcludeWindowId,
     )
     result.mergeNormalProjection(tagProjection, replaceInstructions = activeTag)
   model.applyTiledPointerDrag(result.instructions)

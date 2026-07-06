@@ -10,8 +10,9 @@ import focus, layout_projection, overview_geometry, placement, workspaces
 
 const ShiftModifier = 1'u32
 const PointerDragThresholdSquared = 64'i32
-const PointerDragAutoScrollEdge = 48'i32
-const PointerDragAutoScrollPxPerMs = 1.0'f32
+const PointerDragAutoScrollEdge = 30'i32
+const PointerDragAutoScrollDelayMs = 100'i32
+const PointerDragAutoScrollMaxPxPerMs = 1.5'f32
 const PointerResizeDoubleClickMs = 400'i64
 const EdgeTop = 1'u32
 const EdgeBottom = 2'u32
@@ -223,6 +224,32 @@ proc clearDropTarget(op: var PointerOpData) =
 proc rectContainsPoint(rect: Rect, x, y: int32): bool =
   x >= rect.x and y >= rect.y and x < rect.x + rect.w and y < rect.y + rect.h
 
+proc edgeAutoScrollAmount(pos, start, size: int32): int32 =
+  if size <= 0:
+    return 0
+  let endPos = start + size
+  if pos < start + PointerDragAutoScrollEdge:
+    return
+      -min(
+        PointerDragAutoScrollEdge, max(0'i32, start + PointerDragAutoScrollEdge - pos)
+      )
+  if pos >= endPos - PointerDragAutoScrollEdge:
+    return min(
+      PointerDragAutoScrollEdge,
+      max(0'i32, pos - (endPos - PointerDragAutoScrollEdge) + 1),
+    )
+  0
+
+proc edgeAutoScrollDelta(amount, elapsedMs: int32): int32 =
+  if amount == 0:
+    return 0
+  let sign = if amount < 0: -1'i32 else: 1'i32
+  let normalized =
+    float32(abs(amount)) / max(1.0'f32, float32(PointerDragAutoScrollEdge))
+  let pixels =
+    normalized * PointerDragAutoScrollMaxPxPerMs * float32(elapsedMs.tickElapsedMs())
+  sign * max(1'i32, int32(round(pixels)))
+
 proc outputUnderPointer(model: Model, x, y: int32): Option[OutputId] =
   for outputId in model.sortedOutputIdsByExternal():
     let screen = model.outputScreen(outputId)
@@ -274,6 +301,7 @@ proc scrollerDropColumns(
 ): seq[DropColumnCandidate] =
   var projectedIdx = 0
   for columnId, _ in model.columnsOnTagWithId(tagId):
+    var projectedWindowIdx = 0
     var column = DropColumnCandidate(
       columnId: columnId,
       columnIdx: projectedIdx,
@@ -289,15 +317,13 @@ proc scrollerDropColumns(
       let geomOpt = instructions.instructionGeom(win.externalId)
       if geomOpt.isNone:
         continue
-      let placement = model.sourcePlacement(tagId, winId)
-      if not placement.found:
-        continue
       let geom = geomOpt.get()
       column.startPos = min(column.startPos, geom.axisStart(vertical))
       column.endPos = max(column.endPos, geom.axisEnd(vertical))
       column.windows.add(
-        DropWindowCandidate(winId: winId, winIdx: placement.winIdx, geom: geom)
+        DropWindowCandidate(winId: winId, winIdx: projectedWindowIdx, geom: geom)
       )
+      inc projectedWindowIdx
     if column.windows.len > 0:
       result.add(column)
       inc projectedIdx
@@ -377,7 +403,9 @@ proc scrollerDropTarget(model: Model, op: PointerOpData): ScrollerDropTarget =
       model.activeWorkspaceScreen()
     else:
       model.outputScreen(outputId)
-  let instructions = model.scrollerLayoutInstructionsForTag(tagId, screen)
+  let excludeWindowId = if tagId == op.sourceTag: op.windowId else: NullWindowId
+  let instructions =
+    model.scrollerLayoutInstructionsForTag(tagId, screen, excludeWindowId)
   let vertical = tagOpt.get().layoutMode == LayoutMode.VerticalScroller
   let columns = model.scrollerDropColumns(tagId, instructions, op, vertical)
   if columns.len == 0:
@@ -522,9 +550,6 @@ proc commitScrollerDrop(model: var Model, op: PointerOpData): bool =
     if op.dropColumn == NullColumnId:
       return false
     var targetIdx = max(0, op.dropWindowIdx)
-    if op.dropTag == op.sourceTag and source.columnId == op.dropColumn and
-        source.winIdx < targetIdx:
-      dec targetIdx
     if model.preparePointerDropTargetTag(op):
       result =
         model.moveWindowToColumn(op.dropTag, op.windowId, op.dropColumn, targetIdx)
@@ -1193,37 +1218,48 @@ proc tickPointerDragAutoScroll*(
   if screen.w <= 0 or screen.h <= 0:
     return false
 
-  let step = max(
-    1'i32,
-    int32(round(float32(elapsedMs.tickElapsedMs()) * PointerDragAutoScrollPxPerMs)),
-  )
   let tag = tagOpt.get()
-  var delta = 0'i32
+  var amount = 0'i32
   if tag.layoutMode == LayoutMode.Scroller:
-    if op.currentX < screen.x + PointerDragAutoScrollEdge:
-      delta = -step
-    elif op.currentX >= screen.x + screen.w - PointerDragAutoScrollEdge:
-      delta = step
-    if delta != 0:
-      let target = tag.targetViewportXOffset + float32(delta)
-      let current = tag.currentViewportXOffset + float32(delta)
-      result = model.setTagViewportTarget(tagId, target, tag.targetViewportYOffset)
-      result =
-        model.setTagViewportCurrent(tagId, current, tag.currentViewportYOffset) or result
+    amount = edgeAutoScrollAmount(op.currentX, screen.x, screen.w)
   elif tag.layoutMode == LayoutMode.VerticalScroller:
-    if op.currentY < screen.y + PointerDragAutoScrollEdge:
-      delta = -step
-    elif op.currentY >= screen.y + screen.h - PointerDragAutoScrollEdge:
-      delta = step
-    if delta != 0:
-      let target = tag.targetViewportYOffset + float32(delta)
-      let current = tag.currentViewportYOffset + float32(delta)
-      result = model.setTagViewportTarget(tagId, tag.targetViewportXOffset, target)
-      result =
-        model.setTagViewportCurrent(tagId, tag.currentViewportXOffset, current) or result
+    amount = edgeAutoScrollAmount(op.currentY, screen.y, screen.h)
+
+  let tickMs = elapsedMs.tickElapsedMs()
+  if amount == 0:
+    if op.dragAutoScrollElapsedMs != 0:
+      op.dragAutoScrollElapsedMs = 0
+      discard model.setPointerOpState(op)
+      return true
+    return false
+
+  op.dragAutoScrollElapsedMs = max(0'i32, op.dragAutoScrollElapsedMs + tickMs)
+  if op.dragAutoScrollElapsedMs < PointerDragAutoScrollDelayMs:
+    discard model.setPointerOpState(op)
+    return true
+
+  let delta = edgeAutoScrollDelta(amount, tickMs)
+  if delta == 0:
+    discard model.setPointerOpState(op)
+    return true
+
+  if tag.layoutMode == LayoutMode.Scroller:
+    let target = tag.targetViewportXOffset + float32(delta)
+    let current = tag.currentViewportXOffset + float32(delta)
+    result = model.setTagViewportTarget(tagId, target, tag.targetViewportYOffset)
+    result =
+      model.setTagViewportCurrent(tagId, current, tag.currentViewportYOffset) or result
+  elif tag.layoutMode == LayoutMode.VerticalScroller:
+    let target = tag.targetViewportYOffset + float32(delta)
+    let current = tag.currentViewportYOffset + float32(delta)
+    result = model.setTagViewportTarget(tagId, tag.targetViewportXOffset, target)
+    result =
+      model.setTagViewportCurrent(tagId, tag.currentViewportXOffset, current) or result
+
   if result:
     model.updateScrollerDropTarget(op)
-    discard model.setPointerOpState(op)
+  discard model.setPointerOpState(op)
+  result = true
 
 proc tickOverviewPointerHold*(
     model: var Model, elapsedMs = DefaultFrameIntervalMs
