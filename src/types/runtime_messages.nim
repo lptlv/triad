@@ -51,6 +51,7 @@ type
     WlRenderStart
     WlPointerMoveRequested
     WlPointerResizeRequested
+    WlPointerDragToggleDropMode
     WlOverviewPointerDragRequested
     WlOverviewPointerScrollRequested
     WlOverviewWheel
@@ -327,6 +328,9 @@ type
       resizeSeat*: pointer # ptr RiverSeatV1
       resizeEdges*: uint32
       resizeStartX*, resizeStartY*: int32
+      resizeStartedMs*: int64
+    of MsgKind.WlPointerDragToggleDropMode:
+      toggleDropModeSeat*: pointer # ptr RiverSeatV1
     of MsgKind.WlOverviewPointerDragRequested:
       overviewDragWinId*: uint32
       overviewDragSeat*: pointer # ptr RiverSeatV1

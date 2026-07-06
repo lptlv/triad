@@ -1654,6 +1654,13 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
   let seatId = seat.id()
   let button = daemon.pointerBindingButtons.getOrDefault(id, 0'u32)
   let point = daemon.pointerPositionBySeat.getOrDefault(seatId, Rect())
+  let activeOp = daemon[].currentModel.pointerOp
+  if activeOp.kind == PointerOpKind.OpMove and daemon.pointerBindingKinds.hasKey(id) and
+      button in [0x110'u32, 0x111'u32]:
+    daemon.enqueue(
+      Msg(kind: MsgKind.WlPointerDragToggleDropMode, toggleDropModeSeat: seat)
+    )
+    return
   if daemon[].currentModel.overviewUsesWorkspacePreviews():
     if button == 0x110'u32:
       let target = daemon[].overviewWindowAtPointer(seat)
@@ -1705,6 +1712,7 @@ proc onPointerBindingPressed(data: pointer, binding: ptr RiverPointerBindingV1) 
           resizeEdges: RiverEdgeBottom or RiverEdgeRight,
           resizeStartX: point.x,
           resizeStartY: point.y,
+          resizeStartedMs: nowMs(),
         )
       )
     of PointerOpKind.OpNone, PointerOpKind.OpOverviewDrag,

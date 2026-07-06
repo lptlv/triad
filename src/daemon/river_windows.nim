@@ -1,4 +1,4 @@
-import std/tables
+import std/[tables, times]
 import chronicles
 import protocols/river/client as river
 import ../core/msg
@@ -10,6 +10,9 @@ import
 
 template currentModel(daemon: TriadDaemon): untyped =
   daemon.runtimeState.model
+
+proc nowMs(): int64 =
+  int64(epochTime() * 1000.0)
 
 proc outputIdForPointer(daemon: TriadDaemon, output: ptr RiverOutputV1): uint32 =
   if output == nil:
@@ -212,6 +215,7 @@ proc onWindowPointerResizeRequested(
       resizeEdges: edges,
       resizeStartX: point.x,
       resizeStartY: point.y,
+      resizeStartedMs: nowMs(),
     )
   )
 

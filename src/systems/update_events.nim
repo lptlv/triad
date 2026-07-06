@@ -318,11 +318,20 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
         Effect(kind: EffectKind.EffOpStartPointer, opSeat: msg.moveSeat)
       )
   of MsgKind.WlPointerResizeRequested:
-    if model.beginPointerResize(
+    let gesture = model.handlePointerResizeDoubleClick(
+      msg.resizeWinId.externalWindowId(),
+      msg.resizeStartX,
+      msg.resizeStartY,
+      msg.resizeStartedMs,
+    )
+    if gesture.handled:
+      result.dirty = gesture.dirty
+    elif model.beginPointerResize(
       msg.resizeWinId.externalWindowId(),
       msg.resizeEdges,
       msg.resizeStartX,
       msg.resizeStartY,
+      msg.resizeStartedMs,
     ):
       result.effects.add(
         Effect(
@@ -332,6 +341,8 @@ proc applyEvent*(model: var Model, msg: Msg): UpdateStep =
       result.effects.add(
         Effect(kind: EffectKind.EffOpStartPointer, opSeat: msg.resizeSeat)
       )
+  of MsgKind.WlPointerDragToggleDropMode:
+    result.dirty = model.togglePointerDropMode()
   of MsgKind.WlOverviewPointerDragRequested:
     if model.beginOverviewDrag(
       msg.overviewDragWinId.externalWindowId(), msg.overviewDragX, msg.overviewDragY

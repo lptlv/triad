@@ -225,6 +225,14 @@ built-in/native layouts. Tiled scroller windows can be dragged between columns
 or into another column stack; native layouts support tiled drag targets and
 split-ratio resize from window edges.
 
+The move and resize pointer bindings also carry the expected gesture behavior:
+right-click while moving toggles whether the dragged window will drop as tiled or
+floating, and double-clicking a tiled resize edge triggers the resize-edge
+gesture. In scroller layouts, left/right resize-edge double-click toggles a
+full-width column and top/bottom double-click resets the window height; vertical
+scroller transposes those directions. Binding the same pointer chord to another
+command overrides that gesture.
+
 ## Native Features
 
 ### Recent Windows

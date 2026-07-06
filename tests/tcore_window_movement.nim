@@ -19,6 +19,9 @@ proc placementForExternal(
     return (placement.get().columnId, placement.get().windowIdx)
   (NullColumnId, 0'u32)
 
+proc modelWindow(model: Model, externalId: uint32): WindowData =
+  model.windowData(model.windowForExternal(ExternalWindowId(externalId))).get()
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -84,6 +87,107 @@ proc checkMoveMirrorsNavigation(base: Model, focused: uint32, direction: Directi
   check moved.activeTiledOrder() == beforeOrder.expectedSwapOrder(focused, target)
 
 suite "Core Runtime Logic: window movement":
+  test "Pointer drag can toggle tiled window to floating on release":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let center = geom.rectCenter()
+
+    check model.beginPointerMove(ExternalWindowId(1), center.x, center.y)
+    check model.applyPointerDelta(16, 0)
+    check model.pointerOp.dragActive
+    check not model.pointerOp.dropFloating
+
+    check model.togglePointerDropMode()
+    check model.pointerOp.dropFloating
+    discard model.finishPointerOp()
+
+    let win = model.modelWindow(1)
+    check win.isFloating
+    check win.manualFloatingPosition
+    check win.floatingGeom.x == geom.x + 16
+    check win.floatingGeom.y == geom.y
+
+  test "Pointer drag can toggle floating window back to tiled placement":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    let original = model.placementForExternal(1)
+    let geom = model.instructionGeom(1)
+    check model.setWindowFloating(winId, true, geom)
+
+    check model.beginPointerMove(ExternalWindowId(1), geom.x + 10, geom.y + 10)
+    check model.pointerOp.dropFloating
+    check model.togglePointerDropMode()
+    check model.pointerOp.tiled
+    check not model.pointerOp.dropFloating
+    discard model.finishPointerOp()
+
+    let win = model.modelWindow(1)
+    let placement = model.placementForExternal(1)
+    check not win.isFloating
+    check placement.columnId == original.columnId
+    check placement.windowIdx == original.windowIdx
+
+  test "Scroller resize edge double-click toggles full-width column":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let geom = model.instructionGeom(1)
+    let placement = model.placementForExternal(1)
+    check not model.column(placement.columnId).get().isFullWidth
+
+    let first = model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + 1, geom.y + geom.h div 2, 1000
+    )
+    check not first.handled
+    let second = model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + 1, geom.y + geom.h div 2, 1200
+    )
+    check second.handled
+    check second.dirty
+    check model.column(placement.columnId).get().isFullWidth
+
+  test "Scroller resize edge double-click resets window height proportion":
+    var model = cameraModel()
+    model.seedCameraWindows(2)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
+    let geom = model.instructionGeom(1)
+
+    discard model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + geom.w div 2, geom.y + 1, 1000
+    )
+    let second = model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + geom.w div 2, geom.y + 1, 1200
+    )
+    check second.handled
+    check model.modelWindow(1).heightProportion == 1.0'f32
+
+  test "Vertical scroller resize edge double-click uses transposed gestures":
+    var model = directionalModel(LayoutMode.VerticalScroller, 2)
+    let geom = model.instructionGeom(1)
+    let placement = model.placementForExternal(1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowWidthProportion(winId, 0.5)
+
+    discard model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + geom.w div 2, geom.y + 1, 1000
+    )
+    let fullWidth = model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + geom.w div 2, geom.y + 1, 1200
+    )
+    check fullWidth.handled
+    check model.column(placement.columnId).get().isFullWidth
+
+    discard model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + 1, geom.y + geom.h div 2, 2000
+    )
+    let reset = model.handlePointerResizeDoubleClick(
+      ExternalWindowId(1), geom.x + 1, geom.y + geom.h div 2, 2200
+    )
+    check reset.handled
+    check model.modelWindow(1).widthProportion == 1.0'f32
+
   test "Viewport animation uses configured snap threshold":
     var model = initRuntimeStateFromConfig(
       Config(

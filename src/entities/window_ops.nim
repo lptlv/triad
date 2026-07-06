@@ -91,6 +91,8 @@ proc addWindow*(
       idleInhibitMode: idleInhibitMode,
       isTerminal: isTerminal,
       allowSwallow: allowSwallow,
+      lastInteractiveResizeStartMs: 0'i64,
+      lastInteractiveResizeEdges: 0'u32,
     )
   )
   if externalId != NullExternalWindowId:
@@ -225,6 +227,10 @@ proc setWindowCreatedState*(
       if preserveRuntimeState: current.idleInhibitMode else: idleInhibitMode,
     isTerminal: if preserveRuntimeState: current.isTerminal else: isTerminal,
     allowSwallow: if preserveRuntimeState: current.allowSwallow else: allowSwallow,
+    lastInteractiveResizeStartMs:
+      if preserveRuntimeState: current.lastInteractiveResizeStartMs else: 0'i64,
+    lastInteractiveResizeEdges:
+      if preserveRuntimeState: current.lastInteractiveResizeEdges else: 0'u32,
   )
   true
 
@@ -297,7 +303,9 @@ proc preserveWindowRuntimeAttributes*(
       current.keyboardShortcutsInhibitBypass == source.keyboardShortcutsInhibitBypass and
       current.idleInhibitMode == source.idleInhibitMode and
       current.isTerminal == source.isTerminal and
-      current.allowSwallow == source.allowSwallow:
+      current.allowSwallow == source.allowSwallow and
+      current.lastInteractiveResizeStartMs == source.lastInteractiveResizeStartMs and
+      current.lastInteractiveResizeEdges == source.lastInteractiveResizeEdges:
     return false
 
   var win = model.windows.mEntity(winId)
@@ -335,6 +343,8 @@ proc preserveWindowRuntimeAttributes*(
   win.idleInhibitMode = source.idleInhibitMode
   win.isTerminal = source.isTerminal
   win.allowSwallow = source.allowSwallow
+  win.lastInteractiveResizeStartMs = source.lastInteractiveResizeStartMs
+  win.lastInteractiveResizeEdges = source.lastInteractiveResizeEdges
   true
 
 proc setWindowWidthProportion*(
@@ -353,6 +363,15 @@ proc setWindowHeightProportion*(
     return false
   model.windows.mEntity(winId).heightProportion =
     clamp(heightProportion, 0.05'f32, 1.0'f32)
+  true
+
+proc setWindowInteractiveResizeStart*(
+    model: var Model, winId: WindowId, startedMs: int64, edges: uint32
+): bool =
+  if model.windows.entity(winId).isNone:
+    return false
+  model.windows.mEntity(winId).lastInteractiveResizeStartMs = max(0'i64, startedMs)
+  model.windows.mEntity(winId).lastInteractiveResizeEdges = edges
   true
 
 proc setWindowTitle*(model: var Model, winId: WindowId, title: string): bool =

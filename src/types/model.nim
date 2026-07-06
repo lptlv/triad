@@ -56,6 +56,8 @@ type
     idleInhibitMode*: WindowRuleIdleInhibitMode
     isTerminal*: bool
     allowSwallow*: bool
+    lastInteractiveResizeStartMs*: int64
+    lastInteractiveResizeEdges*: uint32
 
   TagData* = object
     id*: TagId
@@ -436,6 +438,7 @@ type
     edges*: uint32
     tiled*: bool
     dragActive*: bool
+    dropFloating*: bool
     sourceTag*: TagId
     sourceColumn*: ColumnId
     sourceWindowIdx*: int
