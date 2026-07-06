@@ -118,6 +118,50 @@ proc windowCountOnColumn(model: Model, columnId: ColumnId): int =
   for _, _ in model.windowsOnColumnWithId(columnId):
     inc result
 
+proc usableWorkspaceWidth(model: Model, screen: Rect): int32 =
+  max(0'i32, screen.w - 2 * max(0'i32, model.outerGaps))
+
+proc usableWorkspaceHeight(model: Model, screen: Rect): int32 =
+  max(0'i32, screen.h - 2 * max(0'i32, model.outerGaps))
+
+proc scrollerColumnWidthProportion(
+    model: Model, screen: Rect, visibleWidth: int32
+): float32 =
+  let usableWidth = model.usableWorkspaceWidth(screen)
+  if usableWidth <= 0:
+    return 1.0'f32
+  (float32(max(0'i32, visibleWidth) + max(0'i32, model.innerGaps)) + 0.5'f32) /
+    float32(usableWidth)
+
+proc verticalScrollerRowHeightProportion(
+    model: Model, screen: Rect, visibleHeight: int32
+): float32 =
+  let usableHeight = model.usableWorkspaceHeight(screen)
+  if usableHeight <= 0:
+    return 1.0'f32
+  (float32(max(0'i32, visibleHeight) + max(0'i32, model.innerGaps)) + 0.5'f32) /
+    float32(usableHeight)
+
+proc scrollerWindowHeightProportion(
+    model: Model, screen: Rect, columnId: ColumnId, visibleHeight: int32
+): float32 =
+  let count = max(1, model.windowCountOnColumn(columnId))
+  let totalInnerGaps = int32(count - 1) * max(0'i32, model.innerGaps)
+  let usableHeight = max(0'i32, model.usableWorkspaceHeight(screen) - totalInnerGaps)
+  if usableHeight <= 0:
+    return 1.0'f32
+  (float32(max(0'i32, visibleHeight)) + 0.5'f32) / float32(usableHeight)
+
+proc verticalScrollerWindowWidthProportion(
+    model: Model, screen: Rect, columnId: ColumnId, visibleWidth: int32
+): float32 =
+  let count = max(1, model.windowCountOnColumn(columnId))
+  let totalInnerGaps = int32(count - 1) * max(0'i32, model.innerGaps)
+  let usableWidth = max(0'i32, model.usableWorkspaceWidth(screen) - totalInnerGaps)
+  if usableWidth <= 0:
+    return 1.0'f32
+  (float32(max(0'i32, visibleWidth)) + 0.5'f32) / float32(usableWidth)
+
 proc resizeEdgesUnder(geom: Rect, x, y: int32): uint32 =
   if geom.w <= 0 or geom.h <= 0:
     return 0'u32
@@ -696,7 +740,6 @@ proc beginPointerResize*(
       return false
     if startedMs > 0:
       discard model.setWindowInteractiveResizeStart(winId, startedMs, context.edges)
-    let columnOpt = model.column(context.columnId)
     discard model.setTagFocus(context.tagId, winId)
     return model.setPointerOpState(
       PointerOpData(
@@ -709,13 +752,6 @@ proc beginPointerResize*(
         sourceColumn: context.columnId,
         sourceWindowIdx: context.winIdx,
         resizeColumn: context.columnId,
-        initialColumnWidth:
-          if columnOpt.isSome:
-            columnOpt.get().widthProportion
-          else:
-            1.0'f32,
-        initialWindowWidth: winOpt.get().widthProportion,
-        initialWindowHeight: winOpt.get().heightProportion,
         startX: startX,
         startY: startY,
         currentX: startX,
@@ -1075,19 +1111,21 @@ proc applyPointerDelta*(
               -dx
             else:
               dx
-          let delta =
-            if screen.w > 0:
-              float32(signedDx) / float32(screen.w)
-            else:
-              0.0'f32
           if tag.layoutMode == LayoutMode.Scroller:
+            let targetWidth = next.initialGeom.w + signedDx
             dirty =
-              model.setColumnWidth(next.resizeColumn, next.initialColumnWidth + delta) or
-              dirty
+              model.setColumnWidth(
+                next.resizeColumn,
+                model.scrollerColumnWidthProportion(screen, targetWidth),
+              ) or dirty
           else:
+            let targetWidth = next.initialGeom.w + signedDx
             dirty =
               model.setWindowWidthProportion(
-                next.windowId, next.initialWindowWidth + delta
+                next.windowId,
+                model.verticalScrollerWindowWidthProportion(
+                  screen, next.resizeColumn, targetWidth
+                ),
               ) or dirty
         if (next.edges and EdgeVertical) != 0'u32:
           let signedDy =
@@ -1095,20 +1133,22 @@ proc applyPointerDelta*(
               -dy
             else:
               dy
-          let delta =
-            if screen.h > 0:
-              float32(signedDy) / float32(screen.h)
-            else:
-              0.0'f32
           if tag.layoutMode == LayoutMode.Scroller:
+            let targetHeight = next.initialGeom.h + signedDy
             dirty =
               model.setWindowHeightProportion(
-                next.windowId, next.initialWindowHeight + delta
+                next.windowId,
+                model.scrollerWindowHeightProportion(
+                  screen, next.resizeColumn, targetHeight
+                ),
               ) or dirty
           else:
+            let targetHeight = next.initialGeom.h + signedDy
             dirty =
-              model.setColumnWidth(next.resizeColumn, next.initialColumnWidth + delta) or
-              dirty
+              model.setColumnWidth(
+                next.resizeColumn,
+                model.verticalScrollerRowHeightProportion(screen, targetHeight),
+              ) or dirty
       else:
         let incDx = dx - op.totalDX
         let incDy = dy - op.totalDY

@@ -1025,7 +1025,6 @@ suite "Core Runtime Logic: window movement":
     check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
     check model.applyPointerDelta(100, 0)
     check model.column(placement.columnId).get().widthProportion > beforeWidth
-    check model.modelWindow(1).heightProportion == beforeHeight
     check model.instructionGeom(1).h == beforeGeom.h
 
     check model.applyPointerDelta(100, 100)
@@ -1050,7 +1049,6 @@ suite "Core Runtime Logic: window movement":
 
     check model.beginPointerResize(ExternalWindowId(1), 10'u32, startX, startY)
     check model.applyPointerDelta(0, 100)
-    check model.column(placement.columnId).get().widthProportion == beforeWidth
     check model.modelWindow(1).heightProportion > beforeHeight
     check model.instructionGeom(1).w == beforeGeom.w
 
@@ -1155,6 +1153,111 @@ suite "Core Runtime Logic: window movement":
 
     check model.instructionGeom(1).h == maxHeight
 
+  test "Tiled pointer diagonal resize clamps like straight scroller axes":
+    var straightWidth = cameraModel()
+    straightWidth.seedCameraWindows(1)
+    var straightHeight = cameraModel()
+    straightHeight.seedCameraWindows(1)
+    var diagonal = cameraModel()
+    diagonal.seedCameraWindows(1)
+
+    let winId = straightHeight.windowForExternal(ExternalWindowId(1))
+    check straightHeight.setWindowHeightProportion(winId, 0.5)
+    let diagonalWinId = diagonal.windowForExternal(ExternalWindowId(1))
+    check diagonal.setWindowHeightProportion(diagonalWinId, 0.5)
+
+    let base = diagonal.instructionGeom(1)
+    let maxWidth = base.w + 80
+    let maxHeight = diagonal.instructionGeom(1).h + 80
+    for model in [addr straightWidth, addr straightHeight, addr diagonal]:
+      model[].applyMsg(
+        Msg(
+          kind: MsgKind.WlWindowDimensionsHint,
+          hintWindowId: 1,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
+        )
+      )
+
+    let widthGeom = straightWidth.instructionGeom(1)
+    check straightWidth.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      widthGeom.x + widthGeom.w - 1,
+      widthGeom.y + widthGeom.h div 2,
+    )
+    check straightWidth.applyPointerDelta(straightWidth.primaryScreen().w * 2, 0)
+    discard straightWidth.finishPointerOp()
+
+    let heightGeom = straightHeight.instructionGeom(1)
+    check straightHeight.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      heightGeom.x + heightGeom.w div 2,
+      heightGeom.y + heightGeom.h - 1,
+    )
+    check straightHeight.applyPointerDelta(0, straightHeight.primaryScreen().h * 2)
+    discard straightHeight.finishPointerOp()
+
+    let diagonalGeom = diagonal.instructionGeom(1)
+    check diagonal.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      diagonalGeom.x + diagonalGeom.w - 1,
+      diagonalGeom.y + diagonalGeom.h - 1,
+    )
+    check diagonal.applyPointerDelta(
+      diagonal.primaryScreen().w * 2, diagonal.primaryScreen().h * 2
+    )
+    discard diagonal.finishPointerOp()
+
+    check diagonal.instructionGeom(1).w == straightWidth.instructionGeom(1).w
+    check diagonal.instructionGeom(1).h == straightHeight.instructionGeom(1).h
+
+  test "Tiled pointer diagonal resize resumes from clamped scroller geometry":
+    var model = cameraModel()
+    model.seedCameraWindows(1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowHeightProportion(winId, 0.5)
+    let before = model.instructionGeom(1)
+    let maxWidth = before.w + 80
+    let maxHeight = before.h + 80
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowDimensionsHint,
+        hintWindowId: 1,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+      )
+    )
+
+    let growGeom = model.instructionGeom(1)
+    check model.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      growGeom.x + growGeom.w - 1,
+      growGeom.y + growGeom.h - 1,
+    )
+    check model.applyPointerDelta(
+      model.primaryScreen().w * 2, model.primaryScreen().h * 2
+    )
+    discard model.finishPointerOp()
+    check model.instructionGeom(1).w == maxWidth
+    check model.instructionGeom(1).h == maxHeight
+
+    let shrinkGeom = model.instructionGeom(1)
+    check model.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      shrinkGeom.x + shrinkGeom.w - 1,
+      shrinkGeom.y + shrinkGeom.h - 1,
+    )
+    check model.applyPointerDelta(-40, -40)
+    discard model.finishPointerOp()
+
+    check model.instructionGeom(1).w == maxWidth - 40
+    check model.instructionGeom(1).h == maxHeight - 40
+
   test "Vertical scroller pointer resize caps window width at viewport":
     var model = directionalModel(LayoutMode.VerticalScroller, 1)
     let winId = model.windowForExternal(ExternalWindowId(1))
@@ -1226,6 +1329,107 @@ suite "Core Runtime Logic: window movement":
     discard model.finishPointerOp()
 
     check model.instructionGeom(1).h == maxHeight
+
+  test "Vertical scroller pointer diagonal resize clamps like straight axes":
+    var straightWidth = directionalModel(LayoutMode.VerticalScroller, 1)
+    var straightHeight = directionalModel(LayoutMode.VerticalScroller, 1)
+    var diagonal = directionalModel(LayoutMode.VerticalScroller, 1)
+
+    let widthWinId = straightWidth.windowForExternal(ExternalWindowId(1))
+    check straightWidth.setWindowWidthProportion(widthWinId, 0.5)
+    let diagonalWinId = diagonal.windowForExternal(ExternalWindowId(1))
+    check diagonal.setWindowWidthProportion(diagonalWinId, 0.5)
+
+    let base = diagonal.instructionGeom(1)
+    let maxWidth = base.w + 80
+    let maxHeight = straightHeight.instructionGeom(1).h + 80
+    for model in [addr straightWidth, addr straightHeight, addr diagonal]:
+      model[].applyMsg(
+        Msg(
+          kind: MsgKind.WlWindowDimensionsHint,
+          hintWindowId: 1,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
+        )
+      )
+
+    let widthGeom = straightWidth.instructionGeom(1)
+    check straightWidth.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      widthGeom.x + widthGeom.w - 1,
+      widthGeom.y + widthGeom.h div 2,
+    )
+    check straightWidth.applyPointerDelta(straightWidth.primaryScreen().w * 2, 0)
+    discard straightWidth.finishPointerOp()
+
+    let heightGeom = straightHeight.instructionGeom(1)
+    check straightHeight.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      heightGeom.x + heightGeom.w div 2,
+      heightGeom.y + heightGeom.h - 1,
+    )
+    check straightHeight.applyPointerDelta(0, straightHeight.primaryScreen().h * 2)
+    discard straightHeight.finishPointerOp()
+
+    let diagonalGeom = diagonal.instructionGeom(1)
+    check diagonal.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      diagonalGeom.x + diagonalGeom.w - 1,
+      diagonalGeom.y + diagonalGeom.h - 1,
+    )
+    check diagonal.applyPointerDelta(
+      diagonal.primaryScreen().w * 2, diagonal.primaryScreen().h * 2
+    )
+    discard diagonal.finishPointerOp()
+
+    check diagonal.instructionGeom(1).w == straightWidth.instructionGeom(1).w
+    check diagonal.instructionGeom(1).h == straightHeight.instructionGeom(1).h
+
+  test "Vertical scroller pointer diagonal resize resumes from clamped geometry":
+    var model = directionalModel(LayoutMode.VerticalScroller, 1)
+    let winId = model.windowForExternal(ExternalWindowId(1))
+    check model.setWindowWidthProportion(winId, 0.5)
+    let before = model.instructionGeom(1)
+    let maxWidth = before.w + 80
+    let maxHeight = before.h + 80
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlWindowDimensionsHint,
+        hintWindowId: 1,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+      )
+    )
+
+    let growGeom = model.instructionGeom(1)
+    check model.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      growGeom.x + growGeom.w - 1,
+      growGeom.y + growGeom.h - 1,
+    )
+    check model.applyPointerDelta(
+      model.primaryScreen().w * 2, model.primaryScreen().h * 2
+    )
+    discard model.finishPointerOp()
+    check model.instructionGeom(1).w == maxWidth
+    check model.instructionGeom(1).h == maxHeight
+
+    let shrinkGeom = model.instructionGeom(1)
+    check model.beginPointerResize(
+      ExternalWindowId(1),
+      0'u32,
+      shrinkGeom.x + shrinkGeom.w - 1,
+      shrinkGeom.y + shrinkGeom.h - 1,
+    )
+    check model.applyPointerDelta(-40, -40)
+    discard model.finishPointerOp()
+
+    check model.instructionGeom(1).w == maxWidth - 40
+    check model.instructionGeom(1).h == maxHeight - 40
 
   test "Scroller command resize caps window height at viewport":
     var model = cameraModel()

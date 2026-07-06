@@ -451,9 +451,6 @@ type
     dropWindow*: WindowId
     dropWindowIdx*: int
     resizeColumn*: ColumnId
-    initialColumnWidth*: float32
-    initialWindowWidth*: float32
-    initialWindowHeight*: float32
     startX*, startY*: int32
     currentX*, currentY*: int32
     totalDX*, totalDY*: int32
