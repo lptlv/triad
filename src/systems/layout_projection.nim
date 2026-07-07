@@ -1778,9 +1778,8 @@ proc layoutProjection*(
       continue
     let activeTag = item.tagId == model.activeTag
     let dragExcludeWindowId =
-      if activeTag and model.pointerOp.kind == rv.PointerOpKind.OpMove and
-          model.pointerOp.tiled and model.pointerOp.dragActive and
-          item.tagId == model.pointerOp.sourceTag:
+      if model.pointerOp.kind == rv.PointerOpKind.OpMove and model.pointerOp.tiled and
+          model.pointerOp.dragActive and item.tagId == model.pointerOp.sourceTag:
         model.pointerOp.windowId
       else:
         NullWindowId

@@ -53,6 +53,32 @@ proc setupSideBySideOutputs(model: var Model) =
   )
   model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
 
+proc setupStackedOutputs(model: var Model) =
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+  )
+  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1000, height: 600)
+  )
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: 0, outputY: 700)
+  )
+  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+
+proc setupNegativeOffsetOutputs(model: var Model) =
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1000, height: 700)
+  )
+  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "DP-1"))
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 900, height: 700)
+  )
+  model.applyMsg(
+    Msg(kind: MsgKind.WlOutputPosition, positionOutputId: 2, outputX: -900, outputY: 0)
+  )
+  model.applyMsg(Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2"))
+
 proc spiralMovement(
     context: JanetLayoutContext, direction: Direction
 ): JanetLayoutMovementEvalResult =
@@ -962,6 +988,104 @@ suite "Core Runtime Logic: window movement":
     check third.columnId == second.columnId
     check third.windowIdx == 2
     check model.activeTiledOrder() == @[2'u32, 3, 1]
+
+  test "Tiled pointer move can start from a non-active output scroller workspace":
+    var model = configuredModel()
+    model.setupSideBySideOutputs()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "app", title: "Two")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let targetGeom = model.instructionGeom(2)
+    let start = targetGeom.rectCenter()
+    model.applyMsg(
+      Msg(
+        kind: MsgKind.WlPointerMoveRequested,
+        moveWinId: 2,
+        moveSeat: nil,
+        moveStartX: start.x,
+        moveStartY: start.y,
+      )
+    )
+
+    check model.activeWorkspaceSlot() == 1
+    check model.pointerOp.kind == PointerOpKind.OpMove
+    check model.pointerOp.sourceTag == model.tagForSlot(2)
+    check model.pointerOp.initialGeom == targetGeom
+    check model.applyPointerDelta(9, 0, start.x + 9, start.y)
+    check model.pointerOp.dragActive
+
+  test "Tiled pointer move commit is stable after active workspace changes":
+    var model = configuredModel()
+    model.setupSideBySideOutputs()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = 1200'i32
+    let dropY = 350'i32
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    check model.pointerOp.dropTag == model.tagForSlot(2)
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 3))
+    model.applyMsg(Msg(kind: MsgKind.CmdSetLayout, newLayout: LayoutMode.Grid))
+    discard model.finishPointerOp()
+
+    check model.placementForExternalOnSlot(2, 1).found
+    check not model.placementForExternalOnSlot(1, 1).found
+
+  test "Tiled pointer move can drop across vertically stacked outputs":
+    var model = configuredModel()
+    model.setupStackedOutputs()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = 500'i32
+    let dropY = 1000'i32
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    discard model.finishPointerOp()
+
+    check model.placementForExternalOnSlot(2, 1).found
+    check model.activeWorkspaceSlot() == 2
+
+  test "Tiled pointer move can drop onto an output with negative coordinates":
+    var model = configuredModel()
+    model.setupNegativeOffsetOutputs()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "app", title: "One")
+    )
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 2))
+    model.applyMsg(Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: "DP-2"))
+    model.applyMsg(Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: 1))
+
+    let start = model.instructionGeom(1).rectCenter()
+    let dropX = -450'i32
+    let dropY = 350'i32
+
+    check model.beginPointerMove(ExternalWindowId(1), start.x, start.y)
+    check model.applyPointerDelta(dropX - start.x, dropY - start.y, dropX, dropY)
+    discard model.finishPointerOp()
+
+    check model.placementForExternalOnSlot(2, 1).found
+    check model.activeWorkspaceSlot() == 2
 
   test "Tiled pointer move can drop into another output scroller workspace":
     var model = configuredModel()

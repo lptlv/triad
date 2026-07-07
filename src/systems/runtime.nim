@@ -104,9 +104,13 @@ proc activeTagUsesAlgorithmicPointerLayout(model: Model): bool =
   let tagOpt = model.tagData(model.activeTag)
   tagOpt.isSome and tagOpt.get().tagUsesAlgorithmicPointerLayout()
 
-proc activeTagSupportsTiledPointerMove(model: Model): bool =
-  model.activeTagUsesCoreScroller() or model.activeTagUsesNativeLayout() or
-    model.activeTagUsesAlgorithmicPointerLayout()
+proc tagSupportsTiledPointerMove(model: Model, tagId: TagId): bool =
+  let tagOpt = model.tagData(tagId)
+  if tagOpt.isNone:
+    return false
+  model.tagUsesCoreScroller(tagId) or
+    tagOpt.get().nativeLayoutId.nativeLayoutIdString().len > 0 or
+    tagOpt.get().tagUsesAlgorithmicPointerLayout()
 
 proc visibleTiledWindowOrder(model: Model, tagId: TagId): seq[WindowId] =
   for _, column in model.columnsOnTagWithId(tagId):
@@ -147,17 +151,33 @@ proc activeTagSupportsTiledPointerResize(model: Model): bool =
   model.activeTagUsesCoreScroller() or model.activeTagUsesNativeLayout() or
     model.activeAlgorithmicResizeOrientation().supported
 
-proc visibleInstructionGeom(model: Model, winId: WindowId): Rect =
+proc instructionGeomForTag(model: Model, tagId: TagId, winId: WindowId): Rect =
   let winOpt = model.windowData(winId)
   if winOpt.isNone:
     return Rect()
   let externalId = rv.ProjectionWindowId(uint32(winOpt.get().externalId))
   if externalId == 0'u32:
     return Rect()
-  for instr in model.activeFocusLayoutInstructions():
-    if instr.windowId == externalId:
-      return instr.geom
+
+  if tagId == model.activeTag:
+    for instr in model.activeFocusLayoutInstructions():
+      if instr.windowId == externalId:
+        return instr.geom
+    return Rect()
+
+  if model.tagUsesCoreScroller(tagId):
+    let outputId = model.workspaceOutput(tagId)
+    if outputId == NullOutputId:
+      return Rect()
+    for instr in model.scrollerLayoutInstructionsForTag(
+      tagId, model.outputScreen(outputId)
+    ):
+      if instr.windowId == externalId:
+        return instr.geom
   Rect()
+
+proc visibleInstructionGeom(model: Model, winId: WindowId): Rect =
+  model.instructionGeomForTag(model.activeTag, winId)
 
 proc sourcePlacement(
     model: Model, tagId: TagId, winId: WindowId
@@ -413,6 +433,30 @@ proc pointerTargetTag(model: Model, outputId: OutputId): TagId =
   result = model.outputActiveTag(outputId)
   if result == NullTagId and model.workspaceOutput(model.activeTag) == outputId:
     result = model.activeTag
+
+proc sourceTagForPointerMove(
+    model: Model, winId: WindowId, startX, startY: int32
+): TagId =
+  proc usableCandidate(tagId: TagId): bool =
+    tagId != NullTagId and model.tagSupportsTiledPointerMove(tagId) and
+      model.placementForWindowOnTag(tagId, winId).isSome
+
+  let outputOpt = model.outputUnderPointer(startX, startY)
+  if outputOpt.isSome:
+    let targetTag = model.pointerTargetTag(outputOpt.get())
+    if targetTag.usableCandidate():
+      return targetTag
+
+  if model.activeTag.usableCandidate():
+    return model.activeTag
+
+  for _, tagId in model.outputTagsWithId():
+    if tagId.usableCandidate():
+      return tagId
+
+  for tagId, _ in model.tagsWithId():
+    if tagId.usableCandidate():
+      return tagId
 
 proc instructionGeom(
     instructions: openArray[rv.RenderInstruction], externalId: ExternalWindowId
@@ -882,12 +926,14 @@ proc updateNativeDropTarget(model: Model, op: var PointerOpData) =
     return
 
 proc updateTiledDropTarget(model: Model, op: var PointerOpData) =
-  if model.activeTagUsesCoreScroller():
+  if model.tagUsesCoreScroller(op.sourceTag):
     model.updateScrollerDropTarget(op)
-  elif model.activeTagUsesNativeLayout():
+  elif op.sourceTag == model.activeTag and model.activeTagUsesNativeLayout():
     model.updateNativeDropTarget(op)
-  else:
+  elif op.sourceTag == model.activeTag:
     model.updateAlgorithmicDropTarget(op)
+  else:
+    op.clearDropTarget()
 
 proc preparePointerDropTargetTag(model: var Model, op: PointerOpData): bool =
   if op.dropTag == op.sourceTag:
@@ -1045,12 +1091,12 @@ proc beginPointerMove*(
       winOpt.get().isUnmanagedGlobal:
     return false
   if not winOpt.get().isFloating:
-    if not model.activeTagSupportsTiledPointerMove():
+    let tagId = model.sourceTagForPointerMove(winId, startX, startY)
+    if tagId == NullTagId:
       return false
-    let tagId = model.activeTag
     let placement = model.sourcePlacement(tagId, winId)
-    let geom = model.visibleInstructionGeom(winId)
-    if tagId == NullTagId or not placement.found or geom.w <= 0 or geom.h <= 0:
+    let geom = model.instructionGeomForTag(tagId, winId)
+    if not placement.found or geom.w <= 0 or geom.h <= 0:
       return false
     discard model.setTagFocus(tagId, winId)
     return model.setPointerOpState(
@@ -1393,11 +1439,13 @@ proc togglePointerDropMode*(model: var Model): bool =
       model.updateTiledDropTarget(op)
     return model.setPointerOpState(op)
 
-  if not winOpt.get().isFloating or not model.activeTagSupportsTiledPointerMove():
+  if not winOpt.get().isFloating:
     return false
-  let tagId = model.activeTag
+  let tagId = model.sourceTagForPointerMove(op.windowId, op.currentX, op.currentY)
+  if tagId == NullTagId:
+    return false
   let placement = model.sourcePlacement(tagId, op.windowId)
-  if tagId == NullTagId or not placement.found:
+  if not placement.found:
     return false
   op.tiled = true
   op.dropFloating = false
@@ -1641,13 +1689,14 @@ proc finishPointerOp*(model: var Model): core.WindowId =
       let winOpt = model.windowData(op.windowId)
       if winOpt.isSome and winOpt.get().isFloating:
         discard model.setWindowFloating(op.windowId, false)
+    let targetTag = if op.dropTag != NullTagId: op.dropTag else: op.sourceTag
     if op.dropFloating:
       discard
-    elif model.activeTagUsesCoreScroller():
+    elif model.tagUsesCoreScroller(targetTag):
       discard model.commitScrollerDrop(op)
-    elif model.activeTagUsesNativeLayout():
+    elif op.sourceTag == model.activeTag and model.activeTagUsesNativeLayout():
       discard model.commitNativeDrop(op)
-    else:
+    elif op.sourceTag == model.activeTag:
       discard model.commitAlgorithmicDrop(op)
   elif not op.tiled and op.kind == PointerOpKind.OpMove and
       (op.totalDX != 0 or op.totalDY != 0):
