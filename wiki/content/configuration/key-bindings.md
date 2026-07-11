@@ -17,6 +17,8 @@ bindings {
   bind "Super+q"       "close-window"
   bind "Super+o"       "toggle-overview"
   bind "Super+n"       "switch-layout"
+  bind "Super+Shift+b" "minimize"
+  bind "Super+Alt+b"   "restore-minimized"
   bind "Super+h"       "focus-left"
   bind "Super+l"       "focus-right"
   bind "Super+j"       "focus-down"
@@ -32,6 +34,9 @@ Modifier keys: `Super`, `Ctrl`, `Alt`, `Shift`. Combine with `+`.
 
 Key names follow XKB conventions. Use `xkbcli interactive-wayland` or
 `wev` to find the name of any key.
+
+The default config binds `Super+Shift+b` to minimize the focused window and
+`Super+Alt+b` to restore the most recently minimized window.
 
 ## Pointer Bindings
 

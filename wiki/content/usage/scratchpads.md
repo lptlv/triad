@@ -34,6 +34,11 @@ bindings {
 }
 ```
 
+Scratchpads are separate from client-visible minimize. Use
+`triad msg restore-minimized` or the default `Super+Alt+b` binding to bring back
+a minimized window; use `restore-scratchpad` only for windows sent to the
+scratchpad pool.
+
 ## Named Scratchpads
 
 Named scratchpads let you maintain separate pools for different tools:
