@@ -619,6 +619,8 @@ proc parseCommandParts*(parts: seq[string]): Option[Msg] =
     some(Msg(kind: MsgKind.CmdToggleMaximized))
   of CommandId.CidMinimize:
     some(Msg(kind: MsgKind.CmdMinimize))
+  of CommandId.CidRestoreMinimized:
+    some(Msg(kind: MsgKind.CmdRestoreMinimized))
   of CommandId.CidScreenshot:
     parseScreenshotCommand(parts, ScreenshotKind.ShotRegion)
   of CommandId.CidScreenshotScreen:

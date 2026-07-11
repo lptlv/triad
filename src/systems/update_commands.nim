@@ -541,6 +541,8 @@ proc applyCommand*(
     result.dirty = model.toggleMaximizedFocused()
   of MsgKind.CmdMinimize:
     result.dirty = model.minimizeFocused()
+  of MsgKind.CmdRestoreMinimized:
+    result.dirty = model.restoreMostRecentMinimizedWindow()
   of MsgKind.CmdToggleKeyboardShortcutsInhibit:
     result.dirty = model.toggleKeyboardShortcutsInhibitFocused()
   of MsgKind.CmdSelectWindow:

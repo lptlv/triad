@@ -178,6 +178,7 @@ type
     CmdExitFullscreenById
     CmdToggleMaximized
     CmdMinimize
+    CmdRestoreMinimized
     CmdResizeFloating
     CmdSelectWindow
     CmdFocusTag

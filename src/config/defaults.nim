@@ -1,8 +1,7 @@
 import ../core/defaults as core_defaults
 export core_defaults
 
-const FallbackConfigContent* =
-  """// Triad Configuration (KDL 2.0)
+const FallbackConfigContent* = """// Triad Configuration (KDL 2.0)
 
 // theme {
 //     accent-color "#ffffff"
@@ -156,6 +155,7 @@ bindings {
     bind "Super+Shift+f" "fullscreen-window"
     bind "Super+m" "maximize-column"
     bind "Super+Shift+b" "minimize"
+    bind "Super+Alt+b" "restore-minimized"
     bind "Super+s" "move-to-scratchpad"
     bind "Super+Alt+s" "toggle-scratchpad"
     bind "Super+Shift+s" "restore-scratchpad"

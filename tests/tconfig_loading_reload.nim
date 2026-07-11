@@ -63,16 +63,12 @@ suite "KDL Configuration Parser: loading reload":
         layoutCycle: @[LayoutMode.Scroller, LayoutMode.Deck, LayoutMode.VerticalGrid],
       ),
       workspaces: WorkspaceConfig(defaultCount: 4, defaultLayout: LayoutMode.Scroller),
-      tagRules:
-        @[
-          TagRule(tagId: 1, name: "term"),
-          TagRule(
-            tagId: 2,
-            name: "web",
-            defaultLayoutSet: true,
-            defaultLayout: LayoutMode.Grid,
-          ),
-        ],
+      tagRules: @[
+        TagRule(tagId: 1, name: "term"),
+        TagRule(
+          tagId: 2, name: "web", defaultLayoutSet: true, defaultLayout: LayoutMode.Grid
+        ),
+      ],
       windowRules: @[WindowRule(appIdMatch: "brave", keyboardShortcutsInhibit: true)],
       startupCommands: @[@["notify-send", "triad"]],
       terminal: TerminalConfig(command: @["kitty"]),
@@ -88,11 +84,10 @@ suite "KDL Configuration Parser: loading reload":
       ),
       screenLock: ScreenLockConfig(command: @["swaylock"]),
       windowMenu: WindowMenuConfig(command: @["bemenu"]),
-      environment:
-        @[
-          EnvironmentEntryConfig(name: "GTK_THEME", value: "Adwaita:dark"),
-          EnvironmentEntryConfig(name: "SSH_AUTH_SOCK", unset: true),
-        ],
+      environment: @[
+        EnvironmentEntryConfig(name: "GTK_THEME", value: "Adwaita:dark"),
+        EnvironmentEntryConfig(name: "SSH_AUTH_SOCK", unset: true),
+      ],
       scratchpad: ScratchpadConfig(widthRatio: 0.7, heightRatio: 0.6),
       cursor: CursorConfig(theme: "Bibata", size: 32),
       configNotification:
@@ -100,47 +95,40 @@ suite "KDL Configuration Parser: loading reload":
       presentationMode: PresentationMode.PresentationAsync,
       allowExitSession: true,
       protocolSurfaces: ProtocolSurfacesConfig(enabled: true),
-      keyBindings:
-        @[
-          KeyBindingConfig(
-            key: "r",
-            modifiers: 12'u32,
-            command: "triad-reload",
-            bypassShortcutsInhibit: true,
-          )
-        ],
-      pointerBindings:
-        @[
-          PointerBindingConfig(
-            button: 0x110'u32,
-            modifiers: 64'u32,
-            op: PointerOpKind.OpMove,
-            command: "move",
-          )
-        ],
-      axisBindings:
-        @[
-          AxisBindingConfig(
-            direction: AxisBindingDirection.AxisUp,
-            modifiers: 64'u32,
-            command: "focus-left",
-          )
-        ],
-      gestureBindings:
-        @[
-          GestureBindingConfig(
-            direction: GestureBindingDirection.GestureSwipeLeft,
-            fingers: 3,
-            modifiers: 64'u32,
-            command: "focus-left",
-          )
-        ],
-      switchEvents:
-        @[
-          SwitchEventConfig(
-            kind: SwitchEventKind.SwitchLidClose, command: "lock-session"
-          )
-        ],
+      keyBindings: @[
+        KeyBindingConfig(
+          key: "r",
+          modifiers: 12'u32,
+          command: "triad-reload",
+          bypassShortcutsInhibit: true,
+        )
+      ],
+      pointerBindings: @[
+        PointerBindingConfig(
+          button: 0x110'u32,
+          modifiers: 64'u32,
+          op: PointerOpKind.OpMove,
+          command: "move",
+        )
+      ],
+      axisBindings: @[
+        AxisBindingConfig(
+          direction: AxisBindingDirection.AxisUp,
+          modifiers: 64'u32,
+          command: "focus-left",
+        )
+      ],
+      gestureBindings: @[
+        GestureBindingConfig(
+          direction: GestureBindingDirection.GestureSwipeLeft,
+          fingers: 3,
+          modifiers: 64'u32,
+          command: "focus-left",
+        )
+      ],
+      switchEvents: @[
+        SwitchEventConfig(kind: SwitchEventKind.SwitchLidClose, command: "lock-session")
+      ],
     )
 
     check state.applyRuntimeConfig(config)
@@ -197,6 +185,9 @@ suite "KDL Configuration Parser: loading reload":
     )
     check bindings.anyIt(
       it.key == "b" and it.modifiers == Super + Shift and it.command == "minimize"
+    )
+    check bindings.anyIt(
+      it.key == "b" and it.modifiers == Super + Alt and it.command == "restore-minimized"
     )
 
   test "Default parser bindings expose the layout strip":
@@ -324,56 +315,50 @@ theme {
     check loaded.error.contains("unknown field")
 
   test "Strict config load rejects invalid output rule fields":
-    let cases =
-      @[
-        (
-          name: "missing-target",
-          content:
-            """
+    let cases = @[
+      (
+        name: "missing-target",
+        content: """
 output {
   mode 1920 1080 60
 }
 """,
-          needle: "output[0]: unknown grouped output child \"mode\"",
-        ),
-        (
-          name: "bad-target-type",
-          content:
-            """
+        needle: "output[0]: unknown grouped output child \"mode\"",
+      ),
+      (
+        name: "bad-target-type",
+        content: """
 output 1 {
   mode 1920 1080 60
 }
 """,
-          needle: "output[0]: output target must be a string",
-        ),
-        (
-          name: "bad-group-monitor-target",
-          content:
-            """
+        needle: "output[0]: output target must be a string",
+      ),
+      (
+        name: "bad-group-monitor-target",
+        content: """
 output {
   monitor 1 {
     mode "preferred"
   }
 }
 """,
-          needle: "output[0]: monitor[0]: output target must be a string",
-        ),
-        (
-          name: "group-unknown-child",
-          content:
-            """
+        needle: "output[0]: monitor[0]: output target must be a string",
+      ),
+      (
+        name: "group-unknown-child",
+        content: """
 output {
   screen "DP-1" {
     mode "preferred"
   }
 }
 """,
-          needle: "output[0]: unknown grouped output child \"screen\"",
-        ),
-        (
-          name: "duplicate-group-default",
-          content:
-            """
+        needle: "output[0]: unknown grouped output child \"screen\"",
+      ),
+      (
+        name: "duplicate-group-default",
+        content: """
 output {
   default {
     scale "auto"
@@ -383,128 +368,116 @@ output {
   }
 }
 """,
-          needle: "output[0]: default output rule is duplicated",
-        ),
-        (
-          name: "unsupported-field",
-          content:
-            """
+        needle: "output[0]: default output rule is duplicated",
+      ),
+      (
+        name: "unsupported-field",
+        content: """
 output "DP-1" {
   mirror "eDP-1"
 }
 """,
-          needle: "output \"DP-1\" mirror: field is not supported",
-        ),
-        (
-          name: "unknown-field",
-          content:
-            """
+        needle: "output \"DP-1\" mirror: field is not supported",
+      ),
+      (
+        name: "unknown-field",
+        content: """
 output "DP-1" {
   mystery "right"
 }
 """,
-          needle: "output \"DP-1\" mystery: unknown field",
-        ),
-        (
-          name: "fallback-workspace",
-          content:
-            """
+        needle: "output \"DP-1\" mystery: unknown field",
+      ),
+      (
+        name: "fallback-workspace",
+        content: """
 output "" {
   workspaces 1
 }
 """,
-          needle: "output \"\" workspaces: fallback output rules cannot set",
-        ),
-        (
-          name: "contradictory-enabled",
-          content:
-            """
+        needle: "output \"\" workspaces: fallback output rules cannot set",
+      ),
+      (
+        name: "contradictory-enabled",
+        content: """
 output "DP-1" {
   enabled #true
   disabled #true
 }
 """,
-          needle: "output \"DP-1\" enabled: enabled and disabled fields request",
-        ),
-        (
-          name: "unsupported-hyprland-field",
-          content:
-            """
+        needle: "output \"DP-1\" enabled: enabled and disabled fields request",
+      ),
+      (
+        name: "unsupported-hyprland-field",
+        content: """
 output "DP-1" {
   auto "right"
 }
 """,
-          needle: "output \"DP-1\" auto: field is not supported",
-        ),
-        (
-          name: "bad-mode",
-          content:
-            """
+        needle: "output \"DP-1\" auto: field is not supported",
+      ),
+      (
+        name: "bad-mode",
+        content: """
 output "DP-1" {
   mode 1920 1080
 }
 """,
-          needle: "output \"DP-1\" mode: expected 1 or 3 argument",
-        ),
-        (
-          name: "bad-scale",
-          content:
-            """
+        needle: "output \"DP-1\" mode: expected 1 or 3 argument",
+      ),
+      (
+        name: "bad-scale",
+        content: """
 output "DP-1" {
   scale "bogus"
 }
 """,
-          needle: "output \"DP-1\" scale: expected a numeric scale or auto",
-        ),
-        (
-          name: "bad-position",
-          content:
-            """
+        needle: "output \"DP-1\" scale: expected a numeric scale or auto",
+      ),
+      (
+        name: "bad-position",
+        content: """
 output "DP-1" {
   position "middle"
 }
 """,
-          needle: "output \"DP-1\" position: expected XxY",
-        ),
-        (
-          name: "duplicate-layout",
-          content:
-            """
+        needle: "output \"DP-1\" position: expected XxY",
+      ),
+      (
+        name: "duplicate-layout",
+        content: """
 output {
   layout "DP-1"
   layout "DP-2"
 }
 """,
-          needle: "output[0]: layout is duplicated",
-        ),
-        (
-          name: "duplicate-layout-target",
-          content:
-            """
+        needle: "output[0]: layout is duplicated",
+      ),
+      (
+        name: "duplicate-layout-target",
+        content: """
 output {
   layout {
     row "DP-1" "DP-1"
   }
 }
 """,
-          needle: "output[0] layout row[0]: duplicate output target \"DP-1\"",
-        ),
-        (
-          name: "bad-layout-align",
-          content:
-            """
+        needle: "output[0] layout row[0]: duplicate output target \"DP-1\"",
+      ),
+      (
+        name: "bad-layout-align",
+        content: """
 output {
   layout {
     row "DP-1" align="middle"
   }
 }
 """,
-          needle: "output[0] layout row[0] align: expected left, center, or right",
-        ),
-        (
-          name: "layout-position-conflict",
-          content:
-            """
+        needle: "output[0] layout row[0] align: expected left, center, or right",
+      ),
+      (
+        name: "layout-position-conflict",
+        content: """
 output {
   layout "DP-1"
   monitor "DP-1" {
@@ -512,51 +485,47 @@ output {
   }
 }
 """,
-          needle:
-            "output \"DP-1\" position: cannot be set for an output listed in output layout",
-        ),
-        (
-          name: "bad-transform",
-          content:
-            """
+        needle:
+          "output \"DP-1\" position: cannot be set for an output listed in output layout",
+      ),
+      (
+        name: "bad-transform",
+        content: """
 output "DP-1" {
   transform "inverted"
 }
 """,
-          needle: "output \"DP-1\" transform: expected one of",
-        ),
-        (
-          name: "bad-adaptive-sync",
-          content:
-            """
+        needle: "output \"DP-1\" transform: expected one of",
+      ),
+      (
+        name: "bad-adaptive-sync",
+        content: """
 output "DP-1" {
   adaptive-sync "true"
 }
 """,
-          needle: "output \"DP-1\" adaptive-sync: expected a bool value",
-        ),
-        (
-          name: "bad-workspace",
-          content:
-            """
+        needle: "output \"DP-1\" adaptive-sync: expected a bool value",
+      ),
+      (
+        name: "bad-workspace",
+        content: """
 output "DP-1" {
   workspaces 1 -2
 }
 """,
-          needle: "output \"DP-1\" workspaces: workspace ids must be positive",
-        ),
-        (
-          name: "bad-reserved-area",
-          content:
-            """
+        needle: "output \"DP-1\" workspaces: workspace ids must be positive",
+      ),
+      (
+        name: "bad-reserved-area",
+        content: """
 output "DP-1" {
   reserved_area top=-1
 }
 """,
-          needle:
-            "output \"DP-1\" reserved_area: reserved area values must be non-negative",
-        ),
-      ]
+        needle:
+          "output \"DP-1\" reserved_area: reserved area values must be non-negative",
+      ),
+    ]
 
     for testCase in cases:
       let loaded = loadStrictConfigContent(testCase.content, testCase.name)
@@ -566,17 +535,16 @@ output "DP-1" {
   test "Configured reserved area is additive over live usable output area":
     var state = initRuntimeStateFromConfig(
       Config(
-        outputRules:
-          @[
-            OutputRule(
-              target: "HDMI-A-1",
-              reservedAreaSet: true,
-              reservedTop: 10,
-              reservedRight: 20,
-              reservedBottom: 30,
-              reservedLeft: 40,
-            )
-          ]
+        outputRules: @[
+          OutputRule(
+            target: "HDMI-A-1",
+            reservedAreaSet: true,
+            reservedTop: 10,
+            reservedRight: 20,
+            reservedBottom: 30,
+            reservedLeft: 40,
+          )
+        ]
       )
     )
 
@@ -893,112 +861,102 @@ totally-custom {
     check loaded.error == "unknown top-level config node \"totally-custom\""
 
   test "Strict config load rejects malformed fields inside known blocks":
-    let cases =
-      @[
-        (
-          name: "layout-child-typo",
-          content:
-            """
+    let cases = @[
+      (
+        name: "layout-child-typo",
+        content: """
 layout {
   gap 8
 }
 """,
-          needle: "layout: unknown field \"gap\"; did you mean \"gaps\"?",
-        ),
-        (
-          name: "binding-child-typo",
-          content:
-            """
+        needle: "layout: unknown field \"gap\"; did you mean \"gaps\"?",
+      ),
+      (
+        name: "binding-child-typo",
+        content: """
 bindings {
   bnd "Super+Return" "spawn foot"
 }
 """,
-          needle: "bindings: unknown field \"bnd\"; did you mean \"bind\"?",
-        ),
-        (
-          name: "binding-missing-command",
-          content:
-            """
+        needle: "bindings: unknown field \"bnd\"; did you mean \"bind\"?",
+      ),
+      (
+        name: "binding-missing-command",
+        content: """
 bindings {
   bind "Super+Return"
 }
 """,
-          needle: "bindings.bind[0]: expected 2 argument(s)",
-        ),
-        (
-          name: "input-child-typo",
-          content:
-            """
+        needle: "bindings.bind[0]: expected 2 argument(s)",
+      ),
+      (
+        name: "input-child-typo",
+        content: """
 input {
   keybord {
     repeat-rate 40
   }
 }
 """,
-          needle: "input: unknown field \"keybord\"; did you mean \"keyboard\"?",
-        ),
-        (
-          name: "input-nested-child-typo",
-          content:
-            """
+        needle: "input: unknown field \"keybord\"; did you mean \"keyboard\"?",
+      ),
+      (
+        name: "input-nested-child-typo",
+        content: """
 input {
   keyboard {
     repeet-rate 40
   }
 }
 """,
-          needle:
-            "input.keyboard: unknown field \"repeet-rate\"; did you mean \"repeat-rate\"?",
-        ),
-        (
-          name: "window-rule-nested-child-typo",
-          content:
-            """
+        needle:
+          "input.keyboard: unknown field \"repeet-rate\"; did you mean \"repeat-rate\"?",
+      ),
+      (
+        name: "window-rule-nested-child-typo",
+        content: """
 window-rule {
   floating {
     widht 800
   }
 }
 """,
-          needle:
-            "window-rule[0].floating: unknown field \"widht\"; did you mean \"width\"?",
-        ),
-        (
-          name: "recent-windows-nested-child-typo",
-          content:
-            """
+        needle:
+          "window-rule[0].floating: unknown field \"widht\"; did you mean \"width\"?",
+      ),
+      (
+        name: "recent-windows-nested-child-typo",
+        content: """
 recent-windows {
   binds {
     bnd "Alt+Tab" "recent-window-next"
   }
 }
 """,
-          needle: "recent-windows.binds: unknown field \"bnd\"; did you mean \"bind\"?",
-        ),
-        (
-          name: "shell-profile-child-typo",
-          content:
-            """
+        needle: "recent-windows.binds: unknown field \"bnd\"; did you mean \"bind\"?",
+      ),
+      (
+        name: "shell-profile-child-typo",
+        content: """
 shells {
   profile "demo" {
     lanuch "waybar"
   }
 }
 """,
-          needle: "shells.profile: unknown field \"lanuch\"; did you mean \"launch\"?",
-        ),
-        (
-          name: "notification-child-typo",
-          content:
-            """
+        needle: "shells.profile: unknown field \"lanuch\"; did you mean \"launch\"?",
+      ),
+      (
+        name: "notification-child-typo",
+        content: """
 config-notification {
   reload-succeded "notify-send" "ok"
 }
 """,
-          needle:
-            "config-notification: unknown field \"reload-succeded\"; did you mean \"reload-succeeded\"?",
-        ),
-      ]
+        needle:
+          "config-notification: unknown field \"reload-succeded\"; did you mean \"reload-succeeded\"?",
+      ),
+    ]
 
     for testCase in cases:
       let loaded = loadStrictConfigContent(testCase.content, testCase.name)
@@ -1063,6 +1021,14 @@ layout {
     check focus.isSome
     check focus.get().kind == MsgKind.CmdFocusWindowById
     check focus.get().focusWindowId == 42
+
+    let minimizedAlias = parseTextCommand("minimized")
+    check minimizedAlias.isSome
+    check minimizedAlias.get().kind == MsgKind.CmdMinimize
+
+    let restoreAlias = parseTextCommand("restore_minimized")
+    check restoreAlias.isSome
+    check restoreAlias.get().kind == MsgKind.CmdRestoreMinimized
 
     let close = parseTextCommand("close-window 43")
     check close.isSome

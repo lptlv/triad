@@ -1,5 +1,5 @@
 import std/options
-import window_policy, window_rules
+import focus, window_policy, window_rules
 import ../core/layout_selection_codec
 import ../core/native_layout_codec
 import ../state/engine
@@ -269,6 +269,8 @@ proc requestMinimizeForExternal*(model: var Model, externalId: ExternalWindowId)
 
   for tagId, tag in model.tagsWithId():
     if tag.focusedWindow == winId:
+      if model.focusMostRecentWindowOnTag(tagId):
+        continue
       var focused = NullWindowId
       for candidateId, candidate in model.windowsOnTagWithId(tagId):
         if not candidate.isMinimized and candidate.windowAdmitted():

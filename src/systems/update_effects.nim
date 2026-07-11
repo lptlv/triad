@@ -51,13 +51,12 @@ proc broadcastWorkspaceActiveWindowChanged*(workspace: ShellWorkspace): Effect =
       %workspace.focusedWindow
   Effect(
     kind: EffectKind.EffBroadcastJson,
-    jsonPayload:
-      $(
-        %*{
-          "WorkspaceActiveWindowChanged":
-            {"workspace_id": workspace.tagId, "active_window_id": activeWindow}
-        }
-      ),
+    jsonPayload: $(
+      %*{
+        "WorkspaceActiveWindowChanged":
+          {"workspace_id": workspace.tagId, "active_window_id": activeWindow}
+      }
+    ),
   )
 
 proc broadcastWindowFocusChanged*(winId: uint32): Effect =
@@ -103,13 +102,12 @@ proc broadcastOutputsChanged*(snapshot: ShellSnapshot): Effect =
 proc broadcastKeyboardLayoutsChanged*(snapshot: ShellSnapshot): Effect =
   Effect(
     kind: EffectKind.EffBroadcastJson,
-    jsonPayload:
-      $(
-        %*{
-          "KeyboardLayoutsChanged":
-            {"keyboard_layouts": niriKeyboardLayoutsJson(snapshot)}
-        }
-      ),
+    jsonPayload: $(
+      %*{
+        "KeyboardLayoutsChanged":
+          {"keyboard_layouts": niriKeyboardLayoutsJson(snapshot)}
+      }
+    ),
   )
 
 proc broadcastKeyboardLayoutSwitched*(index: uint32): Effect =
@@ -187,8 +185,9 @@ proc shouldBroadcastWindowsChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
       MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleFullscreen,
       MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
-      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdSelectWindow,
-      MsgKind.CmdRecentWindowConfirm, MsgKind.CmdFocusTag, MsgKind.CmdFocusWindowById:
+      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdRestoreMinimized,
+      MsgKind.CmdSelectWindow, MsgKind.CmdRecentWindowConfirm, MsgKind.CmdFocusTag,
+      MsgKind.CmdFocusWindowById:
     true
   else:
     false
@@ -214,7 +213,7 @@ proc shouldBroadcastNiriWindowsChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
       MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleFullscreen,
       MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
-      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize:
+      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdRestoreMinimized:
     true
   else:
     false
@@ -256,7 +255,8 @@ proc shouldBroadcastTriadLayoutChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
       MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleFullscreen,
       MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
-      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdSelectWindow:
+      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdRestoreMinimized,
+      MsgKind.CmdSelectWindow:
     true
   else:
     false
@@ -308,8 +308,9 @@ proc isFocusChangingCommand*(kind: MsgKind): bool =
     MsgKind.CmdFocusWindowOrWorkspaceDown, MsgKind.CmdFocusTag,
     MsgKind.CmdFocusWorkspaceIndex, MsgKind.CmdNewWorkspace, MsgKind.CmdFocusWindowById,
     MsgKind.CmdSelectWindow, MsgKind.CmdRecentWindowConfirm,
-    MsgKind.CmdToggleScratchpad, MsgKind.CmdToggleNamedScratchpad,
-    MsgKind.CmdRestoreScratchpad, MsgKind.WlShellSurfaceInteraction,
+    MsgKind.CmdRestoreMinimized, MsgKind.CmdToggleScratchpad,
+    MsgKind.CmdToggleNamedScratchpad, MsgKind.CmdRestoreScratchpad,
+    MsgKind.WlShellSurfaceInteraction,
   }
 
 proc shouldCollapseAfterUpdate*(kind: MsgKind): bool =
@@ -478,10 +479,10 @@ proc shouldSyncMaximizedPresentation(
     MsgKind.WlWindowUnmaximizeRequested, MsgKind.WlWindowMinimizeRequested,
     MsgKind.CmdSetLayout, MsgKind.CmdSetCustomLayout, MsgKind.CmdSwitchLayout,
     MsgKind.CmdMaximizeColumn, MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize,
-    MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
-    MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleOverview,
-    MsgKind.CmdOpenOverview, MsgKind.CmdCloseOverview, MsgKind.CmdOverviewTab,
-    MsgKind.CmdSelectWindow, MsgKind.CmdConfigReload,
+    MsgKind.CmdRestoreMinimized, MsgKind.CmdToggleFloating,
+    MsgKind.CmdSetWindowFloatingById, MsgKind.CmdSetWindowMaximizedById,
+    MsgKind.CmdToggleOverview, MsgKind.CmdOpenOverview, MsgKind.CmdCloseOverview,
+    MsgKind.CmdOverviewTab, MsgKind.CmdSelectWindow, MsgKind.CmdConfigReload,
   }
 
 proc addMaximizedPresentationSync(
@@ -550,6 +551,8 @@ proc addPostUpdateEffects*(
     effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: afterFocus))
   elif msg.kind == MsgKind.CmdFocusWindowById and msg.focusWindowId == afterFocus and
       afterFocus != 0:
+    effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: afterFocus))
+  elif msg.kind == MsgKind.CmdRestoreMinimized and afterFocus != 0:
     effects.add(Effect(kind: EffectKind.EffFocusWindow, focusId: afterFocus))
   elif (
     msg.kind in {MsgKind.CmdCloseOverview, MsgKind.CmdSelectWindow} or (

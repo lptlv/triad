@@ -308,6 +308,14 @@ proc focusMostRecentWindow*(model: var Model): bool =
     return false
   model.focusWindow(candidates[^1])
 
+proc restoreMostRecentMinimizedWindow*(model: var Model): bool =
+  for candidate in model.focusHistoryIdsReverse():
+    let winOpt = model.windowData(candidate)
+    if winOpt.isSome and winOpt.get().isMinimized and winOpt.get().windowAdmitted() and
+        model.tagForWindow(candidate) != NullTagId:
+      return model.focusWindow(candidate)
+  false
+
 proc focusMostRecentWindowOnTag*(model: var Model, tagId: TagId): bool =
   if tagId == NullTagId:
     return false

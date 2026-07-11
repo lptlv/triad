@@ -6,16 +6,15 @@ suite "Core Runtime Logic: presentation overview":
     var model = initRuntimeStateFromConfig(
       Config(
         workspaces: WorkspaceConfig(defaultCount: 3),
-        windowRules:
-          @[
-            WindowRule(
-              appIdMatch: "video",
-              openFloatingSet: true,
-              openFloating: true,
-              openFullscreenSet: true,
-              openFullscreen: true,
-            )
-          ],
+        windowRules: @[
+          WindowRule(
+            appIdMatch: "video",
+            openFloatingSet: true,
+            openFloating: true,
+            openFullscreenSet: true,
+            openFullscreen: true,
+          )
+        ],
       )
     ).model
     model.applyMsg(
@@ -83,16 +82,15 @@ suite "Core Runtime Logic: presentation overview":
     var model = initRuntimeStateFromConfig(
       Config(
         workspaces: WorkspaceConfig(defaultCount: 3),
-        windowRules:
-          @[
-            WindowRule(
-              appIdMatch: "editor",
-              openFloatingSet: true,
-              openFloating: true,
-              openMaximizedToEdgesSet: true,
-              openMaximizedToEdges: true,
-            )
-          ],
+        windowRules: @[
+          WindowRule(
+            appIdMatch: "editor",
+            openFloatingSet: true,
+            openFloating: true,
+            openMaximizedToEdgesSet: true,
+            openMaximizedToEdges: true,
+          )
+        ],
       )
     ).model
     model.applyMsg(
@@ -179,16 +177,15 @@ suite "Core Runtime Logic: presentation overview":
     var model = initRuntimeStateFromConfig(
       Config(
         workspaces: WorkspaceConfig(defaultCount: 3, defaultLayout: LayoutMode.Scroller),
-        windowRules:
-          @[
-            WindowRule(
-              appIdMatch: "docs",
-              openFloatingSet: true,
-              openFloating: true,
-              openMaximizedSet: true,
-              openMaximized: true,
-            )
-          ],
+        windowRules: @[
+          WindowRule(
+            appIdMatch: "docs",
+            openFloatingSet: true,
+            openFloating: true,
+            openMaximizedSet: true,
+            openMaximized: true,
+          )
+        ],
       )
     ).model
     model.applyMsg(
@@ -236,20 +233,19 @@ suite "Core Runtime Logic: presentation overview":
     var model = initRuntimeStateFromConfig(
       Config(
         workspaces: WorkspaceConfig(defaultCount: 3, defaultLayout: LayoutMode.Scroller),
-        windowRules:
-          @[
-            WindowRule(
-              appIdMatch: "conflict",
-              openFloatingSet: true,
-              openFloating: true,
-              openFullscreenSet: true,
-              openFullscreen: true,
-              openMaximizedSet: true,
-              openMaximized: true,
-              openMaximizedToEdgesSet: true,
-              openMaximizedToEdges: true,
-            )
-          ],
+        windowRules: @[
+          WindowRule(
+            appIdMatch: "conflict",
+            openFloatingSet: true,
+            openFloating: true,
+            openFullscreenSet: true,
+            openFullscreen: true,
+            openMaximizedSet: true,
+            openMaximized: true,
+            openMaximizedToEdgesSet: true,
+            openMaximizedToEdges: true,
+          )
+        ],
       )
     ).model
     model.applyMsg(
@@ -274,16 +270,15 @@ suite "Core Runtime Logic: presentation overview":
     var model = initRuntimeStateFromConfig(
       Config(
         workspaces: WorkspaceConfig(defaultCount: 3),
-        windowRules:
-          @[
-            WindowRule(
-              appIdMatch: "generic-app",
-              openFullscreenSet: true,
-              openFullscreen: true,
-              openFloatingSet: true,
-              openFloating: true,
-            )
-          ],
+        windowRules: @[
+          WindowRule(
+            appIdMatch: "generic-app",
+            openFullscreenSet: true,
+            openFullscreen: true,
+            openFloatingSet: true,
+            openFloating: true,
+          )
+        ],
       )
     ).model
     var restore = PendingRestoreState(activeSlot: 1)
@@ -397,6 +392,28 @@ suite "Core Runtime Logic: presentation overview":
     check restored.isMaximized
     check not restored.isMinimized
     check restoreEffects.hasMaximizedEffect(2, true)
+
+  test "Restore minimized focuses minimized windows in recent order":
+    var model = cameraModel()
+    model.seedCameraWindows(3)
+
+    discard model.updateModel(Msg(kind: MsgKind.CmdMinimize))
+    check model.snapshotWindow(3).isMinimized
+
+    discard model.updateModel(Msg(kind: MsgKind.CmdMinimize))
+    check model.snapshotWindow(2).isMinimized
+    check model.snapshotWindow(3).isMinimized
+
+    let firstRestoreEffects = model.updateModel(Msg(kind: MsgKind.CmdRestoreMinimized))
+    check model.snapshotWindow(2).isFocused
+    check not model.snapshotWindow(2).isMinimized
+    check model.snapshotWindow(3).isMinimized
+    check firstRestoreEffects.hasFocusEffect(2)
+
+    let secondRestoreEffects = model.updateModel(Msg(kind: MsgKind.CmdRestoreMinimized))
+    check model.snapshotWindow(3).isFocused
+    check not model.snapshotWindow(3).isMinimized
+    check secondRestoreEffects.hasFocusEffect(3)
 
   test "Floating popup preserves maximized backing windows":
     var model = initRuntimeStateFromConfig(
@@ -611,8 +628,8 @@ suite "Core Runtime Logic: presentation overview":
 
     check model.windowData(model.windowForExternal(ExternalWindowId(3))).get().isOverlay
     check not model
-    .windowData(model.windowForExternal(ExternalWindowId(3)))
-    .get().isFloating
+      .windowData(model.windowForExternal(ExternalWindowId(3)))
+      .get().isFloating
     check not overlayEffects.hasFullscreenEffect(2, false)
     check model.instructionGeom(2) == screen
     check model.instructionGeom(3).w > 0

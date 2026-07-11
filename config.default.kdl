@@ -315,6 +315,7 @@ bindings {
     bind "Super+t" "toggle-floating"
     bind "Super+Shift+t" "toggle-floating"
     bind "Super+Shift+b" "minimize"
+    bind "Super+Alt+b" "restore-minimized"
 
     // Scratchpad: send, toggle, restore.
     bind "Super+s" "move-to-scratchpad"

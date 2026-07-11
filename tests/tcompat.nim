@@ -38,74 +38,71 @@ proc snapshotForShell(): ShellSnapshot =
     layoutCycle: @[LayoutMode.Scroller, LayoutMode.Grid, LayoutMode.Monocle],
     keyboardLayoutNames: @["us", "de"],
     keyboardLayoutIndex: 0,
-    workspaces:
-      @[
-        ShellWorkspace(
-          tagId: 1,
-          workspaceIdx: 1,
-          name: "main",
-          layoutMode: LayoutMode.Scroller,
-          isActive: true,
-          focusedWindow: 10,
-          occupied: true,
-          outputName: "triad-0",
-          columns: @[ShellColumn(idx: 1, widthProportion: 0.5, windows: @[10'u32])],
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        ),
-        ShellWorkspace(
-          tagId: 2,
-          workspaceIdx: 2,
-          name: "web",
-          layoutMode: LayoutMode.Grid,
-          outputName: "triad-0",
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        ),
-        ShellWorkspace(
-          tagId: 3,
-          workspaceIdx: 3,
-          name: "",
-          layoutMode: LayoutMode.Scroller,
-          outputName: "triad-0",
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        ),
-      ],
-    windows:
-      @[
-        ShellWindow(
-          id: 10,
-          parentId: 9,
-          title: "Terminal",
-          appId: "Alacritty",
-          tagId: some(1'u32),
-          workspaceIdx: 1,
-          outputName: "triad-0",
-          colIdx: 1,
-          winIdx: 1,
-          isFocused: true,
-          widthProportion: 0.5,
-          heightProportion: 1.0,
-          actualW: 777,
-          actualH: 555,
-        )
-      ],
-    outputs:
-      @[
-        ShellOutput(
-          id: 0,
-          name: "triad-0",
-          w: 1920,
-          h: 1080,
-          refreshRate: 144000,
-          physicalWidth: 600,
-          physicalHeight: 340,
-          scale: 2.0,
-          transform: 1,
-          isPrimary: true,
-        )
-      ],
+    workspaces: @[
+      ShellWorkspace(
+        tagId: 1,
+        workspaceIdx: 1,
+        name: "main",
+        layoutMode: LayoutMode.Scroller,
+        isActive: true,
+        focusedWindow: 10,
+        occupied: true,
+        outputName: "triad-0",
+        columns: @[ShellColumn(idx: 1, widthProportion: 0.5, windows: @[10'u32])],
+        masterCount: 1,
+        masterSplitRatio: 0.5,
+      ),
+      ShellWorkspace(
+        tagId: 2,
+        workspaceIdx: 2,
+        name: "web",
+        layoutMode: LayoutMode.Grid,
+        outputName: "triad-0",
+        masterCount: 1,
+        masterSplitRatio: 0.5,
+      ),
+      ShellWorkspace(
+        tagId: 3,
+        workspaceIdx: 3,
+        name: "",
+        layoutMode: LayoutMode.Scroller,
+        outputName: "triad-0",
+        masterCount: 1,
+        masterSplitRatio: 0.5,
+      ),
+    ],
+    windows: @[
+      ShellWindow(
+        id: 10,
+        parentId: 9,
+        title: "Terminal",
+        appId: "Alacritty",
+        tagId: some(1'u32),
+        workspaceIdx: 1,
+        outputName: "triad-0",
+        colIdx: 1,
+        winIdx: 1,
+        isFocused: true,
+        widthProportion: 0.5,
+        heightProportion: 1.0,
+        actualW: 777,
+        actualH: 555,
+      )
+    ],
+    outputs: @[
+      ShellOutput(
+        id: 0,
+        name: "triad-0",
+        w: 1920,
+        h: 1080,
+        refreshRate: 144000,
+        physicalWidth: 600,
+        physicalHeight: 340,
+        scale: 2.0,
+        transform: 1,
+        isPrimary: true,
+      )
+    ],
   )
 
 proc handleNiriRequest(line: string, snapshot: ShellSnapshot): NiriIpcResult =
@@ -549,30 +546,27 @@ suite "Shell compatibility contracts":
   test "Triad native reads and layout commands use shell snapshots":
     var snapshot = snapshotForShell()
     snapshot.overviewActive = true
-    snapshot.customLayouts =
-      @[
-        JanetLayoutConfig(
-          id: janetLayoutId("notion"),
-          fallback: nativeSelection(nativeLayoutId("frame-tree"), LayoutMode.Scroller),
-        )
-      ]
-    snapshot.layoutCycleSelections =
-      @[
-        builtinSelection(LayoutMode.Scroller),
-        customSelection(
-          janetLayoutId("notion"),
-          nativeSelection(nativeLayoutId("frame-tree"), LayoutMode.Scroller),
-        ),
-      ]
+    snapshot.customLayouts = @[
+      JanetLayoutConfig(
+        id: janetLayoutId("notion"),
+        fallback: nativeSelection(nativeLayoutId("frame-tree"), LayoutMode.Scroller),
+      )
+    ]
+    snapshot.layoutCycleSelections = @[
+      builtinSelection(LayoutMode.Scroller),
+      customSelection(
+        janetLayoutId("notion"),
+        nativeSelection(nativeLayoutId("frame-tree"), LayoutMode.Scroller),
+      ),
+    ]
 
-    let captureSessions =
-      %*{
-        "active": true,
-        "window_total": 2,
-        "output_total": 1,
-        "windows": [{"id": 10, "count": 2}],
-        "outputs": [{"id": 1, "count": 1}],
-      }
+    let captureSessions = %*{
+      "active": true,
+      "window_total": 2,
+      "output_total": 1,
+      "windows": [{"id": 10, "count": 2}],
+      "outputs": [{"id": 1, "count": 1}],
+    }
 
     let stateReply = handleTriadRequest(
       """{"triad":{"version":1,"request":"state"}}""", snapshot, captureSessions
@@ -757,6 +751,10 @@ suite "Shell compatibility contracts":
           check resolved.isSome
           check resolved.get().id == spec.id
 
+    check resolveCommandSpec("minimized").get().id == CommandId.CidMinimize
+    check resolveCommandSpec("restore_minimized").get().id ==
+      CommandId.CidRestoreMinimized
+
   test "Triad msg help and catalog are generated from command registry":
     let help = renderMsgHelp()
     check help.contains("triad msg validate <command...>")
@@ -831,7 +829,7 @@ suite "Shell compatibility contracts":
     check parseJson(dispatchPayload.get())["triad"]["request"].getStr() ==
       "dispatch-binding"
     check parseBindingDispatchText("dispatch-binding gesture Super+swipe-left 3")
-    .get().fingers == 3'u32
+      .get().fingers == 3'u32
     let stream = parseJson(nativeEventStreamPayload(@["layout"]))
     check stream["triad"]["request"].getStr() == "event-stream"
     check stream["triad"]["events"][0].getStr() == "layout"
@@ -1122,15 +1120,14 @@ exit 0
         configured: true,
         enabled: true,
         active: "old",
-        profiles:
-          @[
-            ShellProfileConfig(
-              name: "old", launch: @[fake, "launch-old"], stop: @[fake, "stop-old"]
-            ),
-            ShellProfileConfig(
-              name: "new", launch: @[fake, "launch-new"], stop: @[fake, "stop-new"]
-            ),
-          ],
+        profiles: @[
+          ShellProfileConfig(
+            name: "old", launch: @[fake, "launch-old"], stop: @[fake, "stop-old"]
+          ),
+          ShellProfileConfig(
+            name: "new", launch: @[fake, "launch-new"], stop: @[fake, "stop-new"]
+          ),
+        ],
       )
     )
     let current = Model(
@@ -1236,10 +1233,9 @@ sleep 5
         configured: true,
         enabled: true,
         active: "noctalia",
-        profiles:
-          @[
-            ShellProfileConfig(name: "noctalia", launch: @[fakeShell], niriCompat: true)
-          ],
+        profiles: @[
+          ShellProfileConfig(name: "noctalia", launch: @[fakeShell], niriCompat: true)
+        ],
       )
     )
     var runner = ShellRunner()
@@ -1293,13 +1289,12 @@ sleep 5
         watchdog: ShellWatchdogConfig(
           enabled: true, fallback: "waybar", exclusiveFocusTimeoutMs: 30000
         ),
-        profiles:
-          @[
-            ShellProfileConfig(
-              name: "dank", launch: @[fake, "launch-dank"], stop: @[fake, "stop-dank"]
-            ),
-            ShellProfileConfig(name: "waybar", launch: @[fake, "launch-waybar"]),
-          ],
+        profiles: @[
+          ShellProfileConfig(
+            name: "dank", launch: @[fake, "launch-dank"], stop: @[fake, "stop-dank"]
+          ),
+          ShellProfileConfig(name: "waybar", launch: @[fake, "launch-waybar"]),
+        ],
       )
     )
     var runner = ShellRunner()
@@ -1322,11 +1317,10 @@ sleep 5
         watchdog: ShellWatchdogConfig(
           enabled: true, fallback: "waybar", exclusiveFocusTimeoutMs: 10
         ),
-        profiles:
-          @[
-            ShellProfileConfig(name: "dank", launch: @["dms", "run"]),
-            ShellProfileConfig(name: "waybar", launch: @["waybar"]),
-          ],
+        profiles: @[
+          ShellProfileConfig(name: "dank", launch: @["dms", "run"]),
+          ShellProfileConfig(name: "waybar", launch: @["waybar"]),
+        ],
       ),
     )
     var runner = ShellRunner()
@@ -1369,20 +1363,17 @@ exit 0
         configured: true,
         enabled: true,
         active: "noctalia",
-        profiles:
-          @[
-            ShellProfileConfig(
-              name: "noctalia",
-              launch: @[fake, "launch-noctalia"],
-              stop: @[fake, "stop-noctalia"],
-            ),
-            ShellProfileConfig(
-              name: "waybar", launch: @[fake], stop: @[fake, "stop-waybar"]
-            ),
-            ShellProfileConfig(
-              name: "dank", launch: @[fake], stop: @[fake, "stop-dank"]
-            ),
-          ],
+        profiles: @[
+          ShellProfileConfig(
+            name: "noctalia",
+            launch: @[fake, "launch-noctalia"],
+            stop: @[fake, "stop-noctalia"],
+          ),
+          ShellProfileConfig(
+            name: "waybar", launch: @[fake], stop: @[fake, "stop-waybar"]
+          ),
+          ShellProfileConfig(name: "dank", launch: @[fake], stop: @[fake, "stop-dank"]),
+        ],
       )
     )
     var runner = ShellRunner(spawnPending: true)

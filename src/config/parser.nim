@@ -1514,6 +1514,7 @@ proc defaultKeyBindings*(): seq[KeyBindingConfig] =
     KeyBindingConfig(key: "f", modifiers: 65'u32, command: "fullscreen-window"),
     KeyBindingConfig(key: "m", modifiers: 64'u32, command: "maximize-column"),
     KeyBindingConfig(key: "b", modifiers: 65'u32, command: "minimize"),
+    KeyBindingConfig(key: "b", modifiers: 72'u32, command: "restore-minimized"),
     KeyBindingConfig(key: "s", modifiers: 64'u32, command: "move-to-scratchpad"),
     KeyBindingConfig(key: "s", modifiers: 72'u32, command: "toggle-scratchpad"),
     KeyBindingConfig(key: "s", modifiers: 65'u32, command: "restore-scratchpad"),
@@ -1560,11 +1561,10 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
   result.layout.gaps = DefaultGaps
   result.layout.centerFocusedColumn = DefaultCenterFocusedColumn
   result.layout.defaultColumnWidth = DefaultColumnWidth
-  result.layout.scrollerProportionPresets =
-    @[
-      DefaultScrollerProportionPresetSmall, DefaultScrollerProportionPresetMedium,
-      DefaultScrollerProportionPresetLarge, DefaultScrollerProportionPresetFull,
-    ]
+  result.layout.scrollerProportionPresets = @[
+    DefaultScrollerProportionPresetSmall, DefaultScrollerProportionPresetMedium,
+    DefaultScrollerProportionPresetLarge, DefaultScrollerProportionPresetFull,
+  ]
   result.layout.defaultWindowWidth = DefaultWindowWidth
   result.layout.defaultWindowHeight = DefaultWindowHeight
   result.layout.defaultMasterCount = DefaultMasterCount
@@ -1588,19 +1588,17 @@ proc loadConfigNodes*(doc: KdlDoc, path = ""): Config =
   result.layout.animationSnapThreshold = DefaultAnimationSnapThreshold
   result.layout.frameRate = DefaultFrameRate
   result.layout.smartGaps = false
-  result.layout.layoutCycle =
-    @[
-      LayoutMode.Scroller, LayoutMode.Scroller, LayoutMode.Scroller,
-      LayoutMode.Scroller, LayoutMode.VerticalScroller,
-    ]
-  result.layout.layoutSelections =
-    @[
-      builtinLayoutSelection(LayoutMode.Scroller),
-      customSelection(janetLayoutId("tile"), LayoutMode.Scroller),
-      customSelection(janetLayoutId("grid"), LayoutMode.Scroller),
-      customSelection(janetLayoutId("monocle"), LayoutMode.Scroller),
-      builtinLayoutSelection(LayoutMode.VerticalScroller),
-    ]
+  result.layout.layoutCycle = @[
+    LayoutMode.Scroller, LayoutMode.Scroller, LayoutMode.Scroller, LayoutMode.Scroller,
+    LayoutMode.VerticalScroller,
+  ]
+  result.layout.layoutSelections = @[
+    builtinLayoutSelection(LayoutMode.Scroller),
+    customSelection(janetLayoutId("tile"), LayoutMode.Scroller),
+    customSelection(janetLayoutId("grid"), LayoutMode.Scroller),
+    customSelection(janetLayoutId("monocle"), LayoutMode.Scroller),
+    builtinLayoutSelection(LayoutMode.VerticalScroller),
+  ]
   result.workspaces.defaultCount = DefaultWorkspaceCount
   result.workspaces.defaultLayout = LayoutMode.Scroller
   result.workspaces.defaultLayoutSelection = builtinLayoutSelection(LayoutMode.Scroller)

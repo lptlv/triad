@@ -1,4 +1,4 @@
-import std/[json, os, osproc, posix, strutils, times]
+import std/[os, osproc, posix, strutils, times]
 import logs, process_io
 
 var shutdownSignal {.volatile.}: cint
@@ -74,8 +74,11 @@ proc runSupervisor*(): int =
       )
       if recordClaim.path.len == 0:
         recordClaim = claimSessionRecord(currentSessionPath(dir), record)
-      else:
-        writeAtomic(currentSessionPath(dir), $record.recordJson())
+      elif not writeClaimedSessionRecord(recordClaim, record):
+        echo "triad-supervise: current session metadata claimed by another supervisor; stopping"
+        process.terminate()
+        discard process.waitForExit(3000)
+        return 0
 
       let status = waitForChild(process)
       try:

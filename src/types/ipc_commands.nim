@@ -102,6 +102,7 @@ type
     CidExitFullscreen
     CidToggleMaximized
     CidMinimize
+    CidRestoreMinimized
     CidScreenshot
     CidScreenshotScreen
     CidScreenshotWindow
@@ -550,7 +551,13 @@ const CommandSpecs* = [
   CommandSpec(
     id: CommandId.CidMinimize,
     name: "minimize",
-    aliases: "minimize-window",
+    aliases: "minimize-window|minimized",
+    argShape: NoArgs,
+  ),
+  CommandSpec(
+    id: CommandId.CidRestoreMinimized,
+    name: "restore-minimized",
+    aliases: "restore_minimized",
     argShape: NoArgs,
   ),
   CommandSpec(id: CommandId.CidScreenshot, name: "screenshot", argShape: Screenshot),

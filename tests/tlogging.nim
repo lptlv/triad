@@ -121,6 +121,48 @@ exit 1
     restoreSessionRecord(claim)
     check not session_logs.logsJson(dir)["ok"].getBool()
 
+  test "session metadata old claimant cannot overwrite newer supervisor":
+    let dir = getTempDir() / ("triad-session-claim-guard-" & $getCurrentProcessId())
+    createDir(dir)
+    defer:
+      if dirExists(dir):
+        removeDir(dir)
+
+    var oldRecord = SessionLogRecord(
+      claimId: "old-claim",
+      sessionId: "old-session",
+      sessionPid: 11,
+      supervisorPid: 12,
+      daemonPid: 13,
+      stateDir: dir,
+      sessionLog: dir / "old-session.log",
+      daemonLog: dir / "old-daemon.log",
+      startedAt: "2026-05-23T12:00:00-04:00",
+      supervisorProtocol: SupervisorProtocolVersion,
+    )
+    let oldClaim = claimSessionRecord(currentSessionPath(dir), oldRecord)
+
+    let newRecord = SessionLogRecord(
+      claimId: "new-claim",
+      sessionId: "new-session",
+      sessionPid: 21,
+      supervisorPid: 22,
+      daemonPid: 23,
+      stateDir: dir,
+      sessionLog: dir / "new-session.log",
+      daemonLog: dir / "new-daemon.log",
+      startedAt: "2026-05-23T12:01:00-04:00",
+      supervisorProtocol: SupervisorProtocolVersion,
+    )
+    discard claimSessionRecord(currentSessionPath(dir), newRecord)
+
+    oldRecord.daemonPid = 99
+    check not writeClaimedSessionRecord(oldClaim, oldRecord)
+
+    let payload = parseFile(currentSessionPath(dir))
+    check payload["claim_id"].getStr() == "new-claim"
+    check payload["daemon_pid"].getInt() == 23
+
   test "session symlink claims restore previous target":
     let dir = getTempDir() / ("triad-session-symlinks-" & $getCurrentProcessId())
     createDir(dir)
