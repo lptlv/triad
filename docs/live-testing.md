@@ -174,6 +174,13 @@ or Waybar configured with `niri/workspaces`. Noctalia v5 normally uses native
 Triad IPC instead; use the Niri compatibility path only for older or explicitly
 Niri-configured Noctalia profiles.
 
+The Niri facade exposes each window's native Wayland `app_id`; shell clients
+must use that value when associating Niri windows with foreign toplevels. It
+supports only actions with a faithful Triad command mapping. Invalid targets
+and unsupported Niri-only actions return `Err` rather than a successful no-op.
+In particular, `FocusWindow` uses the window ID from the Niri window list and
+restores a minimized Triad window before focusing it.
+
 DMS screenshot actions require `grim`, `slurp`, and `wl-copy`. `satty` or
 `swappy` are opened by DMS after Triad emits the Niri-compatible
 `ScreenshotCaptured` event for disk-backed captures.

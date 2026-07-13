@@ -90,7 +90,8 @@ proc recordNiriActionDetails(ipc: var NiriIpcResult, action: JsonNode) =
         let tag = uintFromNode(refNode["Id"])
         if tag.isSome:
           ipc.workspaceId = tag.get()
-  of "FocusWindow", "CloseWindow":
+  of "FocusWindow", "CloseWindow", "FullscreenWindow", "MaximizeWindowToEdges",
+      "ToggleWindowFloating", "MoveWindowToFloating", "MoveWindowToTiling":
     if payload.kind == JObject and payload.hasKey("id") and payload["id"].kind != JNull:
       let win = uintFromNode(payload["id"])
       if win.isSome:
@@ -135,11 +136,68 @@ proc windowById(snapshot: ShellSnapshot, winId: uint32): Option[ShellWindow] =
       return some(win)
   none(ShellWindow)
 
+proc workspaceById(snapshot: ShellSnapshot, workspaceId: uint32): Option[ShellWorkspace] =
+  for workspace in snapshot.workspaces:
+    if workspace.tagId == workspaceId:
+      return some(workspace)
+  none(ShellWorkspace)
+
+proc workspaceByIndex(
+    snapshot: ShellSnapshot, workspaceIndex: uint32
+): Option[ShellWorkspace] =
+  for workspace in snapshot.workspaces:
+    if workspace.workspaceIdx == workspaceIndex:
+      return some(workspace)
+  none(ShellWorkspace)
+
+proc workspaceByName(snapshot: ShellSnapshot, name: string): Option[ShellWorkspace] =
+  if name.len == 0:
+    return none(ShellWorkspace)
+  for workspace in snapshot.workspaces:
+    if workspace.name == name:
+      return some(workspace)
+  none(ShellWorkspace)
+
+proc activeWorkspace(snapshot: ShellSnapshot): Option[ShellWorkspace] =
+  for workspace in snapshot.workspaces:
+    if workspace.isActive:
+      return some(workspace)
+  none(ShellWorkspace)
+
+proc workspaceReference(snapshot: ShellSnapshot, reference: JsonNode): Option[ShellWorkspace] =
+  if reference.kind != JObject:
+    return none(ShellWorkspace)
+  if reference.hasKey("Index"):
+    let index = uintFromNode(reference["Index"])
+    if index.isSome:
+      return snapshot.workspaceByIndex(index.get())
+  elif reference.hasKey("Id"):
+    let id = uintFromNode(reference["Id"])
+    if id.isSome:
+      return snapshot.workspaceById(id.get())
+  elif reference.hasKey("Name") and reference["Name"].kind == JString:
+    return snapshot.workspaceByName(reference["Name"].getStr())
+  none(ShellWorkspace)
+
+proc requestedWindow(
+    snapshot: ShellSnapshot, payload: JsonNode, field = "id"
+): tuple[specified, valid: bool, id: uint32] =
+  if payload.kind != JObject:
+    return (false, false, 0'u32)
+  if not payload.hasKey(field) or payload[field].kind == JNull:
+    return (false, true, 0'u32)
+  let id = uintFromNode(payload[field])
+  if id.isNone or snapshot.windowById(id.get()).isNone:
+    return (true, false, 0'u32)
+  (true, true, id.get())
+
 proc toggleMaximizeMessage(snapshot: ShellSnapshot, winId: uint32): Option[Msg] =
   if winId == 0'u32:
     return none(Msg)
   let win = snapshot.windowById(winId)
-  if win.isSome and win.get().isMaximized:
+  if win.isNone:
+    return none(Msg)
+  if win.get().isMaximized:
     return
       some(Msg(kind: MsgKind.WlWindowUnmaximizeRequested, unmaximizeRequestId: winId))
   some(Msg(kind: MsgKind.WlWindowMaximizeRequested, maximizeRequestId: winId))
@@ -195,13 +253,22 @@ proc actionMessages(
               @[Msg(kind: MsgKind.CmdFocusWorkspaceIndex, workspaceIndex: index.get())],
             )
         elif refNode.hasKey("Id"):
-          let tag = uintFromNode(refNode["Id"])
-          if tag.isSome:
-            return (true, @[Msg(kind: MsgKind.CmdFocusTag, focusTag: tag.get())])
+          let workspace = snapshot.workspaceReference(refNode)
+          if workspace.isSome:
+            return (true, @[Msg(kind: MsgKind.CmdFocusTag, focusTag: workspace.get().tagId)])
+        elif refNode.hasKey("Name"):
+          let workspace = snapshot.workspaceReference(refNode)
+          if workspace.isSome:
+            return (true, @[Msg(kind: MsgKind.CmdFocusTag, focusTag: workspace.get().tagId)])
   elif action.hasKey("FocusWorkspaceDown"):
     return (true, @[Msg(kind: MsgKind.CmdFocusTagRight)])
   elif action.hasKey("FocusWorkspaceUp"):
     return (true, @[Msg(kind: MsgKind.CmdFocusTagLeft)])
+  elif action.hasKey("FocusMonitor"):
+    let payload = action["FocusMonitor"]
+    let output = stringFromField(payload, "output")
+    if output.len > 0:
+      return (true, @[Msg(kind: MsgKind.CmdFocusOutput, outputTarget: output)])
   elif action.hasKey("ToggleOverview"):
     return (true, @[Msg(kind: MsgKind.CmdToggleOverview)])
   elif action.hasKey("OpenOverview"):
@@ -247,25 +314,67 @@ proc actionMessages(
     return (true, @[Msg(kind: MsgKind.CmdMoveWindowLeft)])
   elif action.hasKey("MoveWindowRight"):
     return (true, @[Msg(kind: MsgKind.CmdMoveWindowRight)])
+  elif action.hasKey("MoveWindowToWorkspace"):
+    let payload = action["MoveWindowToWorkspace"]
+    if payload.kind == JObject and payload.hasKey("reference"):
+      let workspace = snapshot.workspaceReference(payload["reference"])
+      let target = snapshot.requestedWindow(payload, "window_id")
+      if workspace.isSome and target.valid:
+        let windowId =
+          if target.specified:
+            target.id
+          else:
+            snapshot.focusedWindow()
+        if windowId != 0'u32 and snapshot.windowById(windowId).isSome:
+          return (
+            true,
+            @[
+              Msg(
+                kind: MsgKind.CmdMoveWindowToWorkspaceIndex,
+                moveWorkspaceWindowId: windowId,
+                moveWorkspaceIndex: workspace.get().workspaceIdx,
+                moveWorkspaceFollowWindow: boolFromField(payload, "focus", true),
+              )
+            ],
+          )
+  elif action.hasKey("MoveWindowToMonitor"):
+    let payload = action["MoveWindowToMonitor"]
+    let target = snapshot.requestedWindow(payload)
+    let output = stringFromField(payload, "output")
+    if target.valid and output.len > 0:
+      let focused = snapshot.focusedWindow()
+      if not target.specified or target.id == focused:
+        return (true, @[Msg(kind: MsgKind.CmdMoveToOutput, outputTarget: output)])
+  elif action.hasKey("MoveWorkspaceToMonitor"):
+    let payload = action["MoveWorkspaceToMonitor"]
+    let output = stringFromField(payload, "output")
+    let requested =
+      if payload.kind == JObject and payload.hasKey("reference") and
+          payload["reference"].kind != JNull:
+        snapshot.workspaceReference(payload["reference"])
+      else:
+        snapshot.activeWorkspace()
+    let active = snapshot.activeWorkspace()
+    if output.len > 0 and requested.isSome and active.isSome and
+        requested.get().tagId == active.get().tagId:
+      return (true, @[Msg(kind: MsgKind.CmdMoveWorkspaceToOutput, outputTarget: output)])
   elif action.hasKey("FocusWindow"):
     let payload = action["FocusWindow"]
-    if payload.kind == JObject and payload.hasKey("id") and payload["id"].kind != JNull:
-      let win = uintFromNode(payload["id"])
-      if win.isSome:
-        return (
-          true,
-          @[Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: uint32(win.get()))],
-        )
+    let target = snapshot.requestedWindow(payload)
+    if target.specified and target.valid:
+      return (
+        true,
+        @[Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: target.id)],
+      )
   elif action.hasKey("CloseWindow"):
     let payload = action["CloseWindow"]
-    if payload.kind == JObject and payload.hasKey("id") and payload["id"].kind != JNull:
-      let win = uintFromNode(payload["id"])
-      if win.isSome:
-        return (
-          true,
-          @[Msg(kind: MsgKind.CmdCloseWindowById, closeWindowId: uint32(win.get()))],
-        )
-    return (true, @[Msg(kind: MsgKind.CmdCloseWindow)])
+    let target = snapshot.requestedWindow(payload)
+    if not target.valid:
+      return (false, @[])
+    if target.specified:
+      return (true, @[Msg(kind: MsgKind.CmdCloseWindowById, closeWindowId: target.id)])
+    if payload.kind == JObject:
+      return (true, @[Msg(kind: MsgKind.CmdCloseWindow)])
   elif action.hasKey("SwitchLayout"):
     return (true, @[switchKeyboardLayoutMessage(action["SwitchLayout"])])
   elif action.hasKey("Spawn"):
@@ -274,59 +383,129 @@ proc actionMessages(
       let command = stringSeqFromNode(payload["command"])
       if command.len > 0:
         return (true, @[Msg(kind: MsgKind.CmdSpawn, spawnCommand: command)])
-    return (true, @[])
+    return (false, @[])
   elif action.hasKey("SpawnSh"):
     let command = stringFromField(action["SpawnSh"], "command")
     if command.len > 0:
       return
         (true, @[Msg(kind: MsgKind.CmdSpawn, spawnCommand: @["sh", "-c", command])])
-    return (true, @[])
+    return (false, @[])
   elif action.hasKey("SetWorkspaceName"):
     let payload = action["SetWorkspaceName"]
+    if payload.kind != JObject or (payload.hasKey("workspace") and
+        payload["workspace"].kind != JNull):
+      return (false, @[])
     return (
       true,
       @[Msg(kind: MsgKind.CmdRenameTag, newName: stringFromField(payload, "name"))],
     )
   elif action.hasKey("UnsetWorkspaceName"):
+    let payload = action["UnsetWorkspaceName"]
+    if payload.kind != JObject or (payload.hasKey("workspace") and
+        payload["workspace"].kind != JNull):
+      return (false, @[])
     return (true, @[Msg(kind: MsgKind.CmdRenameTag, newName: "")])
   elif action.hasKey("MoveWorkspaceToIndex"):
     let payload = action["MoveWorkspaceToIndex"]
-    if payload.kind == JObject and payload.hasKey("index") and
-        payload.hasKey("reference") and payload["reference"].kind == JObject and
-        payload["reference"].hasKey("Index"):
+    if payload.kind == JObject and payload.hasKey("index"):
       let target = uintFromNode(payload["index"])
-      let source = uintFromNode(payload["reference"]["Index"])
+      let source =
+        if payload.hasKey("reference") and payload["reference"].kind != JNull:
+          snapshot.workspaceReference(payload["reference"])
+        else:
+          snapshot.activeWorkspace()
       if source.isSome and target.isSome:
         return (
           true,
           @[
             Msg(
               kind: MsgKind.CmdReorderWorkspaceIndex,
-              reorderWorkspaceIndex: source.get(),
+              reorderWorkspaceIndex: source.get().workspaceIdx,
               reorderTargetIndex: target.get(),
             )
           ],
         )
-    return (true, @[])
+    return (false, @[])
   elif action.hasKey("FullscreenWindow"):
-    return (true, @[Msg(kind: MsgKind.CmdToggleFullscreen)])
+    let payload = action["FullscreenWindow"]
+    let target = snapshot.requestedWindow(payload)
+    if not target.valid:
+      return (false, @[])
+    if target.specified:
+      return (true, @[Msg(kind: MsgKind.CmdToggleFullscreenById, fullscreenWindowId: target.id)])
+    if payload.kind == JObject:
+      return (true, @[Msg(kind: MsgKind.CmdToggleFullscreen)])
   elif action.hasKey("MaximizeColumn"):
     return (true, @[Msg(kind: MsgKind.CmdMaximizeColumn)])
   elif action.hasKey("MaximizeWindowToEdges"):
     let payload = action["MaximizeWindowToEdges"]
-    if payload.kind == JObject and payload.hasKey("id") and payload["id"].kind != JNull:
-      let win = uintFromNode(payload["id"])
-      if win.isSome:
-        let msg = snapshot.toggleMaximizeMessage(uint32(win.get()))
-        if msg.isSome:
-          return (true, @[msg.get()])
+    let target = snapshot.requestedWindow(payload)
+    if not target.valid:
+      return (false, @[])
+    if target.specified:
+      let msg = snapshot.toggleMaximizeMessage(target.id)
+      if msg.isSome:
+        return (true, @[msg.get()])
+      return (false, @[])
+    if payload.kind != JObject:
+      return (false, @[])
     let focused = snapshot.focusedWindow()
     let msg = snapshot.toggleMaximizeMessage(focused)
     if msg.isSome:
       return (true, @[msg.get()])
-    return (true, @[])
+    return (false, @[])
   elif action.hasKey("ToggleWindowFloating"):
-    return (true, @[Msg(kind: MsgKind.CmdToggleFloating)])
+    let payload = action["ToggleWindowFloating"]
+    let target = snapshot.requestedWindow(payload)
+    if not target.valid:
+      return (false, @[])
+    if target.specified:
+      let win = snapshot.windowById(target.id)
+      return (
+        true,
+        @[
+          Msg(
+            kind: MsgKind.CmdSetWindowFloatingById,
+            floatingWindowId: target.id,
+            windowFloating: not win.get().isFloating,
+          )
+        ],
+      )
+    if payload.kind == JObject:
+      return (true, @[Msg(kind: MsgKind.CmdToggleFloating)])
+  elif action.hasKey("MoveWindowToFloating") or action.hasKey("MoveWindowToTiling"):
+    let floatWindow = action.hasKey("MoveWindowToFloating")
+    let payload =
+      if floatWindow:
+        action["MoveWindowToFloating"]
+      else:
+        action["MoveWindowToTiling"]
+    let target = snapshot.requestedWindow(payload)
+    if target.valid and payload.kind == JObject:
+      let windowId =
+        if target.specified:
+          target.id
+        else:
+          snapshot.focusedWindow()
+      if windowId != 0'u32 and snapshot.windowById(windowId).isSome:
+        return (
+          true,
+          @[
+            Msg(
+              kind: MsgKind.CmdSetWindowFloatingById,
+              floatingWindowId: windowId,
+              windowFloating: floatWindow,
+            )
+          ],
+        )
+  elif action.hasKey("SwitchPresetColumnWidth"):
+    return (true, @[Msg(kind: MsgKind.CmdSwitchProportionPreset, proportionPresetDelta: 1)])
+  elif action.hasKey("ShowHotkeyOverlay"):
+    return (true, @[Msg(kind: MsgKind.CmdShowHotkeyOverlay)])
+  elif action.hasKey("LoadConfigFile"):
+    let payload = action["LoadConfigFile"]
+    if payload.kind == JObject and stringFromField(payload, "path").len == 0:
+      return (true, @[Msg(kind: MsgKind.CmdConfigReload)])
   elif action.hasKey("Quit"):
     let payload = action["Quit"]
     if payload.kind == JObject and
@@ -391,12 +570,6 @@ proc actionMessages(
     return (true, @[Msg(kind: MsgKind.CmdPowerOffMonitors)])
   elif action.hasKey("PowerOnMonitors"):
     return (true, @[Msg(kind: MsgKind.CmdPowerOnMonitors)])
-  elif action.hasKey("DoScreenTransition") or action.hasKey("CenterColumn") or
-      action.hasKey("CenterVisibleColumns") or action.hasKey("SwitchPresetColumnWidth") or
-      action.hasKey("SwitchPresetWindowHeight") or
-      action.hasKey("ToggleColumnTabbedDisplay"):
-    return (true, @[])
-
   (false, @[])
 
 proc handleNiriRequest*(line: string, snapshot: ShellSnapshot): NiriIpcResult =
@@ -459,7 +632,11 @@ proc handleNiriRequest*(line: string, snapshot: ShellSnapshot): NiriIpcResult =
     if action.handled:
       result.reply = handledReply()
     else:
-      result.error = "unsupported niri action"
+      result.error =
+        if result.actionName.len > 0:
+          "unsupported or invalid niri action: " & result.actionName
+        else:
+          "unsupported or invalid niri action"
       result.reply = errReply(result.error)
     return
 

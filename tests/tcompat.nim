@@ -293,8 +293,8 @@ suite "Shell compatibility contracts":
       parseJson(handleNiriRequest("\"Windows\"", snapshot).reply)["Ok"]["Windows"]
     check windows.len == 1
     check windows[0]["id"].getInt() == 10
-    check windows[0]["app_id"].getStr() == "triad-alacritty"
-    check windows[0]["raw_app_id"].getStr() == "Alacritty"
+    check windows[0]["app_id"].getStr() == "Alacritty"
+    check not windows[0].hasKey("raw_app_id")
     check windows[0]["layout"]["window_size"][0].getInt() == 777
     check windows[0]["layout"]["window_size"][1].getInt() == 555
 
@@ -405,6 +405,20 @@ suite "Shell compatibility contracts":
     check focusWsId.actionName == "FocusWorkspace"
     check focusWsId.workspaceId == 2
 
+    let focusWsName = handleNiriRequest(
+      """{"Action":{"FocusWorkspace":{"reference":{"Name":"web"}}}}""", snapshot
+    )
+    check focusWsName.messages.len == 1
+    check focusWsName.messages[0].kind == MsgKind.CmdFocusTag
+    check focusWsName.messages[0].focusTag == 2
+
+    let focusMonitor = handleNiriRequest(
+      """{"Action":{"FocusMonitor":{"output":"triad-0"}}}""", snapshot
+    )
+    check focusMonitor.messages.len == 1
+    check focusMonitor.messages[0].kind == MsgKind.CmdFocusOutput
+    check focusMonitor.messages[0].outputTarget == "triad-0"
+
     let focusNext =
       handleNiriRequest("""{"Action":{"FocusWorkspaceDown":{}}}""", snapshot)
     check focusNext.messages.len == 1
@@ -441,6 +455,12 @@ suite "Shell compatibility contracts":
     check closeWin.messages.len == 1
     check closeWin.messages[0].kind == MsgKind.CmdCloseWindowById
     check closeWin.messages[0].closeWindowId == 10
+
+    let invalidClose = handleNiriRequest(
+      """{"Action":{"CloseWindow":{"id":999}}}""", snapshot
+    )
+    check invalidClose.messages.len == 0
+    check parseJson(invalidClose.reply).hasKey("Err")
 
     let spawn = handleNiriRequest(
       """{"Action":{"Spawn":{"command":["foot","-e","htop"]}}}""", snapshot
@@ -485,6 +505,15 @@ suite "Shell compatibility contracts":
     check reorderWorkspace.messages[0].reorderWorkspaceIndex == 1
     check reorderWorkspace.messages[0].reorderTargetIndex == 2
 
+    let reorderWorkspaceById = handleNiriRequest(
+      """{"Action":{"MoveWorkspaceToIndex":{"index":1,"reference":{"Id":2}}}}""",
+      snapshot,
+    )
+    check reorderWorkspaceById.messages.len == 1
+    check reorderWorkspaceById.messages[0].kind == MsgKind.CmdReorderWorkspaceIndex
+    check reorderWorkspaceById.messages[0].reorderWorkspaceIndex == 2
+    check reorderWorkspaceById.messages[0].reorderTargetIndex == 1
+
     let maximizeColumn =
       handleNiriRequest("""{"Action":{"MaximizeColumn":{}}}""", snapshot)
     check maximizeColumn.messages.len == 1
@@ -504,6 +533,27 @@ suite "Shell compatibility contracts":
     check unmaximizeToEdges.messages.len == 1
     check unmaximizeToEdges.messages[0].kind == MsgKind.WlWindowUnmaximizeRequested
     check unmaximizeToEdges.messages[0].unmaximizeRequestId == 10
+
+    let fullscreenById = handleNiriRequest(
+      """{"Action":{"FullscreenWindow":{"id":10}}}""", snapshot
+    )
+    check fullscreenById.messages.len == 1
+    check fullscreenById.messages[0].kind == MsgKind.CmdToggleFullscreenById
+    check fullscreenById.messages[0].fullscreenWindowId == 10
+
+    let floatingById = handleNiriRequest(
+      """{"Action":{"ToggleWindowFloating":{"id":10}}}""", snapshot
+    )
+    check floatingById.messages.len == 1
+    check floatingById.messages[0].kind == MsgKind.CmdSetWindowFloatingById
+    check floatingById.messages[0].floatingWindowId == 10
+    check floatingById.messages[0].windowFloating
+
+    let unsupported = handleNiriRequest(
+      """{"Action":{"DoScreenTransition":{"delay_ms":0}}}""", snapshot
+    )
+    check unsupported.messages.len == 0
+    check parseJson(unsupported.reply).hasKey("Err")
 
     let screenshot = handleNiriRequest(
       """{"Action":{"Screenshot":{"path":"/tmp/triad-shot.png"}}}""", snapshot
@@ -983,6 +1033,32 @@ suite "Shell compatibility contracts":
     check forwarded.messages.len == 1
     check forwarded.messages[0].kind == MsgKind.CmdFocusWorkspaceIndex
     check forwarded.messages[0].workspaceIndex == 2
+
+    let focusMonitor = buildNiriCliRequest(
+      @["msg", "action", "focus-monitor", "triad-0"]
+    )
+    check focusMonitor.kind == NiriCliKind.NckRequest
+    let focusMonitorForwarded = handleNiriRequest(focusMonitor.socketPayload, snapshotForShell())
+    check focusMonitorForwarded.messages.len == 1
+    check focusMonitorForwarded.messages[0].kind == MsgKind.CmdFocusOutput
+
+    let fullscreen = buildNiriCliRequest(
+      @["msg", "action", "fullscreen-window", "--id", "10"]
+    )
+    check fullscreen.kind == NiriCliKind.NckRequest
+    let fullscreenForwarded = handleNiriRequest(fullscreen.socketPayload, snapshotForShell())
+    check fullscreenForwarded.messages.len == 1
+    check fullscreenForwarded.messages[0].kind == MsgKind.CmdToggleFullscreenById
+
+    let reorder = buildNiriCliRequest(
+      @[
+        "msg", "action", "move-workspace-to-index", "2", "--reference", "1"
+      ]
+    )
+    check reorder.kind == NiriCliKind.NckRequest
+    let reorderForwarded = handleNiriRequest(reorder.socketPayload, snapshotForShell())
+    check reorderForwarded.messages.len == 1
+    check reorderForwarded.messages[0].kind == MsgKind.CmdReorderWorkspaceIndex
 
     let maximizeColumn = buildNiriCliRequest(@["msg", "action", "maximize-column"])
     check maximizeColumn.kind == NiriCliKind.NckRequest

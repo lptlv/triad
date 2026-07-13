@@ -1,5 +1,4 @@
 import std/[json, options]
-import app_identity
 import shell_focus
 import ../types/shell_snapshot
 
@@ -36,7 +35,6 @@ proc niriLayout*(win: ShellWindow, snapshot: ShellSnapshot): JsonNode =
   }
 
 proc niriWindowJson*(snapshot: ShellSnapshot, win: ShellWindow): JsonNode =
-  let compatId = compatAppId(win.appId)
   let focusedWindow = snapshot.focusedWindowId()
   result =
     %*{
@@ -47,10 +45,10 @@ proc niriWindowJson*(snapshot: ShellSnapshot, win: ShellWindow): JsonNode =
         else:
           %win.title,
       "app_id":
-        if compatId == "":
+        if win.appId == "":
           newJNull()
         else:
-          %compatId,
+          %win.appId,
       "pid":
         if win.pid <= 0:
           newJNull()
@@ -75,8 +73,6 @@ proc niriWindowJson*(snapshot: ShellSnapshot, win: ShellWindow): JsonNode =
       "layout": niriLayout(win, snapshot),
       "focus_timestamp": newJNull(),
     }
-  if win.appId.len > 0 and compatId != win.appId:
-    result["raw_app_id"] = %win.appId
 
 proc niriWorkspaceVisible(workspace: ShellWorkspace): bool =
   workspace.isConfigured or workspace.isActive or workspace.isOutputVisible or

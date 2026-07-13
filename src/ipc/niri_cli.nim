@@ -23,6 +23,14 @@ proc intArg(arg: string): Option[int] =
     discard
   none(int)
 
+proc workspaceReference(arg: string): Option[JsonNode] =
+  let index = intArg(arg)
+  if index.isSome:
+    return some(%*{"Index": index.get()})
+  if arg.len > 0:
+    return some(%*{"Name": arg})
+  none(JsonNode)
+
 proc optionValue(args: seq[string], name: string): Option[string] =
   for i in 0 ..< args.len:
     if args[i] == name and i + 1 < args.len:
@@ -78,9 +86,9 @@ proc actionPayload(args: seq[string]): Option[JsonNode] =
   of "focusworkspace", "focus-workspace":
     if args.len < 2:
       return none(JsonNode)
-    let idx = intArg(args[1])
-    if idx.isSome:
-      return some(%*{"Action": {"FocusWorkspace": {"reference": {"Index": idx.get()}}}})
+    let reference = workspaceReference(args[1])
+    if reference.isSome:
+      return some(%*{"Action": {"FocusWorkspace": {"reference": reference.get()}}})
   of "focusworkspaceup", "focus-workspace-up":
     return some(%*{"Action": {"FocusWorkspaceUp": {}}})
   of "focusworkspacedown", "focus-workspace-down":
@@ -130,6 +138,12 @@ proc actionPayload(args: seq[string]): Option[JsonNode] =
   of "togglekeyboardshortcutsinhibit", "toggle-keyboard-shortcuts-inhibit":
     return some(%*{"Action": {"ToggleKeyboardShortcutsInhibit": {}}})
   of "fullscreenwindow", "fullscreen-window":
+    let id = optionValue(args, "--id")
+    if id.isSome:
+      let win = intArg(id.get())
+      if win.isSome:
+        return some(%*{"Action": {"FullscreenWindow": {"id": win.get()}}})
+      return none(JsonNode)
     return some(%*{"Action": {"FullscreenWindow": {}}})
   of "maximizecolumn", "maximize-column":
     return some(%*{"Action": {"MaximizeColumn": {}}})
@@ -141,6 +155,12 @@ proc actionPayload(args: seq[string]): Option[JsonNode] =
         return some(%*{"Action": {"MaximizeWindowToEdges": {"id": win.get()}}})
     return some(%*{"Action": {"MaximizeWindowToEdges": {}}})
   of "togglewindowfloating", "toggle-window-floating":
+    let id = optionValue(args, "--id")
+    if id.isSome:
+      let win = intArg(id.get())
+      if win.isSome:
+        return some(%*{"Action": {"ToggleWindowFloating": {"id": win.get()}}})
+      return none(JsonNode)
     return some(%*{"Action": {"ToggleWindowFloating": {}}})
   of "focuswindow", "focus-window":
     let id = optionValue(args, "--id")
@@ -155,6 +175,93 @@ proc actionPayload(args: seq[string]): Option[JsonNode] =
       if win.isSome:
         return some(%*{"Action": {"CloseWindow": {"id": win.get()}}})
     return some(%*{"Action": {"CloseWindow": {}}})
+  of "focusmonitor", "focus-monitor":
+    if args.len >= 2 and args[1].len > 0:
+      return some(%*{"Action": {"FocusMonitor": {"output": args[1]}}})
+  of "moveworkspacetoindex", "move-workspace-to-index":
+    if args.len >= 2:
+      let index = intArg(args[1])
+      if index.isSome:
+        let reference = optionValue(args, "--reference")
+        if reference.isSome:
+          let parsedReference = workspaceReference(reference.get())
+          if parsedReference.isNone:
+            return none(JsonNode)
+          return some(
+            %*{
+              "Action": {
+                "MoveWorkspaceToIndex": {
+                  "index": index.get(), "reference": parsedReference.get()
+                }
+              }
+            }
+          )
+        return some(%*{"Action": {"MoveWorkspaceToIndex": {"index": index.get()}}})
+  of "movewindowtoworkspace", "move-window-to-workspace":
+    if args.len >= 2:
+      let reference = workspaceReference(args[1])
+      if reference.isSome:
+        var payload = %*{"reference": reference.get()}
+        let windowId = optionValue(args, "--window-id")
+        if windowId.isSome:
+          let id = intArg(windowId.get())
+          if id.isNone:
+            return none(JsonNode)
+          payload["window_id"] = %id.get()
+        let focus = optionValue(args, "--focus")
+        if focus.isSome:
+          case focus.get().normalize()
+          of "true":
+            payload["focus"] = %true
+          of "false":
+            payload["focus"] = %false
+          else:
+            return none(JsonNode)
+        return some(%*{"Action": {"MoveWindowToWorkspace": payload}})
+  of "movewindowtomonitor", "move-window-to-monitor":
+    if args.len >= 2 and args[1].len > 0:
+      var payload = %*{"output": args[1]}
+      let id = optionValue(args, "--id")
+      if id.isSome:
+        let windowId = intArg(id.get())
+        if windowId.isNone:
+          return none(JsonNode)
+        payload["id"] = %windowId.get()
+      return some(%*{"Action": {"MoveWindowToMonitor": payload}})
+  of "moveworkspacetomonitor", "move-workspace-to-monitor":
+    if args.len >= 2 and args[1].len > 0:
+      var payload = %*{"output": args[1]}
+      let reference = optionValue(args, "--reference")
+      if reference.isSome:
+        let parsedReference = workspaceReference(reference.get())
+        if parsedReference.isNone:
+          return none(JsonNode)
+        payload["reference"] = parsedReference.get()
+      return some(%*{"Action": {"MoveWorkspaceToMonitor": payload}})
+  of "movewindowtofloating", "move-window-to-floating", "movewindowtotiling",
+      "move-window-to-tiling":
+    let floating = args[0].normalize() in ["movewindowtofloating", "move-window-to-floating"]
+    var payload = newJObject()
+    let id = optionValue(args, "--id")
+    if id.isSome:
+      let windowId = intArg(id.get())
+      if windowId.isNone:
+        return none(JsonNode)
+      payload["id"] = %windowId.get()
+    let actionName = if floating: "MoveWindowToFloating" else: "MoveWindowToTiling"
+    var action = newJObject()
+    action[actionName] = payload
+    return some(%*{"Action": action})
+  of "switchpresetcolumnwidth", "switch-preset-column-width":
+    return some(%*{"Action": {"SwitchPresetColumnWidth": {}}})
+  of "showhotkeyoverlay", "show-hotkey-overlay":
+    return some(%*{"Action": {"ShowHotkeyOverlay": {}}})
+  of "loadconfigfile", "load-config-file":
+    return some(
+      %*{
+        "Action": {"LoadConfigFile": {"path": optionValue(args, "--path").get("")}}
+      }
+    )
   of "poweroffmonitors", "power-off-monitors":
     return some(%*{"Action": {"PowerOffMonitors": {}}})
   of "poweronmonitors", "power-on-monitors":

@@ -1006,7 +1006,7 @@ suite "Core Runtime Logic: shell snapshot ipc":
     )
     check effects.anyIt(
       it.kind == EffectKind.EffBroadcastWindowChanged and
-        not it.broadcastNiriWindowChanged
+        it.broadcastNiriWindowChanged
     )
     check not effects.anyIt(
       it.kind == EffectKind.EffBroadcastTriadJson and

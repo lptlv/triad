@@ -592,9 +592,7 @@ proc addPostUpdateEffects*(
       of MsgKind.WlWindowDimensions: msg.dimensionsWindowId
       else: 0'u32
     if msg.kind in {MsgKind.WlWindowTitle, MsgKind.WlWindowDimensions}:
-      effects.add(
-        broadcastWindowChanged(openedId, niri = msg.kind != MsgKind.WlWindowTitle)
-      )
+      effects.add(broadcastWindowChanged(openedId, niri = true))
     else:
       let effect = after.broadcastWindowOpened(openedId)
       if effect.kind != EffectKind.EffNone:
