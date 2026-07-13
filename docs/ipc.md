@@ -45,7 +45,7 @@ Traditional tiling. Set your direction with `split-tree-split-horizontal`. Toggl
 
 ### Window Mastery
 
-Control the clients. `close-window` asks politely. `toggle-floating` breaks the grid. `fullscreen-window` takes it all.
+Control the clients. `close-window` asks politely. `toggle-floating` breaks the grid. `fullscreen-window` takes it all. `focus-window <id>` activates that window, restoring it first if it is minimized.
 
 Move them. `move-to-tag` or `move-to-workspace` shifts the window and your focus. Send them to the `scratchpad` when they’re in the way.
 

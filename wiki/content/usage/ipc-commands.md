@@ -66,11 +66,14 @@ Control the clients.
 | `close-window` | Request a close. |
 | `toggle-floating` | Break the grid. |
 | `fullscreen-window` | Take it all. |
+| `focus-window <id>` | Focus a specific window and restore it if minimized. |
 | `minimize` / `restore-minimized` | Hide the focused window, then restore the most recently minimized window. |
 | `move-to-tag <id>` | Send a window away. |
 | `group-windows` | Bind neighbors together. |
 
 `restore-minimized` restores one minimized window per invocation, newest first.
+Use `focus-window <id>` when a shell or dock needs to restore a specific minimized
+window instead.
 For Mango/DMS compatibility, `minimized` aliases `minimize` and
 `restore_minimized` aliases `restore-minimized`.
 

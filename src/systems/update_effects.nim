@@ -197,7 +197,7 @@ proc shouldBroadcastNiriWindowsChanged*(kind: MsgKind): bool =
   of MsgKind.WlWindowDestroyed, MsgKind.WlWindowParent,
       MsgKind.WlWindowFullscreenRequested, MsgKind.WlWindowExitFullscreenRequested,
       MsgKind.WlWindowMaximizeRequested, MsgKind.WlWindowUnmaximizeRequested,
-      MsgKind.WlWindowMinimizeRequested, MsgKind.CmdMoveToTagLeft,
+      MsgKind.CmdMoveToTagLeft,
       MsgKind.CmdMoveToTagRight, MsgKind.CmdMoveToWorkspaceIndex,
       MsgKind.CmdMoveWindowToWorkspaceIndex, MsgKind.CmdMoveWindow,
       MsgKind.CmdMoveWindowLeft, MsgKind.CmdMoveWindowRight, MsgKind.CmdMoveWindowUp,
@@ -213,7 +213,7 @@ proc shouldBroadcastNiriWindowsChanged*(kind: MsgKind): bool =
       MsgKind.CmdToggleFloating, MsgKind.CmdSetWindowFloatingById,
       MsgKind.CmdSetWindowMaximizedById, MsgKind.CmdToggleFullscreen,
       MsgKind.CmdToggleFullscreenById, MsgKind.CmdExitFullscreenById,
-      MsgKind.CmdToggleMaximized, MsgKind.CmdMinimize, MsgKind.CmdRestoreMinimized:
+      MsgKind.CmdToggleMaximized:
     true
   else:
     false
@@ -502,6 +502,17 @@ proc addMaximizedPresentationSync(
     if beforeWin.isMaximized and after.maximizedWindow(beforeWin.id).isNone:
       effects.addMaximizedPresentationEffect(beforeWin, false)
 
+proc addMinimizedWindowStateUpdates(
+    effects: var seq[Effect], before, after: ShellSnapshot
+) =
+  ## Keep shell window models current without sending a full window-list snapshot.
+  ## `EffBroadcastWindowChanged` becomes a native `window` event and, for Niri
+  ## subscribers, a `WindowOpenedOrChanged` event with the current window state.
+  for afterWin in after.windows:
+    let beforeWin = before.windowById(afterWin.id)
+    if beforeWin.isSome and beforeWin.get().isMinimized != afterWin.isMinimized:
+      effects.add(broadcastWindowChanged(afterWin.id))
+
 proc addPostUpdateEffects*(
     effects: var seq[Effect],
     msg: Msg,
@@ -566,6 +577,7 @@ proc addPostUpdateEffects*(
 
   effects.addFullscreenPresentationSync(msg, before, after)
   effects.addMaximizedPresentationSync(msg, before, after)
+  effects.addMinimizedWindowStateUpdates(before, after)
 
   if dirty and
       msg.kind in {

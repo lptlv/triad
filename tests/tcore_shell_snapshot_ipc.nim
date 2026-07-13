@@ -65,6 +65,65 @@ suite "Core Runtime Logic: shell snapshot ipc":
         it.jsonPayload.contains("WorkspacesChanged")
     )
 
+  test "Minimize changes broadcast targeted window state":
+    var model = configuredModel()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+    )
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "browser", title: "Two")
+    )
+
+    let minimizeEffects = model.updateModel(Msg(kind: MsgKind.CmdMinimize))
+    let minimizeUpdates = minimizeEffects.filterIt(
+      it.kind == EffectKind.EffBroadcastWindowChanged and it.broadcastWindowId == 2
+    )
+    check minimizeUpdates.len == 1
+    check minimizeUpdates[0].broadcastNiriWindowChanged
+    check not minimizeEffects.anyIt(
+      it.kind == EffectKind.EffBroadcastJson and it.jsonPayload.contains("WindowsChanged")
+    )
+
+    let restoreEffects = model.updateModel(
+      Msg(kind: MsgKind.CmdFocusWindowById, focusWindowId: 2)
+    )
+    let restoreUpdates = restoreEffects.filterIt(
+      it.kind == EffectKind.EffBroadcastWindowChanged and it.broadcastWindowId == 2
+    )
+    check restoreUpdates.len == 1
+    check restoreUpdates[0].broadcastNiriWindowChanged
+    check restoreEffects.hasFocusEffect(2)
+    check not restoreEffects.anyIt(
+      it.kind == EffectKind.EffBroadcastJson and it.jsonPayload.contains("WindowsChanged")
+    )
+
+  test "Niri FocusWindow restores minimized target incrementally":
+    var model = configuredModel()
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 1, appId: "term", title: "One")
+    )
+    model.applyMsg(
+      Msg(kind: MsgKind.WlWindowCreated, windowId: 2, appId: "browser", title: "Two")
+    )
+    discard model.updateModel(Msg(kind: MsgKind.CmdMinimize))
+
+    let request = handleNiriRequest(
+      """{"Action":{"FocusWindow":{"id":2}}}""", model.shellSnapshot()
+    )
+    check request.handled
+    check request.messages.len == 1
+    check request.messages[0].kind == MsgKind.CmdFocusWindowById
+    check request.messages[0].focusWindowId == 2
+
+    let effects = model.updateModel(request.messages[0])
+    check not model.snapshotWindow(2).isMinimized
+    check model.snapshotWindow(2).isFocused
+    check effects.hasFocusEffect(2)
+    check effects.anyIt(
+      it.kind == EffectKind.EffBroadcastWindowChanged and
+        it.broadcastWindowId == 2 and it.broadcastNiriWindowChanged
+    )
+
   test "Shell snapshot exposes output refresh rate":
     var model = configuredModel()
     model.applyMsg(
