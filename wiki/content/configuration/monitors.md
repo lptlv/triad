@@ -58,7 +58,24 @@ output {
 
 Use `default` for fallback rules. Fallback rules apply to connected monitors that do not match a specific rule.
 
-**Note on Validation:** Triad strictly validates output fields. Unsupported properties (such as mirroring, bit depth, or HDR) are rejected to prevent configuration errors.
+**Note on Validation:** Triad strictly validates output fields. Unsupported properties such as bit depth and HDR are rejected to prevent configuration errors.
+
+## Mirroring limitation and roadmap
+
+Triad does not currently support true monitor mirroring on stock River. River
+exposes every physical display as a separate logical output and does not yet
+provide a protocol request that clones one logical output to multiple physical
+displays.
+
+A fullscreen screencopy client is not a substitute: the target remains a second
+desktop, pointer coordinates stay independent, shell bars and docks are composed
+again, and differing aspect ratios introduce cropping, distortion, or black
+bars. Triad will not fork River to work around this limitation.
+
+Native mirroring remains a future roadmap item. It will require an upstream
+River protocol and compositor implementation that mirrors the final composed
+scene, including the cursor and layer-shell surfaces, while exposing only one
+logical input/output area.
 
 ## Hotplugging
 

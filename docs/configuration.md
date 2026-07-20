@@ -160,19 +160,27 @@ output {
   }
 
   monitor "HDMI-A-1" {
-    mirror "eDP-1"
+    mode "preferred"
+    position "auto-right"
   }
 }
 ```
 
-`mirror` presents the named source output fullscreen on the configured target
-output. Triad builds, installs, and supervises its bundled `triad_mirror`
-companion, so users do not need to install a separate mirroring package.
-Mirroring stops automatically when the rule is removed, the config is reloaded,
-or either output disconnects. Source and target may use connector names,
-descriptions (`desc:...`), or Triad's stable monitor identity strings. The
-bundled client uses River's `zwlr_screencopy_manager_v1` version 3 interface;
-it does not depend on a compositor-specific output-clone control protocol.
+#### Output mirroring limitation
+
+Triad does not currently support true output mirroring on stock River. River
+exposes each physical display as a separate logical output and does not yet
+provide a protocol request for cloning one logical output to another.
+
+Triad's screencopy presentation prototype is not equivalent to mirroring: the
+target remains an independent desktop, pointer coordinates are not shared,
+layer-shell components such as bars and docks are composed separately, and
+different source/target aspect ratios require cropping, stretching, or black
+bars. It is therefore not documented as a supported monitor configuration.
+
+Native mirroring is tracked on the [future roadmap](todo.md#native-output-mirroring).
+It should be implemented only when stock River exposes compositor-level output
+cloning; Triad will not maintain a River fork for this feature.
 
 ## Window Rules
 Window rules define behavior based on identity or state.
