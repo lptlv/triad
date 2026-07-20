@@ -19,7 +19,8 @@ import
   input_runtime, ipc_broadcast_runtime, janet_script_runtime, live_restore_runtime,
   manage_requests, message_queue, memory_status, output_management_runtime,
   process_runner, protocol_diagnostics, shell_runner, registry_runtime, reload_runtime,
-  render_runtime, render_invalidation, spawn_context, state, switch_event_runtime
+  render_runtime, render_invalidation, screen_mirror_runtime, spawn_context, state,
+  switch_event_runtime
 from ../types/runtime_values import Direction, nil, PointerOpKind
 import
   std/[
@@ -1253,6 +1254,7 @@ proc main*() =
       lastChildReapPollMs = nowMs
       inc daemon.loopCounters.childReapPolls
       daemon.loopCounters.childReapedProcesses += uint64(daemon.reapChildProcesses())
+      daemon.syncScreenMirrors()
 
     daemon.enqueueFrameTickIfDue(nowMs)
     if daemon.memoryMaintenanceDue(lastMemoryMaintenanceMs, nowMs):

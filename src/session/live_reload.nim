@@ -124,6 +124,8 @@ proc backupLiveBinaries(paths: LivePaths): string =
   createDir(result)
   copyFile(paths.liveTriad, result / "triad")
   copyFile(paths.liveTriadNiri, result / "triad_niri")
+  if fileExists(paths.liveTriadMirror):
+    copyFile(paths.liveTriadMirror, result / "triad_mirror")
   paths.logInfo("backed up live binaries to " & result)
 
 proc restoreLiveBinaries(paths: LivePaths, backupDir: string): bool =
@@ -135,6 +137,8 @@ proc restoreLiveBinaries(paths: LivePaths, backupDir: string): bool =
     return false
   atomicInstall(backupDir / "triad", paths.liveTriad)
   atomicInstall(backupDir / "triad_niri", paths.liveTriadNiri)
+  if fileExists(backupDir / "triad_mirror"):
+    atomicInstall(backupDir / "triad_mirror", paths.liveTriadMirror)
   paths.logInfo("restored live binaries from " & backupDir)
   true
 
@@ -222,6 +226,8 @@ proc runLiveReload*(paths = livePaths()): int =
       paths.fail("missing built binary: " & (paths.repoDir / "triad"))
     if not fileExists(paths.repoDir / "triad_niri"):
       paths.fail("missing built binary: " & (paths.repoDir / "triad_niri"))
+    if not fileExists(paths.repoDir / "triad_mirror"):
+      paths.fail("missing built binary: " & (paths.repoDir / "triad_mirror"))
 
     if runDoctorLive(paths) != 0:
       paths.fail(
@@ -248,6 +254,7 @@ proc runLiveReload*(paths = livePaths()): int =
     backupDir = paths.backupLiveBinaries()
     atomicInstall(paths.repoDir / "triad", paths.liveTriad)
     atomicInstall(paths.repoDir / "triad_niri", paths.liveTriadNiri)
+    atomicInstall(paths.repoDir / "triad_mirror", paths.liveTriadMirror)
 
     let reloadCommand =
       if getEnv("TRIAD_LIVE_RELOAD_USE_RETAINED_RESTORE", "") == "1":

@@ -23,6 +23,7 @@ The layout model supports algorithmic tiling, scrollable strips, BSP trees, and 
 * **Crash-resilient:** Layout errors never reach the compositor.
 * **Shell-ready:** We provide native IPC and a compatibility facade for popular shell bars.
 * **Dynamic Workspaces:** Triad spawns workspaces when you need them and prunes them when you don't.
+* **Output Mirroring:** Declarative monitor rules supervise Triad's bundled fullscreen mirror client.
 * **Smooth Motion:** Configurable frame pacing and exponential easing for window movement.
 * **Scratchpads:** Utility windows manage as centered overlays.
 * **Stable IDs:** Tag and window IDs stay the same, allowing scripts to survive reloads.

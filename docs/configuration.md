@@ -158,8 +158,21 @@ output {
     scale 1.5
     workspaces 1 2 3
   }
+
+  monitor "HDMI-A-1" {
+    mirror "eDP-1"
+  }
 }
 ```
+
+`mirror` presents the named source output fullscreen on the configured target
+output. Triad builds, installs, and supervises its bundled `triad_mirror`
+companion, so users do not need to install a separate mirroring package.
+Mirroring stops automatically when the rule is removed, the config is reloaded,
+or either output disconnects. Source and target may use connector names,
+descriptions (`desc:...`), or Triad's stable monitor identity strings. The
+bundled client uses River's `zwlr_screencopy_manager_v1` version 3 interface;
+it does not depend on a compositor-specific output-clone control protocol.
 
 ## Window Rules
 Window rules define behavior based on identity or state.

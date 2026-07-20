@@ -9,7 +9,8 @@ from ../types/runtime_values import ConfigNotificationEvent
 import ../utils/behavior_log
 import
   bindings_runtime, child_process_runtime, idle_inhibit_runtime, live_restore_runtime,
-  process_runner, output_management_runtime, shell_runner, render_invalidation, state
+  output_management_runtime, process_runner, render_invalidation, screen_mirror_runtime,
+  shell_runner, state
 
 type StartupConfigLoadResult* = object
   config*: Config
@@ -222,6 +223,7 @@ proc applyConfigReload*(
   daemon.syncIdleInhibitFromRuntime()
   daemon.resetOutputManagementRetry()
   daemon.applyOutputManagementConfig("config reload")
+  daemon.stopScreenMirrors("config reload")
   writeBehaviorEvent(
     "config_reload_applied",
     %*{

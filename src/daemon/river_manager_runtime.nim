@@ -11,7 +11,7 @@ import ../utils/process_tree
 import
   bindings_runtime, input_runtime, live_restore_runtime, manage_requests, message_queue,
   protocol_surface_runtime, render_invalidation, river_outputs_runtime, river_windows,
-  spawn_context, state, wayland_helpers
+  screen_mirror_runtime, spawn_context, state, wayland_helpers
 
 proc callbackDaemon(data: pointer, context: string): ptr TriadDaemon =
   result = daemonFromData(data)
@@ -22,6 +22,8 @@ proc cleanupRiverObjects*(daemon: var TriadDaemon) =
   daemon.manageRequestPending = false
   daemon.manageRequestReason = ""
   daemon.activeManageReason = ""
+
+  daemon.stopScreenMirrors("River runtime cleanup")
 
   daemon.destroyAllProtocolSurfaces()
 

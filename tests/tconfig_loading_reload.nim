@@ -219,6 +219,7 @@ suite "KDL Configuration Parser: loading reload":
     let loaded = loadStrictConfigContent(
       """
 output "DP-1" {
+  mirror "eDP-1"
   focus-at-startup
   workspaces 1 2 2
   mode 2560 1440 120
@@ -259,6 +260,8 @@ output {
 
     check loaded.ok
     check loaded.config.outputRules.len == 5
+    check loaded.config.outputRules[0].mirrorSet
+    check loaded.config.outputRules[0].mirrorSource == "eDP-1"
     check loaded.config.outputRules[0].workspaceSlots == @[1'u32, 2'u32]
     check loaded.config.outputRules[1].modeKind == OutputModeKind.OutputModeHighRr
     check loaded.config.outputRules[1].scaleAuto
@@ -276,6 +279,10 @@ output {
     check loaded.config.outputLayoutRows[0].targets == @["DP-4"]
     check loaded.config.outputLayoutRows[0].align == OutputLayoutRowAlign.Center
     check loaded.config.outputLayoutRows[1].targets == @["DP-3", "DP-2", "DP-1"]
+
+    let state = initRuntimeStateFromConfig(loaded.config)
+    check state.model.outputRules[0].mirrorSet
+    check state.model.outputRules[0].mirrorSource == "eDP-1"
 
     let shorthand = loadStrictConfigContent(
       """
@@ -371,13 +378,31 @@ output {
         needle: "output[0]: default output rule is duplicated",
       ),
       (
-        name: "unsupported-field",
+        name: "bad-mirror",
         content: """
 output "DP-1" {
+  mirror ""
+}
+""",
+        needle: "output \"DP-1\" mirror: expected one non-empty output target",
+      ),
+      (
+        name: "self-mirror",
+        content: """
+output "DP-1" {
+  mirror "DP-1"
+}
+""",
+        needle: "output \"DP-1\" mirror: an output cannot mirror itself",
+      ),
+      (
+        name: "fallback-mirror",
+        content: """
+output "" {
   mirror "eDP-1"
 }
 """,
-        needle: "output \"DP-1\" mirror: field is not supported",
+        needle: "output \"\" mirror: fallback output rules cannot mirror",
       ),
       (
         name: "unknown-field",

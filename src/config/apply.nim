@@ -250,6 +250,8 @@ proc tagRuleData(rule: rv.TagRule): TagRuleData =
 proc outputRuleData(rule: rv.OutputRule): OutputRuleData =
   OutputRuleData(
     target: rule.target.strip(),
+    mirrorSet: rule.mirrorSet,
+    mirrorSource: rule.mirrorSource.strip(),
     focusAtStartup: rule.focusAtStartup,
     workspaceSlots: rule.workspaceSlots,
     modeSet: rule.modeSet,

@@ -10,6 +10,7 @@ type
     metadata*: string
     liveTriad*: string
     liveTriadNiri*: string
+    liveTriadMirror*: string
     liveManagerLoop*: string
     liveSessionRunner*: string
     configPath*: string
@@ -56,6 +57,7 @@ proc livePaths*(): LivePaths =
   result.liveTriad =
     envOrDefault("TRIAD_LIVE_TRIAD_BIN", result.binDir / "triad").expandTilde()
   result.liveTriadNiri = result.binDir / "triad_niri"
+  result.liveTriadMirror = result.binDir / "triad_mirror"
   result.liveManagerLoop = envOrDefault(
       "TRIAD_MANAGER_LOOP", result.binDir / "triad-manager-loop"
     )

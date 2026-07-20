@@ -213,6 +213,7 @@ cd "$work"
 nimble --useSystemNim build --nimcache:"$work/.nimcache"
 install -Dm755 triad "$HOME/.local/bin/triad"
 install -Dm755 triad_niri "$HOME/.local/bin/triad_niri"
+install -Dm755 triad_mirror "$HOME/.local/bin/triad_mirror"
 install -Dm755 tools/triad-capture-hook.sh "$HOME/.local/bin/triad-capture-hook"
 install -Dm755 tools/triad-capture-status.sh "$HOME/.local/bin/triad-capture-status"
 

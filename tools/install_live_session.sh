@@ -90,11 +90,13 @@ printf '%s\n' "install-live-session: building optimized triad binaries"
 
 [ -x "$repo_dir/triad" ] || fail "missing built binary: $repo_dir/triad"
 [ -x "$repo_dir/triad_niri" ] || fail "missing built binary: $repo_dir/triad_niri"
+[ -x "$repo_dir/triad_mirror" ] || fail "missing built binary: $repo_dir/triad_mirror"
 
 mkdir -p "$bin_dir" "$config_dir"
 
 atomic_install "$repo_dir/triad" "$bin_dir/triad" 755
 atomic_install "$repo_dir/triad_niri" "$bin_dir/triad_niri" 755
+atomic_install "$repo_dir/triad_mirror" "$bin_dir/triad_mirror" 755
 atomic_install "$repo_dir/tools/triad-manager-loop.sh" "$bin_dir/triad-manager-loop" 755
 atomic_install "$repo_dir/tools/river-triad-session.sh" "$bin_dir/river-triad-session" 755
 atomic_install "$repo_dir/tools/triad-capture-hook.sh" "$bin_dir/triad-capture-hook" 755

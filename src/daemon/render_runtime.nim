@@ -6,7 +6,9 @@ import ../systems/[daemon_view, layout_projection, recent_windows, window_rules]
 import ../types/projection_values
 import ../types/runtime_values
 import ../utils/overview_hit_test
-import protocol_surface_runtime, protocol_surfaces, state, wayland_helpers
+import
+  protocol_surface_runtime, protocol_surfaces, screen_mirror_runtime, state,
+  wayland_helpers
 from ../types/core import NullOutputId, NullWindowId, WindowId
 
 const
@@ -552,3 +554,4 @@ proc renderDesiredPlacements*(daemon: var TriadDaemon) =
       daemon.surfaceTable[daemon.recentWindowsChromeSurfaceId] = chrome
   daemon.syncLayoutSwitchToastSurface(screen)
   daemon.syncExitSessionConfirmSurface(screen)
+  daemon.syncScreenMirrors()

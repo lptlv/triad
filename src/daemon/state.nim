@@ -13,6 +13,7 @@ import wayland/protocols/unstable/pointergesturesunstable/v1/client as pointerGe
 import ../core/[effects, msg, restore_state]
 import ../config/reload_policy
 import ../janet/runtime
+import ../types/core
 import ../types/[projection_values, runtime_state, runtime_values]
 import cursor_shake, protocol_surfaces, shell_runner
 
@@ -221,6 +222,15 @@ type
     createdMs*: int64
     remainingManageCycles*: int
 
+  ScreenMirrorRuntime* = object
+    sourceOutput*: OutputId
+    targetOutput*: OutputId
+    sourceName*: string
+    targetName*: string
+    process*: Process
+    failed*: bool
+    retryAfterMs*: int64
+
   RuntimeReasonHook* = proc(daemon: pointer, reason: string) {.nimcall.}
   ConfigNotificationHook* = proc(
     daemon: pointer, event: ConfigNotificationEvent, command: seq[string]
@@ -278,6 +288,7 @@ type
     activeManageReason*: string
     screenshotCaptureActive*: bool
     shmBufferCounter*: uint32
+    screenMirrors*: Table[OutputId, ScreenMirrorRuntime]
 
     runtimeState*: TriadRuntimeState
     janetRuntime*: JanetRuntime

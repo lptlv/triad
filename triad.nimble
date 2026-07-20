@@ -5,7 +5,7 @@ author = "Mason Green"
 description = "Dynamic window management client for River"
 license = "MIT"
 srcDir = "src"
-bin = @["triad", "triad_niri"]
+bin = @["triad", "triad_niri", "triad_mirror"]
 
 # Dependencies
 
@@ -63,10 +63,11 @@ proc runDaemonSuites() =
 
 task tidy, "Remove local Nim build outputs and project cache artifacts":
   for path in [
-    "triad", "triad_niri", "src/config/parser", "src/triad", "src/triad_niri",
-    "tests/tapp_identity", "tests/tcompat", "tests/tconfig_loading_reload",
-    "tests/tconfig_parser_defaults", "tests/tconfig_window_rules_workspace",
-    "tests/tcore_smoke", "tests/tcore_navigation_layout", "tests/tcore_lifecycle_basic",
+    "triad", "triad_niri", "triad_mirror", "src/config/parser", "src/triad",
+    "src/triad_niri", "src/triad_mirror", "tests/tapp_identity", "tests/tcompat",
+    "tests/tconfig_loading_reload", "tests/tconfig_parser_defaults",
+    "tests/tconfig_window_rules_workspace", "tests/tcore_smoke",
+    "tests/tcore_navigation_layout", "tests/tcore_lifecycle_basic",
     "tests/tcore_parented_popups", "tests/tcore_parented_geometry",
     "tests/tcore_window_rules_merge", "tests/tcore_window_rules_policy",
     "tests/tcore_window_rules_matchers", "tests/tcore_floating_rules",

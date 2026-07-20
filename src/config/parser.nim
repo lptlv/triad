@@ -966,6 +966,18 @@ proc validateOutputRuleFields(target: string, node: KdlNode): string =
         target, child.name, "fallback output rules cannot set workspace or focus fields"
       )
     case child.name
+    of "mirror":
+      if target.len == 0:
+        result = outputConfigError(
+          target, child.name, "fallback output rules cannot mirror another output"
+        )
+      elif child.props.len > 0 or child.args.len != 1 or child.args[0].kind != KString or
+          child.args[0].kString().strip().len == 0:
+        result = outputConfigError(
+          target, child.name, "expected one non-empty output target string"
+        )
+      elif target.cmpIgnoreCase(child.args[0].kString().strip()) == 0:
+        result = outputConfigError(target, child.name, "an output cannot mirror itself")
     of "focus-at-startup":
       result = validateOutputFocusField(target, child)
     of "workspaces":
@@ -994,12 +1006,12 @@ proc validateOutputRuleFields(target: string, node: KdlNode): string =
       result = validateOutputVrrField(target, child)
     of "reserved", "reserved_area", "reserved-area", "addreserved":
       result = validateOutputReservedAreaField(target, child)
-    of "mirror", "auto", "auto-position", "custom", "modeline", "bitdepth", "cm",
-        "sdr_eotf", "sdr-eotf", "sdrbrightness", "sdrsaturation", "icc",
-        "supports_wide_color", "supports-wide-color", "supports_hdr", "supports-hdr",
-        "sdr_min_luminance", "sdr-min-luminance", "sdr_max_luminance",
-        "sdr-max-luminance", "min_luminance", "min-luminance", "max_luminance",
-        "max-luminance", "max_avg_luminance", "max-avg-luminance":
+    of "auto", "auto-position", "custom", "modeline", "bitdepth", "cm", "sdr_eotf",
+        "sdr-eotf", "sdrbrightness", "sdrsaturation", "icc", "supports_wide_color",
+        "supports-wide-color", "supports_hdr", "supports-hdr", "sdr_min_luminance",
+        "sdr-min-luminance", "sdr_max_luminance", "sdr-max-luminance", "min_luminance",
+        "min-luminance", "max_luminance", "max-luminance", "max_avg_luminance",
+        "max-avg-luminance":
       result = outputConfigError(
         target, child.name, "field is not supported by Triad output rules"
       )
@@ -1400,7 +1412,10 @@ proc parseOutputRuleNode(node: KdlNode, target: string): OutputRule =
   result = OutputRule(target: target.strip())
   for child in node.children:
     try:
-      if child.name == "focus-at-startup":
+      if child.name == "mirror":
+        result.mirrorSet = true
+        result.mirrorSource = child.args[0].kString().strip()
+      elif child.name == "focus-at-startup":
         result.focusAtStartup = child.childFlagEnabled()
       elif child.name == "workspaces":
         result.workspaceSlots = child.workspaceTargets()

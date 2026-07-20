@@ -10,8 +10,8 @@ import
     bindings_runtime, capture_sessions_runtime, child_process_runtime, cursor_shake,
     effects_runtime, input_device_classification, live_restore_runtime, memory_status,
     message_queue, output_management_runtime, process_runner, protocol_diagnostics,
-    reload_runtime, render_invalidation, river_windows, spawn_context,
-    switch_event_runtime,
+    reload_runtime, render_invalidation, river_windows, screen_mirror_runtime,
+    spawn_context, switch_event_runtime,
   ]
 from ../src/daemon/state import
   OutputManagementHeadRuntime, clearOutputCaptureSessions, consumeMaximizedAck,
@@ -62,18 +62,17 @@ proc baseSnapshot(): ShellSnapshot =
     activeTag: 1,
     activeWorkspaceIdx: 1,
     layoutCycle: @[LayoutMode.Scroller, LayoutMode.Grid],
-    workspaces:
-      @[
-        ShellWorkspace(
-          tagId: 1,
-          workspaceIdx: 1,
-          layoutMode: LayoutMode.Scroller,
-          isActive: true,
-          outputName: "triad-0",
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        )
-      ],
+    workspaces: @[
+      ShellWorkspace(
+        tagId: 1,
+        workspaceIdx: 1,
+        layoutMode: LayoutMode.Scroller,
+        isActive: true,
+        outputName: "triad-0",
+        masterCount: 1,
+        masterSplitRatio: 0.5,
+      )
+    ],
     outputs: @[ShellOutput(name: "triad-0", w: 1920, h: 1080)],
   )
 
@@ -86,18 +85,17 @@ proc hardeningIpcSnapshot(): ShellSnapshot {.gcsafe.} =
     activeTag: 1,
     activeWorkspaceIdx: 1,
     layoutCycle: @[LayoutMode.Scroller, LayoutMode.Grid],
-    workspaces:
-      @[
-        ShellWorkspace(
-          tagId: 1,
-          workspaceIdx: 1,
-          layoutMode: LayoutMode.Scroller,
-          isActive: true,
-          outputName: "triad-0",
-          masterCount: 1,
-          masterSplitRatio: 0.5,
-        )
-      ],
+    workspaces: @[
+      ShellWorkspace(
+        tagId: 1,
+        workspaceIdx: 1,
+        layoutMode: LayoutMode.Scroller,
+        isActive: true,
+        outputName: "triad-0",
+        masterCount: 1,
+        masterSplitRatio: 0.5,
+      )
+    ],
     outputs: @[ShellOutput(name: "triad-0", w: 1920, h: 1080)],
   )
 
@@ -198,19 +196,17 @@ proc hasProtocolIssue(issues: openArray[ProtocolIssue], interfaceName: string): 
 suite "Crash hardening":
   test "output layout row resolves left-to-right physical coordinates":
     var model = Model(
-      outputLayoutRows:
-        @[
-          OutputLayoutRow(
-            targets: @["DP-3", "DP-2", "DP-1"], align: OutputLayoutRowAlign.Center
-          )
-        ]
-    )
-    var heads =
-      @[
-        proposedOutput("DP-1", 1920, 1080),
-        proposedOutput("DP-2", 2560, 1440),
-        proposedOutput("DP-3", 1920, 1080),
+      outputLayoutRows: @[
+        OutputLayoutRow(
+          targets: @["DP-3", "DP-2", "DP-1"], align: OutputLayoutRowAlign.Center
+        )
       ]
+    )
+    var heads = @[
+      proposedOutput("DP-1", 1920, 1080),
+      proposedOutput("DP-2", 2560, 1440),
+      proposedOutput("DP-3", 1920, 1080),
+    ]
 
     model.resolveLayoutPositions(heads)
 
@@ -221,11 +217,10 @@ suite "Crash hardening":
 
   test "output layout matrix supports stacked monitors":
     var model = Model(
-      outputLayoutRows:
-        @[
-          OutputLayoutRow(targets: @["DP-1"], align: OutputLayoutRowAlign.Center),
-          OutputLayoutRow(targets: @["DP-2"], align: OutputLayoutRowAlign.Center),
-        ]
+      outputLayoutRows: @[
+        OutputLayoutRow(targets: @["DP-1"], align: OutputLayoutRowAlign.Center),
+        OutputLayoutRow(targets: @["DP-2"], align: OutputLayoutRowAlign.Center),
+      ]
     )
     var heads =
       @[proposedOutput("DP-1", 1920, 1080), proposedOutput("DP-2", 2560, 1440)]
@@ -237,21 +232,19 @@ suite "Crash hardening":
 
   test "output layout centers uneven rows and closes missing target gaps":
     var model = Model(
-      outputLayoutRows:
-        @[
-          OutputLayoutRow(targets: @["DP-4"], align: OutputLayoutRowAlign.Center),
-          OutputLayoutRow(
-            targets: @["DP-3", "missing-output", "DP-2"],
-            align: OutputLayoutRowAlign.Center,
-          ),
-        ]
-    )
-    var heads =
-      @[
-        proposedOutput("DP-2", 2000, 1000),
-        proposedOutput("DP-3", 1000, 1000),
-        proposedOutput("DP-4", 1000, 500),
+      outputLayoutRows: @[
+        OutputLayoutRow(targets: @["DP-4"], align: OutputLayoutRowAlign.Center),
+        OutputLayoutRow(
+          targets: @["DP-3", "missing-output", "DP-2"],
+          align: OutputLayoutRowAlign.Center,
+        ),
       ]
+    )
+    var heads = @[
+      proposedOutput("DP-2", 2000, 1000),
+      proposedOutput("DP-3", 1000, 1000),
+      proposedOutput("DP-4", 1000, 500),
+    ]
 
     model.resolveLayoutPositions(heads)
 
@@ -262,28 +255,24 @@ suite "Crash hardening":
 
   test "output layout seeds existing auto placement for unlisted outputs":
     var model = Model(
-      outputLayoutRows:
-        @[
-          OutputLayoutRow(
-            targets: @["DP-1", "DP-2"], align: OutputLayoutRowAlign.Center
-          )
-        ]
-    )
-    var heads =
-      @[
-        proposedOutput("DP-1", 1000, 1000),
-        proposedOutput("DP-2", 1000, 1000),
-        proposedOutput(
-          "DP-9",
-          500,
-          500,
-          OutputRuleData(
-            target: "DP-9",
-            positionSet: true,
-            positionKind: OutputPositionKind.OutputPositionAutoRight,
-          ),
-        ),
+      outputLayoutRows: @[
+        OutputLayoutRow(targets: @["DP-1", "DP-2"], align: OutputLayoutRowAlign.Center)
       ]
+    )
+    var heads = @[
+      proposedOutput("DP-1", 1000, 1000),
+      proposedOutput("DP-2", 1000, 1000),
+      proposedOutput(
+        "DP-9",
+        500,
+        500,
+        OutputRuleData(
+          target: "DP-9",
+          positionSet: true,
+          positionKind: OutputPositionKind.OutputPositionAutoRight,
+        ),
+      ),
+    ]
 
     model.resolveLayoutPositions(heads)
     heads.resolveAutoPositions()
@@ -303,6 +292,53 @@ suite "Crash hardening":
     check not daemon.consumeMaximizedAck(42, true)
     check daemon.consumeMaximizedAck(42, false)
     check not daemon.consumeMaximizedAck(42, false)
+
+  test "screen mirror supervisor starts and stops configured output mirrors":
+    let oldMirrorBin = getEnv("TRIAD_MIRROR_BIN", "")
+    let tempDir = getTempDir() / ("triad-screen-mirror-" & $getCurrentProcessId())
+    let fakeMirror = tempDir / "triad_mirror"
+    createDir(tempDir)
+    writeFile(fakeMirror, "#!/bin/sh\nexec /bin/sleep 30\n")
+    setFilePermissions(fakeMirror, {fpUserRead, fpUserWrite, fpUserExec})
+    putEnv("TRIAD_MIRROR_BIN", fakeMirror)
+
+    var daemon = initTriadDaemon()
+    defer:
+      daemon.stopScreenMirrors("test cleanup")
+      putEnv("TRIAD_MIRROR_BIN", oldMirrorBin)
+      removeFile(fakeMirror)
+      removeDir(tempDir)
+
+    daemon.runtimeState = initRuntimeStateFromConfig(
+      Config(
+        outputRules:
+          @[OutputRule(target: "DP-2", mirrorSet: true, mirrorSource: "eDP-1")]
+      )
+    )
+    discard daemon.runtimeState.applyRuntimeUpdate(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 1, width: 1920, height: 1200)
+    )
+    discard daemon.runtimeState.applyRuntimeUpdate(
+      Msg(kind: MsgKind.WlOutputName, nameOutputId: 1, outputName: "eDP-1")
+    )
+    discard daemon.runtimeState.applyRuntimeUpdate(
+      Msg(kind: MsgKind.WlOutputDimensions, outputId: 2, width: 1920, height: 1080)
+    )
+    discard daemon.runtimeState.applyRuntimeUpdate(
+      Msg(kind: MsgKind.WlOutputName, nameOutputId: 2, outputName: "DP-2")
+    )
+
+    daemon.syncScreenMirrors()
+    check daemon.screenMirrors.len == 1
+    for runtime in daemon.screenMirrors.values:
+      check runtime.sourceName == "eDP-1"
+      check runtime.targetName == "DP-2"
+      check runtime.process != nil
+      check not runtime.failed
+
+    discard daemon.runtimeState.applyRuntimeConfig(Config())
+    daemon.syncScreenMirrors()
+    check daemon.screenMirrors.len == 0
 
   test "message queue preserves Janet hook origin":
     var daemon = initTriadDaemon()
@@ -398,13 +434,12 @@ suite "Crash hardening":
     base["OVERRIDE"] = "old"
 
     let model = Model(
-      environment:
-        @[
-          EnvironmentEntryConfig(name: "OVERRIDE", value: "new"),
-          EnvironmentEntryConfig(name: "EMPTY", value: ""),
-          EnvironmentEntryConfig(name: "DROP", unset: true),
-          EnvironmentEntryConfig(name: "OVERRIDE", value: "last"),
-        ]
+      environment: @[
+        EnvironmentEntryConfig(name: "OVERRIDE", value: "new"),
+        EnvironmentEntryConfig(name: "EMPTY", value: ""),
+        EnvironmentEntryConfig(name: "DROP", unset: true),
+        EnvironmentEntryConfig(name: "OVERRIDE", value: "last"),
+      ]
     )
 
     let env = model.configuredProcessEnv(base)
@@ -452,20 +487,19 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
-        axisBindings:
-          @[
-            AxisBindingConfig(
-              direction: AxisBindingDirection.AxisUp,
-              modifiers: 64'u32,
-              command: "focus-left",
-            ),
-            AxisBindingConfig(
-              direction: AxisBindingDirection.AxisRight,
-              modifiers: 64'u32,
-              command: "focus-right",
-              mode: BindingMode.BindOverview,
-            ),
-          ]
+        axisBindings: @[
+          AxisBindingConfig(
+            direction: AxisBindingDirection.AxisUp,
+            modifiers: 64'u32,
+            command: "focus-left",
+          ),
+          AxisBindingConfig(
+            direction: AxisBindingDirection.AxisRight,
+            modifiers: 64'u32,
+            command: "focus-right",
+            mode: BindingMode.BindOverview,
+          ),
+        ]
       )
     )
     daemon.runtimeState.model.activeModifiers = 64'u32
@@ -487,22 +521,21 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
-        gestureBindings:
-          @[
-            GestureBindingConfig(
-              direction: GestureBindingDirection.GestureSwipeLeft,
-              fingers: 3,
-              modifiers: 64'u32,
-              command: "focus-left",
-            ),
-            GestureBindingConfig(
-              direction: GestureBindingDirection.GestureSwipeUp,
-              fingers: 4,
-              modifiers: 64'u32,
-              command: "toggle-overview",
-              mode: BindingMode.BindOverview,
-            ),
-          ]
+        gestureBindings: @[
+          GestureBindingConfig(
+            direction: GestureBindingDirection.GestureSwipeLeft,
+            fingers: 3,
+            modifiers: 64'u32,
+            command: "focus-left",
+          ),
+          GestureBindingConfig(
+            direction: GestureBindingDirection.GestureSwipeUp,
+            fingers: 4,
+            modifiers: 64'u32,
+            command: "toggle-overview",
+            mode: BindingMode.BindOverview,
+          ),
+        ]
       )
     )
     daemon.runtimeState.model.activeModifiers = 64'u32
@@ -528,45 +561,41 @@ suite "Crash hardening":
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
         hotkeyOverlay: HotkeyOverlayConfig(skipAtStartup: true),
-        keyBindings:
-          @[
-            KeyBindingConfig(key: "h", modifiers: 64'u32, command: "focus-left"),
-            KeyBindingConfig(
-              key: "k",
-              modifiers: 64'u32,
-              command: "focus-up",
-              mode: BindingMode.BindOverview,
-            ),
-          ],
-        pointerBindings:
-          @[
-            PointerBindingConfig(
-              button: 0x112'u32, modifiers: 64'u32, command: "focus-right"
-            ),
-            PointerBindingConfig(
-              button: 0x110'u32,
-              modifiers: 64'u32,
-              op: PointerOpKind.OpMove,
-              command: "move",
-            ),
-          ],
-        axisBindings:
-          @[
-            AxisBindingConfig(
-              direction: AxisBindingDirection.AxisUp,
-              modifiers: 64'u32,
-              command: "focus-left",
-            )
-          ],
-        gestureBindings:
-          @[
-            GestureBindingConfig(
-              direction: GestureBindingDirection.GestureSwipeLeft,
-              fingers: 3,
-              modifiers: 64'u32,
-              command: "focus-left",
-            )
-          ],
+        keyBindings: @[
+          KeyBindingConfig(key: "h", modifiers: 64'u32, command: "focus-left"),
+          KeyBindingConfig(
+            key: "k",
+            modifiers: 64'u32,
+            command: "focus-up",
+            mode: BindingMode.BindOverview,
+          ),
+        ],
+        pointerBindings: @[
+          PointerBindingConfig(
+            button: 0x112'u32, modifiers: 64'u32, command: "focus-right"
+          ),
+          PointerBindingConfig(
+            button: 0x110'u32,
+            modifiers: 64'u32,
+            op: PointerOpKind.OpMove,
+            command: "move",
+          ),
+        ],
+        axisBindings: @[
+          AxisBindingConfig(
+            direction: AxisBindingDirection.AxisUp,
+            modifiers: 64'u32,
+            command: "focus-left",
+          )
+        ],
+        gestureBindings: @[
+          GestureBindingConfig(
+            direction: GestureBindingDirection.GestureSwipeLeft,
+            fingers: 3,
+            modifiers: 64'u32,
+            command: "focus-left",
+          )
+        ],
       )
     )
 
@@ -644,15 +673,14 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
-        gestureBindings:
-          @[
-            GestureBindingConfig(
-              direction: GestureBindingDirection.GestureSwipeLeft,
-              fingers: 3,
-              modifiers: 64'u32,
-              command: "focus-left",
-            )
-          ]
+        gestureBindings: @[
+          GestureBindingConfig(
+            direction: GestureBindingDirection.GestureSwipeLeft,
+            fingers: 3,
+            modifiers: 64'u32,
+            command: "focus-left",
+          )
+        ]
       )
     )
     daemon.runtimeState.model.activeModifiers = 64'u32
@@ -675,14 +703,13 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
-        gestureBindings:
-          @[
-            GestureBindingConfig(
-              direction: GestureBindingDirection.GestureSwipeLeft,
-              fingers: 3,
-              command: "focus-left",
-            )
-          ]
+        gestureBindings: @[
+          GestureBindingConfig(
+            direction: GestureBindingDirection.GestureSwipeLeft,
+            fingers: 3,
+            command: "focus-left",
+          )
+        ]
       )
     )
 
@@ -701,12 +728,9 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
-        switchEvents:
-          @[
-            SwitchEventConfig(
-              kind: SwitchEventKind.SwitchLidOpen, command: "focus-right"
-            )
-          ]
+        switchEvents: @[
+          SwitchEventConfig(kind: SwitchEventKind.SwitchLidOpen, command: "focus-right")
+        ]
       )
     )
     daemon.runtimeState.model.sessionLocked = true
@@ -730,12 +754,11 @@ suite "Crash hardening":
     var daemon = initTriadDaemon()
     daemon.runtimeState = initRuntimeStateFromConfig(
       Config(
-        switchEvents:
-          @[
-            SwitchEventConfig(
-              kind: SwitchEventKind.SwitchLidClose, command: "lock-session"
-            )
-          ]
+        switchEvents: @[
+          SwitchEventConfig(
+            kind: SwitchEventKind.SwitchLidClose, command: "lock-session"
+          )
+        ]
       )
     )
 
@@ -1116,21 +1139,19 @@ suite "Crash hardening":
     check observedCaptureSessionCommand == @["notify-send", "sharing stopped"]
 
   test "River v5 capture session hook env includes state":
-    let captureSessions =
-      %*{
-        "active": true,
-        "window_total": 2,
-        "output_total": 1,
-        "windows": [{"id": 11, "count": 2}],
-        "outputs": [{"id": 21, "count": 1}],
-      }
+    let captureSessions = %*{
+      "active": true,
+      "window_total": 2,
+      "output_total": 1,
+      "windows": [{"id": 11, "count": 2}],
+      "outputs": [{"id": 21, "count": 1}],
+    }
     let env = captureSessionHookEnv(
       Model(
-        environment:
-          @[
-            EnvironmentEntryConfig(name: "TRIAD_CAPTURE_ACTIVE", value: "stale"),
-            EnvironmentEntryConfig(name: "CUSTOM_CAPTURE_HOOK_ENV", value: "keep"),
-          ]
+        environment: @[
+          EnvironmentEntryConfig(name: "TRIAD_CAPTURE_ACTIVE", value: "stale"),
+          EnvironmentEntryConfig(name: "CUSTOM_CAPTURE_HOOK_ENV", value: "keep"),
+        ]
       ),
       CaptureSessionEvent.CaptureSessionStarted,
       captureSessions,
@@ -1305,27 +1326,26 @@ config-notification {
 
   test "Niri overview fallback keys preserve user overview bindings":
     var model = initRuntimeStateFromConfig(Config()).model
-    model.keyBindings =
-      @[
-        KeyBindingConfig(
-          key: "Enter",
-          modifiers: 0'u32,
-          command: "custom-enter",
-          mode: BindingMode.BindAlways,
-        ),
-        KeyBindingConfig(
-          key: "Left",
-          modifiers: 0'u32,
-          command: "custom-left",
-          mode: BindingMode.BindOverview,
-        ),
-        KeyBindingConfig(
-          key: "Right",
-          modifiers: 0'u32,
-          command: "normal-right",
-          mode: BindingMode.BindNormal,
-        ),
-      ]
+    model.keyBindings = @[
+      KeyBindingConfig(
+        key: "Enter",
+        modifiers: 0'u32,
+        command: "custom-enter",
+        mode: BindingMode.BindAlways,
+      ),
+      KeyBindingConfig(
+        key: "Left",
+        modifiers: 0'u32,
+        command: "custom-left",
+        mode: BindingMode.BindOverview,
+      ),
+      KeyBindingConfig(
+        key: "Right",
+        modifiers: 0'u32,
+        command: "normal-right",
+        mode: BindingMode.BindNormal,
+      ),
+    ]
 
     let fallbacks = model.overviewFallbackKeyBindings()
 
@@ -1339,33 +1359,29 @@ config-notification {
 
   test "Niri overview fallback keys derive user direction keys":
     var model = initRuntimeStateFromConfig(Config()).model
-    model.keyBindings =
-      @[
-        KeyBindingConfig(
-          key: "h",
-          modifiers: 64'u32,
-          command: "focus-left",
-          mode: BindingMode.BindAlways,
-        ),
-        KeyBindingConfig(
-          key: "l",
-          modifiers: 64'u32,
-          command: "focus-right",
-          mode: BindingMode.BindNormal,
-        ),
-        KeyBindingConfig(
-          key: "j",
-          modifiers: 64'u32,
-          command: "focus-window-or-workspace-down",
-          mode: BindingMode.BindNormal,
-        ),
-        KeyBindingConfig(
-          key: "k",
-          modifiers: 64'u32,
-          command: "focus-window-or-workspace-up",
-          mode: BindingMode.BindOverview,
-        ),
-      ]
+    model.keyBindings = @[
+      KeyBindingConfig(
+        key: "h", modifiers: 64'u32, command: "focus-left", mode: BindingMode.BindAlways
+      ),
+      KeyBindingConfig(
+        key: "l",
+        modifiers: 64'u32,
+        command: "focus-right",
+        mode: BindingMode.BindNormal,
+      ),
+      KeyBindingConfig(
+        key: "j",
+        modifiers: 64'u32,
+        command: "focus-window-or-workspace-down",
+        mode: BindingMode.BindNormal,
+      ),
+      KeyBindingConfig(
+        key: "k",
+        modifiers: 64'u32,
+        command: "focus-window-or-workspace-up",
+        mode: BindingMode.BindOverview,
+      ),
+    ]
 
     let fallbacks = model.overviewFallbackKeyBindings()
 
@@ -1429,36 +1445,29 @@ config-notification {
   test "Niri recent fallback keys derive user direction keys":
     var model = initRuntimeStateFromConfig(Config()).model
     discard model.setActiveModifiers(8'u32)
-    model.keyBindings =
-      @[
-        KeyBindingConfig(
-          key: "h",
-          modifiers: 64'u32,
-          command: "focus-left",
-          mode: BindingMode.BindAlways,
-        ),
-        KeyBindingConfig(
-          key: "l",
-          modifiers: 64'u32,
-          command: "focus-right",
-          mode: BindingMode.BindNormal,
-        ),
-        KeyBindingConfig(
-          key: "j",
-          modifiers: 64'u32,
-          command: "focus-down",
-          mode: BindingMode.BindAlways,
-        ),
-        KeyBindingConfig(
-          key: "k", modifiers: 64'u32, command: "focus-up", mode: BindingMode.BindAlways
-        ),
-        KeyBindingConfig(
-          key: "Left",
-          modifiers: 8'u32,
-          command: "focus-left",
-          mode: BindingMode.BindAlways,
-        ),
-      ]
+    model.keyBindings = @[
+      KeyBindingConfig(
+        key: "h", modifiers: 64'u32, command: "focus-left", mode: BindingMode.BindAlways
+      ),
+      KeyBindingConfig(
+        key: "l",
+        modifiers: 64'u32,
+        command: "focus-right",
+        mode: BindingMode.BindNormal,
+      ),
+      KeyBindingConfig(
+        key: "j", modifiers: 64'u32, command: "focus-down", mode: BindingMode.BindAlways
+      ),
+      KeyBindingConfig(
+        key: "k", modifiers: 64'u32, command: "focus-up", mode: BindingMode.BindAlways
+      ),
+      KeyBindingConfig(
+        key: "Left",
+        modifiers: 8'u32,
+        command: "focus-left",
+        mode: BindingMode.BindAlways,
+      ),
+    ]
 
     let fallbacks = model.recentOpenFallbackKeyBindings()
 
@@ -1573,16 +1582,15 @@ config-notification {
   test "explicit rule max bounds still cap tiled proposals":
     var model = initRuntimeStateFromConfig(
       Config(
-        windowRules:
-          @[
-            WindowRule(
-              appIdMatch: "bounded",
-              maxWidthSet: true,
-              maxWidth: 300,
-              maxHeightSet: true,
-              maxHeight: 400,
-            )
-          ]
+        windowRules: @[
+          WindowRule(
+            appIdMatch: "bounded",
+            maxWidthSet: true,
+            maxWidth: 300,
+            maxHeightSet: true,
+            maxHeight: 400,
+          )
+        ]
       )
     ).model
     (model, _) = model.update(
@@ -1605,26 +1613,25 @@ config-notification {
   test "window rule tiled-state controls River tiled edges":
     var model = initRuntimeStateFromConfig(
       Config(
-        windowRules:
-          @[
-            WindowRule(
-              matches: @[WindowRuleMatcher(appIdSet: true, appId: "^float-default$")],
-              openFloatingSet: true,
-              openFloating: true,
-            ),
-            WindowRule(
-              matches: @[WindowRuleMatcher(appIdSet: true, appId: "^force-tiled$")],
-              openFloatingSet: true,
-              openFloating: true,
-              tiledStateSet: true,
-              tiledState: true,
-            ),
-            WindowRule(
-              matches: @[WindowRuleMatcher(appIdSet: true, appId: "^force-untiled$")],
-              tiledStateSet: true,
-              tiledState: false,
-            ),
-          ]
+        windowRules: @[
+          WindowRule(
+            matches: @[WindowRuleMatcher(appIdSet: true, appId: "^float-default$")],
+            openFloatingSet: true,
+            openFloating: true,
+          ),
+          WindowRule(
+            matches: @[WindowRuleMatcher(appIdSet: true, appId: "^force-tiled$")],
+            openFloatingSet: true,
+            openFloating: true,
+            tiledStateSet: true,
+            tiledState: true,
+          ),
+          WindowRule(
+            matches: @[WindowRuleMatcher(appIdSet: true, appId: "^force-untiled$")],
+            tiledStateSet: true,
+            tiledState: false,
+          ),
+        ]
       )
     ).model
 

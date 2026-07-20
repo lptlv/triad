@@ -292,6 +292,8 @@ type
 
   OutputRule* = object
     target*: string
+    mirrorSet*: bool
+    mirrorSource*: string
     focusAtStartup*: bool
     workspaceSlots*: seq[uint32]
     modeSet*: bool
