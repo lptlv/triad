@@ -609,7 +609,7 @@ const RiverProtocolCoverage* = [
   ProtocolCoverageEntry(
     event: "river_window_v1.capture_sessions",
     state: ProtocolCoverageState.pcsImplemented,
-    note: "Tracked daemon-locally for diagnostics and future policy.",
+    note: "Tracks window capture counts for IPC, state events, and transition hooks.",
   ),
   ProtocolCoverageEntry(
     event: "river_output_v1.removed",
@@ -634,7 +634,7 @@ const RiverProtocolCoverage* = [
   ProtocolCoverageEntry(
     event: "river_output_v1.capture_sessions",
     state: ProtocolCoverageState.pcsImplemented,
-    note: "Tracked daemon-locally for diagnostics and future policy.",
+    note: "Tracks output capture counts for IPC, state events, and transition hooks.",
   ),
   ProtocolCoverageEntry(
     event: "river_seat_v1.removed",
