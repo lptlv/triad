@@ -168,19 +168,22 @@ output {
 
 #### Output mirroring limitation
 
-Triad does not currently support true output mirroring on stock River. River
-exposes each physical display as a separate logical output and does not yet
-provide a protocol request for cloning one logical output to another.
+Native output mirroring is blocked by stock River. River currently exposes each
+physical display as a separate logical output and advertises no public protocol
+request that lets Triad clone one logical desktop onto another display. The
+`mirror "SOURCE"` output field is reserved for a future native implementation;
+do not rely on it as a supported monitor configuration on River today.
 
-Triad's screencopy presentation prototype is not equivalent to mirroring: the
-target remains an independent desktop, pointer coordinates are not shared,
-layer-shell components such as bars and docks are composed separately, and
-different source/target aspect ratios require cropping, stretching, or black
-bars. It is therefore not documented as a supported monitor configuration.
+Triad's existing screencopy presentation prototype is not native mirroring. The
+target remains an independent desktop, pointer coordinates are not shared, and
+River composes cursor, layer-shell, and session-lock content independently for
+the two outputs. Any prototype behavior is unsupported and must not be used as
+evidence that River or Triad provides output cloning.
 
-Native mirroring is tracked on the [future roadmap](todo.md#native-output-mirroring).
-It should be implemented only when stock River exposes compositor-level output
-cloning; Triad will not maintain a River fork for this feature.
+The [native mirroring roadmap](todo.md#native-output-mirroring) records the
+required River semantics, upstream issue findings, and the public protocol path
+Triad can implement once an unmodified River release advertises it. Triad will
+not maintain a River fork or require users to install a private River build.
 
 ## Window Rules
 Window rules define behavior based on identity or state.
