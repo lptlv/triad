@@ -32,7 +32,6 @@
 
             src = lib.cleanSource ./.;
             lockFile = ./nix/triad-nim-lock.json;
-            requiredNimVersion = 2;
 
             nativeBuildInputs = [ pkgs.pkg-config ];
             buildInputs = [
