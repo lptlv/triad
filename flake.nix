@@ -3,12 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-    dank-material-shell = {
-      url = "github:AvengeMedia/DankMaterialShell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
   };
 
   outputs =
@@ -70,8 +64,6 @@
             };
           };
 
-          dankShell = inputs.dank-material-shell.packages.${system}.dms-shell;
-
           sessionRuntimePackages = [
             triad
             pkgs.river
@@ -81,18 +73,8 @@
             pkgs.xdg-desktop-portal
             pkgs.xdg-desktop-portal-wlr
             pkgs.xdg-desktop-portal-gtk
-            pkgs.grim
-            pkgs.slurp
-            pkgs.wl-clipboard
-            pkgs.kitty
-            pkgs.fuzzel
             pkgs.wtype
-            pkgs.waybar
-            pkgs.swaylock
-            pkgs.gtklock
             pkgs.sunsetr
-            pkgs.noctalia-shell
-            dankShell
             pkgs.janet
             pkgs.jq
             pkgs.procps
