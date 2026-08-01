@@ -267,6 +267,20 @@
 
           dontUnpack = true;
 
+          installPhase = ''
+            install -Dm755 ${riverTriadSession}/bin/river-triad-session \
+              $out/bin/river-triad-session
+
+            install -Dm755 ${managerLoop}/bin/triad-manager-loop \
+              $out/bin/triad-manager-loop
+
+            install -Dm644 ${desktopFile} \
+              $out/share/wayland-sessions/river-triad.desktop
+
+            install -Dm644 ${./config.default.kdl} \
+              $out/share/triad/config.default.kdl
+          '';
+
           providedSessions = [ "river" ];
         };
 
