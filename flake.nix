@@ -261,16 +261,18 @@
             DesktopNames=river
           '';
 
-          triadSession = pkgs.runCommand "triad-session-${triad.version}" { } ''
-            install -Dm755 ${riverTriadSession}/bin/river-triad-session \
-              $out/bin/river-triad-session
-            install -Dm755 ${managerLoop}/bin/triad-manager-loop \
-              $out/bin/triad-manager-loop
-            install -Dm644 ${desktopFile} \
-              $out/share/wayland-sessions/river-triad.desktop
-            install -Dm644 ${./config.default.kdl} \
-              $out/share/triad/config.default.kdl
+          triadSession = pkgs.stdenvNoCC.mkDerivation {
+          pname = "triad-session";
+          version = triad.version;
+
+          dontUnpack = true;
+
+          installPhase = ''
+            ...
           '';
+
+          providedSessions = [ "river" ];
+        };
 
         in
         {
