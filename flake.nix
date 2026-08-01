@@ -9,7 +9,6 @@
     inputs@{
       self,
       nixpkgs,
-      stdenvNoCC,
       ...
     }:
     let
@@ -267,10 +266,6 @@
           version = triad.version;
 
           dontUnpack = true;
-
-          installPhase = ''
-            ...
-          '';
 
           providedSessions = [ "river" ];
         };
