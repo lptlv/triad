@@ -9,6 +9,7 @@
     inputs@{
       self,
       nixpkgs,
+      stdenvNoCC,
       ...
     }:
     let
