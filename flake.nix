@@ -281,7 +281,7 @@
               $out/share/triad/config.default.kdl
           '';
 
-          providedSessions = [ "river" ];
+          providedSessions = [ "river-triad" ];
         };
 
         in
